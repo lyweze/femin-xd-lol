@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: femin
+      POSTGRES_PASSWORD: femin
+      POSTGRES_DB: femin
+    ports:
+      - "5432:5432"
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+    depends_on:
+      - postgres
+    volumes:
+      - ../app/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgres://femin:femin@postgres:5432/femin?sslmode=disable", "up"]
+    restart: on-failure
