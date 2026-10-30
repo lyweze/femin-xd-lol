@@ -1,4 +1,4 @@
-.PHONY: build run test lint up down
+.PHONY: build run test lint up down admin-create
 
 build:
 	go build -o bin/femin ./main.go
@@ -17,3 +17,6 @@ up:
 
 down:
 	docker compose -f build/local/docker-compose.yml down
+
+admin-create:
+	set -a && . build/local/.env && set +a && go run ./main.go admin create --email "$(EMAIL)" --username "$(USERNAME)"
