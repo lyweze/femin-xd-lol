@@ -20,6 +20,8 @@ type User struct {
 	username opt.Optional[string]
 	role     opt.Optional[UserRole]
 
+	passwordHash opt.Optional[string]
+
 	createdAt opt.Optional[time.Time]
 	updatedAt opt.Optional[time.Time]
 }
@@ -56,6 +58,14 @@ func (u *User) Role() UserRole {
 
 func (u *User) SetRole(role UserRole) {
 	u.role = opt.New(role)
+}
+
+func (u *User) PasswordHash() string {
+	return u.passwordHash.MustGet()
+}
+
+func (u *User) SetPasswordHash(passwordHash string) {
+	u.passwordHash = opt.New(passwordHash)
 }
 
 func (u *User) CreatedAt() time.Time {

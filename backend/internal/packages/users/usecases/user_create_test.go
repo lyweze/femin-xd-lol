@@ -16,6 +16,7 @@ import (
 type fakeRepo struct {
 	emails map[string]struct{}
 	last   dto.CreateUserCommand
+	users  []*models.User
 }
 
 func (r *fakeRepo) CreateUser(_ context.Context, cmd dto.CreateUserCommand) (dto.CreateUserResult, error) {
@@ -32,8 +33,73 @@ func (r *fakeRepo) CreateUser(_ context.Context, cmd dto.CreateUserCommand) (dto
 	user.SetRole(cmd.Role)
 	user.SetCreatedAt(cmd.CreatedAt)
 	user.SetUpdatedAt(cmd.UpdatedAt)
+	user.SetPasswordHash(cmd.PasswordHash)
+
+	r.users = append(r.users, user)
 
 	return dto.CreateUserResult{Result: user}, nil
+}
+
+func (r *fakeRepo) GetUser(_ context.Context, q dto.GetUserQuery) (dto.GetUserResult, error) {
+	for _, user := range r.users {
+		if user.ID() == q.ID {
+			return dto.GetUserResult{Result: user}, nil
+		}
+	}
+
+	return dto.GetUserResult{}, usecases.ErrUserNotFound
+}
+
+func (r *fakeRepo) GetUserByEmail(_ context.Context, q dto.GetUserByEmailQuery) (dto.GetUserByEmailResult, error) {
+	for _, user := range r.users {
+		if user.Email() == q.Email {
+			return dto.GetUserByEmailResult{Result: user}, nil
+		}
+	}
+
+	return dto.GetUserByEmailResult{}, usecases.ErrUserNotFound
+}
+
+func (r *fakeRepo) ListUsers(_ context.Context, q dto.ListUsersQuery) (dto.ListUsersResult, error) {
+	items := make([]*models.User, 0, len(r.users))
+
+	for _, user := range r.users {
+		if q.AfterID != nil && user.ID().String() >= q.AfterID.String() {
+			continue
+		}
+
+		items = append(items, user)
+	}
+
+	if len(items) > q.Limit {
+		items = items[:q.Limit]
+	}
+
+	return dto.ListUsersResult{Items: items}, nil
+}
+
+func (r *fakeRepo) UpdateUserRole(_ context.Context, cmd dto.UpdateUserRoleCommand) (dto.UpdateUserRoleResult, error) {
+	for _, user := range r.users {
+		if user.ID() == cmd.ID {
+			user.SetRole(cmd.Role)
+
+			return dto.UpdateUserRoleResult{Result: user}, nil
+		}
+	}
+
+	return dto.UpdateUserRoleResult{}, usecases.ErrUserNotFound
+}
+
+func (r *fakeRepo) LockAdmins(_ context.Context) (dto.LockAdminsResult, error) {
+	ids := make([]uuid.UUID, 0, len(r.users))
+
+	for _, user := range r.users {
+		if user.Role() == models.UserRoleAdmin {
+			ids = append(ids, user.ID())
+		}
+	}
+
+	return dto.LockAdminsResult{IDs: ids}, nil
 }
 
 type fakeRepoHandler struct {
@@ -63,7 +129,9 @@ type fakeHasher struct{}
 
 func (fakeHasher) Hash(password string) (string, error) { return "hashed:" + password, nil }
 
-func newUsecases(repo *fakeRepo, id uuid.UUID, now time.Time) *usecases.Usecases {
+func (fakeHasher) Verify(password, hash string) (bool, error) { return hash == "hashed:"+password, nil }
+
+func newUsecases(repo *fakeRepo, id uuid.UUID, now time.Time) *usecases.UsersUsecases {
 	return usecases.New(&usecases.NewArgs{
 		RepoHandler:    &fakeRepoHandler{repo: repo},
 		TimeProvider:   fixedTime{t: now},

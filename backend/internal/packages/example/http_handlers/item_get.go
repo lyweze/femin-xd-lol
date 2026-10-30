@@ -13,7 +13,7 @@ type getItemReply struct {
 	Item itemReply `json:"item"`
 }
 
-func (h *HttpHandlers) GetItem(w http.ResponseWriter, r *http.Request) {
+func (h *ExampleHttpHandlers) GetItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	log := h.logger.With(zap.String(handlerLogKey, "GetItem"))

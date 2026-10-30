@@ -22,7 +22,7 @@ type Repo interface {
 	CreateItem(ctx context.Context, cmd dto.CreateItemCommand) (dto.CreateItemResult, error)
 }
 
-type Usecases struct {
+type ExampleUsecases struct {
 	repoHandler  interfaces.RepoHandler[Repo]
 	timeProvider TimeProvider
 	uuidProvider UUIDProvider
@@ -34,8 +34,8 @@ type NewArgs struct {
 	UUIDProvider UUIDProvider
 }
 
-func New(args *NewArgs) *Usecases {
-	return &Usecases{
+func New(args *NewArgs) *ExampleUsecases {
+	return &ExampleUsecases{
 		repoHandler:  args.RepoHandler,
 		timeProvider: args.TimeProvider,
 		uuidProvider: args.UUIDProvider,

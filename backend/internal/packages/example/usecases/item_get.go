@@ -26,7 +26,7 @@ type GetItemOut struct {
 	Item view_models.Item
 }
 
-func (u *Usecases) GetItem(ctx context.Context, in GetItemIn) (GetItemOut, error) {
+func (u *ExampleUsecases) GetItem(ctx context.Context, in GetItemIn) (GetItemOut, error) {
 	if err := in.Validate(); err != nil {
 		return GetItemOut{}, errors.Join(ErrValidation, err)
 	}

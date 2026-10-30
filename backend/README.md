@@ -12,6 +12,7 @@ internal/
   config/                        конфиг из env (префикс FEMIN_)
   di/                            базовые провайдеры: config, logger, shutdown
   db/                            pgxpool master/replica
+  valkey/                        клиент Valkey
   debugserver/                   /alive, /ready
   httpserver/                    HTTP-сервер + фасад, собирающий роуты всех пакетов
   entities/                      структуры таблиц БД (db-теги, имена колонок)
@@ -21,7 +22,9 @@ internal/
       repositories/              реализация RepoHandler на pgx
       time_provider/             реализация TimeProvider
       uuid_provider/             реализация UUIDProvider
-    users/                       пользователи и роли, тот же набор слоёв + password_hasher (argon2id)
+      requestctx/                сессия и IP клиента в контексте запроса
+    users/                       пользователи и роли, тот же набор слоёв + password_hasher (argon2id), admin_handlers
+    auth/                        вход, сессии в Valkey (sessions), лимит попыток (rate_limiter), middleware
     example/                     доменный пакет (заглушка, переименовать под себя)
       example.go                 Provide/Invoke — wiring пакета в DI
       http_handlers/             транспорт: HTTP <-> usecases.*In/*Out
@@ -31,9 +34,11 @@ internal/
       models/                    доменные модели (приватные поля + геттеры/сеттеры)
       view_models/               то, что usecase отдаёт наружу
 pkg/                             переиспользуемые утилиты без доменной логики
+gen/                             код из OpenAPI (make gen), руками не менять
 docs/openapi/
   swagger.yaml                   контракт плеера (/api/v1)
   swagger-admin-v1.yaml          контракт админки (/admin/v1), нужна роль admin
+  codegen/                       настройки генерации, включённые теги
 build/
   app/Dockerfile
   app/migrations/                golang-migrate
@@ -67,7 +72,21 @@ make admin-create EMAIL=admin@example.com USERNAME=admin
 
 Следующих администраторов добавляют из админки: `AdminCreateUser` и `AdminSetUserRole` в `docs/openapi/swagger-admin-v1.yaml`.
 
+## Авторизация
+
+Сессия это случайный токен в HttpOnly cookie `femin_session`, в Valkey лежит его sha256 и `user_id`. Живёт 90 дней (`FEMIN_SESSION_TTL`), срок не продлевается.
+
+Все маршруты закрыты по умолчанию. Публичны только те, что перечислены в `publicRoutes` в `internal/httpserver/handlers.go`. Роль администратора проверяется по Postgres на каждый запрос, поэтому снятие роли действует сразу.
+
+За reverse proxy задай `FEMIN_HTTP_SERVER_CLIENT_IP_HEADER`, иначе лимит по IP будет один на всех. Только если прокси сам перезаписывает этот заголовок.
+
+## Контракт и генерация
+
+`make gen` пересобирает `gen/` из `docs/openapi`. Новый тег подключается в `docs/openapi/codegen/*.yaml`, его методы становятся обязательными: хендлеры встраиваются в `publicHandlers` или `adminHandlers` в `internal/httpserver/handlers.go`.
+
 ## Новый домен
+
+Имена типов в DI должны быть уникальны на весь проект: `samber/do` различает сервисы по короткому имени без пакета, поэтому `usecases.ExampleUsecases`, а не `usecases.Usecases`. Конфликт ловит `TestProvideServeHasNoDuplicateServices`.
 
 1. Скопировать `internal/packages/example` в `internal/packages/<name>`.
 2. Добавить entity в `internal/entities` и миграцию в `build/app/migrations`.

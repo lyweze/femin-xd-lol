@@ -18,7 +18,7 @@ type createItemReply struct {
 	Item itemReply `json:"item"`
 }
 
-func (h *HttpHandlers) CreateItem(w http.ResponseWriter, r *http.Request) {
+func (h *ExampleHttpHandlers) CreateItem(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	log := h.logger.With(zap.String(handlerLogKey, "CreateItem"))

@@ -41,7 +41,7 @@ type CreateUserOut struct {
 	User view_models.User
 }
 
-func (u *Usecases) CreateUser(ctx context.Context, in CreateUserIn) (CreateUserOut, error) {
+func (u *UsersUsecases) CreateUser(ctx context.Context, in CreateUserIn) (CreateUserOut, error) {
 	in.Email = strings.TrimSpace(in.Email)
 	in.Username = strings.TrimSpace(in.Username)
 

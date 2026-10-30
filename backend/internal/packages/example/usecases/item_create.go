@@ -31,7 +31,7 @@ type CreateItemOut struct {
 	Item view_models.Item
 }
 
-func (u *Usecases) CreateItem(ctx context.Context, in CreateItemIn) (CreateItemOut, error) {
+func (u *ExampleUsecases) CreateItem(ctx context.Context, in CreateItemIn) (CreateItemOut, error) {
 	if err := in.Validate(); err != nil {
 		return CreateItemOut{}, errors.Join(ErrValidation, err)
 	}

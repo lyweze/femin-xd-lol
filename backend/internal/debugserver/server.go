@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const readyTimeout = 3 * time.Second
+
 type HealthChecker func(ctx context.Context) error
 
 type NewArgs struct {
@@ -28,11 +30,14 @@ func New(args *NewArgs) *Server {
 	})
 
 	mux.HandleFunc("GET /ready", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), readyTimeout)
+		defer cancel()
+
 		status := http.StatusOK
 		res := make(map[string]string, len(args.HealthChecks))
 
 		for name, check := range args.HealthChecks {
-			if err := check(r.Context()); err != nil {
+			if err := check(ctx); err != nil {
 				status = http.StatusInternalServerError
 				res[name] = err.Error()
 
