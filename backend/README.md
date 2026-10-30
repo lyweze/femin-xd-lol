@@ -1,12 +1,13 @@
 # femin backend
 
-Каркас по слоям, как в offer-storage / promoter-v2.
+Каркас по слоям.
 
 ```
 main.go                          точка входа (cobra)
 cmd/
   root.go                        корневая команда
   commands/serve.go              `femin serve`: собирает DI-контейнер, стартует серверы, graceful shutdown
+  commands/admin.go              `femin admin create`: создаёт администратора
 internal/
   config/                        конфиг из env (префикс FEMIN_)
   di/                            базовые провайдеры: config, logger, shutdown
@@ -18,6 +19,9 @@ internal/
     common/
       interfaces/                RepoHandler — транзакции без знания о pgx
       repositories/              реализация RepoHandler на pgx
+      time_provider/             реализация TimeProvider
+      uuid_provider/             реализация UUIDProvider
+    users/                       пользователи и роли, тот же набор слоёв + password_hasher (argon2id)
     example/                     доменный пакет (заглушка, переименовать под себя)
       example.go                 Provide/Invoke — wiring пакета в DI
       http_handlers/             транспорт: HTTP <-> usecases.*In/*Out
@@ -26,9 +30,10 @@ internal/
       dto/                       Query/Command/Result — контракт usecases <-> repo
       models/                    доменные модели (приватные поля + геттеры/сеттеры)
       view_models/               то, что usecase отдаёт наружу
-      time_provider/             реализация TimeProvider
-      uuid_provider/             реализация UUIDProvider
 pkg/                             переиспользуемые утилиты без доменной логики
+docs/openapi/
+  swagger.yaml                   контракт плеера (/api/v1)
+  swagger-admin-v1.yaml          контракт админки (/admin/v1), нужна роль admin
 build/
   app/Dockerfile
   app/migrations/                golang-migrate
@@ -51,6 +56,16 @@ curl -X POST localhost:8000/api/v1/items -d '{"title":"xd","description":"lol"}'
 curl localhost:8000/api/v1/items/<id>
 curl localhost:8001/ready
 ```
+
+## Первый администратор
+
+Без него в админку некому войти. Пароль спрашивается в терминале или читается из stdin, флага для него нет намеренно.
+
+```bash
+make admin-create EMAIL=admin@example.com USERNAME=admin
+```
+
+Следующих администраторов добавляют из админки: `AdminCreateUser` и `AdminSetUserRole` в `docs/openapi/swagger-admin-v1.yaml`.
 
 ## Новый домен
 

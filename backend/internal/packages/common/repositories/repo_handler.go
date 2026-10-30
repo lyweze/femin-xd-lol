@@ -17,66 +17,52 @@ type DBTX interface {
 	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
 }
 
-type RepoHandler[R any, O any] struct {
+type RepoHandler[R any] struct {
 	rw *pgxpool.Pool
 	ro *pgxpool.Pool
 
 	factory func(DBTX) R
-
-	outboxFactory func(pgx.Tx) O
 }
 
-func (r *RepoHandler[R, O]) WithTxRW(ctx context.Context, fn func(repo R, outbox O) error) error {
-	tx, err := r.rw.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	defer tx.Rollback(ctx) //nolint:errcheck
-
-	if err := fn(r.factory(tx), r.outboxFactory(tx)); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return nil
+func (r *RepoHandler[R]) WithTxRW(ctx context.Context, fn func(repo R) error) error {
+	return withTx(ctx, r.rw, r.factory, fn)
 }
 
-func (r *RepoHandler[R, O]) WithTxRO(ctx context.Context, fn func(repo R) error) error {
-	tx, err := r.ro.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	defer tx.Rollback(ctx) //nolint:errcheck
-
-	if err := fn(r.factory(tx)); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	return nil
+func (r *RepoHandler[R]) WithTxRO(ctx context.Context, fn func(repo R) error) error {
+	return withTx(ctx, r.ro, r.factory, fn)
 }
 
-func (r *RepoHandler[R, O]) GetRepoRO() R {
+func (r *RepoHandler[R]) GetRepoRO() R {
 	return r.factory(r.ro)
 }
 
-func (r *RepoHandler[R, O]) GetRepoRW() R {
+func (r *RepoHandler[R]) GetRepoRW() R {
 	return r.factory(r.rw)
 }
 
-func NewRepoHandler[R any, O any](rw, ro *pgxpool.Pool, factory func(DBTX) R, outboxFactory func(pgx.Tx) O) *RepoHandler[R, O] {
-	return &RepoHandler[R, O]{
-		rw:            rw,
-		ro:            ro,
-		factory:       factory,
-		outboxFactory: outboxFactory,
+func NewRepoHandler[R any](rw, ro *pgxpool.Pool, factory func(DBTX) R) *RepoHandler[R] {
+	return &RepoHandler[R]{
+		rw:      rw,
+		ro:      ro,
+		factory: factory,
 	}
+}
+
+func withTx[R any](ctx context.Context, pool *pgxpool.Pool, factory func(DBTX) R, fn func(repo R) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if err := fn(factory(tx)); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }

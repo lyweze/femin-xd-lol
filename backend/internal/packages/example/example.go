@@ -1,15 +1,14 @@
 package example
 
 import (
-	"github.com/jackc/pgx/v5"
 	"github.com/lyweze/femin-xd-lol/backend/internal/db"
 	"github.com/lyweze/femin-xd-lol/backend/internal/di"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/repositories"
+	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/time_provider"
+	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/uuid_provider"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/example/http_handlers"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/example/repo"
-	"github.com/lyweze/femin-xd-lol/backend/internal/packages/example/time_provider"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/example/usecases"
-	"github.com/lyweze/femin-xd-lol/backend/internal/packages/example/uuid_provider"
 	"github.com/samber/do"
 )
 
@@ -34,9 +33,6 @@ func Provide(i *do.Injector) {
 				db.InvokeReplica(i),
 				func(dbtx repositories.DBTX) usecases.Repo {
 					return repo.NewPgxRepo(dbtx)
-				},
-				func(_ pgx.Tx) usecases.Outbox {
-					return nil
 				},
 			),
 		}), nil

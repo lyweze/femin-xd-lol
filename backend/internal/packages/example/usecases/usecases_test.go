@@ -42,8 +42,8 @@ type fakeRepoHandler struct {
 	repo *fakeRepo
 }
 
-func (h *fakeRepoHandler) WithTxRW(_ context.Context, fn func(usecases.Repo, usecases.Outbox) error) error {
-	return fn(h.repo, nil)
+func (h *fakeRepoHandler) WithTxRW(_ context.Context, fn func(usecases.Repo) error) error {
+	return fn(h.repo)
 }
 
 func (h *fakeRepoHandler) WithTxRO(_ context.Context, fn func(usecases.Repo) error) error {
