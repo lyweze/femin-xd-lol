@@ -1,0 +1,1604 @@
+openapi: 3.0.3
+info:
+  title: Femin. Admin API
+  description: >-
+    API админки: артисты, альбомы, загрузка треков и тексты песен.
+
+
+    Вход общий с плеером: `POST /api/v1/auth/login`, та же cookie
+    `femin_session`. Все методы требуют роль `admin`, иначе `403`.
+
+
+    Как появляется релиз:
+
+    1. `CreateArtist`, если артиста ещё нет.
+
+    2. `CreateAlbum` и `UploadAlbumCover`.
+
+    3. `CreateTrack` на каждый трек, статус `draft`.
+
+    4. `UploadTrackAudio`, статус `processing`. Worker обрабатывает файл и
+    переводит трек в `ready` или `failed`.
+
+    5. `PutTrackLyrics`, если есть текст.
+
+    6. `PublishAlbum`, альбом и его готовые треки появляются в плеере.
+  version: '1.0'
+  contact: {}
+servers:
+  - url: /
+tags:
+  - name: artists
+    description: Управление артистами
+  - name: albums
+    description: Управление альбомами и публикация
+  - name: tracks
+    description: Управление треками и загрузка аудио
+  - name: lyrics
+    description: Управление текстами песен
+  - name: users
+    description: Пользователи и администраторы
+security:
+  - sessionCookie: []
+paths:
+  /admin/v1/artists:
+    get:
+      tags:
+        - artists
+      operationId: AdminListArtists
+      summary: Список артистов
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница артистов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminListArtists200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - artists
+      operationId: AdminCreateArtist
+      summary: Создать артиста
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateArtistRequest'
+      responses:
+        '201':
+          description: Артист создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArtistReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/artists/{artist_id}:
+    get:
+      tags:
+        - artists
+      operationId: AdminGetArtist
+      summary: Получить артиста
+      parameters:
+        - $ref: '#/components/parameters/ArtistId'
+      responses:
+        '200':
+          description: Артист
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArtistReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags:
+        - artists
+      operationId: AdminUpdateArtist
+      summary: Изменить артиста
+      description: Меняются только переданные поля
+      parameters:
+        - $ref: '#/components/parameters/ArtistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdateArtistRequest'
+      responses:
+        '200':
+          description: Артист обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArtistReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - artists
+      operationId: AdminDeleteArtist
+      summary: Удалить артиста
+      description: Мягкое удаление. Пока у артиста есть альбомы, вернёт `409`
+      parameters:
+        - $ref: '#/components/parameters/ArtistId'
+      responses:
+        '204':
+          description: Артист удалён
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/artists/{artist_id}/avatar:
+    put:
+      tags:
+        - artists
+      operationId: AdminUploadArtistAvatar
+      summary: Загрузить аватар артиста
+      parameters:
+        - $ref: '#/components/parameters/ArtistId'
+      requestBody:
+        required: true
+        description: Файл в формате JPEG, PNG или WebP, остальные получают `415`
+        content:
+          image/*:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Аватар загружен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArtistReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLargeError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/v1/albums:
+    get:
+      tags:
+        - albums
+      operationId: AdminListAlbums
+      summary: Список альбомов
+      description: Включает черновики и снятые с публикации
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - name: artist_id
+          in: query
+          required: false
+          description: Только альбомы этого артиста
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница альбомов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminListAlbums200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - albums
+      operationId: AdminCreateAlbum
+      summary: Создать альбом
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateAlbumRequest'
+      responses:
+        '201':
+          description: Альбом создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAlbumReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/albums/{album_id}:
+    get:
+      tags:
+        - albums
+      operationId: AdminGetAlbum
+      summary: Получить альбом с треками
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      responses:
+        '200':
+          description: Альбом и все его треки в любом статусе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGetAlbum200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags:
+        - albums
+      operationId: AdminUpdateAlbum
+      summary: Изменить альбом
+      description: Меняются только переданные поля
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdateAlbumRequest'
+      responses:
+        '200':
+          description: Альбом обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAlbumReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - albums
+      operationId: AdminDeleteAlbum
+      summary: Удалить альбом
+      description: Мягкое удаление вместе с треками. Лайки при этом сохраняются
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      responses:
+        '204':
+          description: Альбом удалён
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/albums/{album_id}/cover:
+    put:
+      tags:
+        - albums
+      operationId: AdminUploadAlbumCover
+      summary: Загрузить обложку
+      description: Сервер сам нарезает размеры 96, 300 и 640 px
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      requestBody:
+        required: true
+        description: Файл в формате JPEG, PNG или WebP, остальные получают `415`
+        content:
+          image/*:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Обложка загружена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAlbumReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLargeError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/albums/{album_id}/track-order:
+    put:
+      tags:
+        - albums
+      operationId: AdminSetAlbumTrackOrder
+      summary: Задать порядок треков
+      description: >-
+        Заменяет порядок целиком, для перетаскивания в админке. В списке должны
+        быть все треки альбома, иначе `422`
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminSetAlbumTrackOrderRequest'
+      responses:
+        '200':
+          description: Порядок обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGetAlbum200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/albums/{album_id}/publish:
+    post:
+      tags:
+        - albums
+      operationId: AdminPublishAlbum
+      summary: Опубликовать альбом
+      description: >-
+        Вернёт `409`, если у альбома нет обложки, нет треков или не все треки в
+        статусе `ready`.
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminPublishAlbumRequest'
+      responses:
+        '200':
+          description: Альбом опубликован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAlbumReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/albums/{album_id}/unpublish:
+    post:
+      tags:
+        - albums
+      operationId: AdminUnpublishAlbum
+      summary: Снять альбом с публикации
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      responses:
+        '200':
+          description: Альбом снят с публикации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAlbumReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/v1/tracks:
+    get:
+      tags:
+        - tracks
+      operationId: AdminListTracks
+      summary: Список треков
+      description: Например, все упавшие на обработке через `status=failed`
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - name: album_id
+          in: query
+          required: false
+          description: Только треки этого альбома
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Только треки в этом статусе
+          schema:
+            $ref: '#/components/schemas/TrackStatus'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница треков
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminListTracks200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - tracks
+      operationId: AdminCreateTrack
+      summary: Создать трек
+      description: Создаёт карточку в статусе `draft`, аудио загружается отдельно
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateTrackRequest'
+      responses:
+        '201':
+          description: Трек создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTrackReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/tracks/{track_id}:
+    get:
+      tags:
+        - tracks
+      operationId: AdminGetTrack
+      summary: Получить трек
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Трек
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTrackReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags:
+        - tracks
+      operationId: AdminUpdateTrack
+      summary: Изменить трек
+      description: >-
+        Меняются только переданные поля. Порядок в альбоме меняется через
+        `AdminSetAlbumTrackOrder`
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdateTrackRequest'
+      responses:
+        '200':
+          description: Трек обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTrackReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - tracks
+      operationId: AdminDeleteTrack
+      summary: Удалить трек
+      description: Мягкое удаление. Лайки и записи в плейлистах сохраняются
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '204':
+          description: Трек удалён
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/tracks/{track_id}/audio:
+    put:
+      tags:
+        - tracks
+      operationId: AdminUploadTrackAudio
+      summary: Загрузить аудио
+      description: >-
+        Тело запроса это сам файл, он потоково уходит в хранилище. Трек
+        переходит в `processing`, результат виден в поле `status`.
+
+
+        Вернёт `409`, если трек уже обрабатывается или его альбом опубликован.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      requestBody:
+        required: true
+        description: Файл в формате FLAC, MP3, WAV или M4A, остальные получают `415`
+        content:
+          audio/*:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '202':
+          description: Файл принят, обработка запущена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTrackReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '413':
+          $ref: '#/components/responses/PayloadTooLargeError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/tracks/{track_id}/reprocess:
+    post:
+      tags:
+        - tracks
+      operationId: AdminReprocessTrack
+      summary: Повторить обработку
+      description: Запускает обработку заново по исходнику, например после `failed`
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '202':
+          description: Обработка запущена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTrackReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/v1/tracks/{track_id}/lyrics:
+    get:
+      tags:
+        - lyrics
+      operationId: AdminListTrackLyrics
+      summary: Тексты трека
+      description: Все языки сразу
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Тексты трека
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminListTrackLyrics200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/tracks/{track_id}/lyrics/{language}:
+    put:
+      tags:
+        - lyrics
+      operationId: AdminPutTrackLyrics
+      summary: Сохранить текст на языке
+      description: Создаёт или полностью заменяет текст
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - $ref: '#/components/parameters/Language'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminPutTrackLyricsRequest'
+      responses:
+        '200':
+          description: Текст сохранён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminLyricsReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - lyrics
+      operationId: AdminDeleteTrackLyrics
+      summary: Удалить текст на языке
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - $ref: '#/components/parameters/Language'
+      responses:
+        '204':
+          description: Текст удалён
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/v1/users:
+    get:
+      tags:
+        - users
+      operationId: AdminListUsers
+      summary: Список пользователей
+      description: Например, все администраторы через `role=admin`
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Поиск по email или имени пользователя
+          schema:
+            type: string
+            maxLength: 320
+        - name: role
+          in: query
+          required: false
+          description: Только пользователи с этой ролью
+          schema:
+            $ref: '#/components/schemas/UserRole'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница пользователей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminListUsers200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - users
+      operationId: AdminCreateUser
+      summary: Создать пользователя
+      description: >-
+        Создаёт новую учётную запись с указанной ролью, так добавляется новый
+        администратор. Первого администратора создаёт команда
+        `femin admin create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateUserRequest'
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /admin/v1/users/{user_id}/role:
+    put:
+      tags:
+        - users
+      operationId: AdminSetUserRole
+      summary: Изменить роль пользователя
+      description: >-
+        Назначает существующего пользователя администратором или снимает роль.
+        Вернёт `409` при попытке снять роль у себя или у последнего
+        администратора. Открытые сессии пользователя закрываются.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminSetUserRoleRequest'
+      responses:
+        '200':
+          description: Роль изменена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: femin_session
+  parameters:
+    ArtistId:
+      name: artist_id
+      in: path
+      required: true
+      description: Идентификатор артиста
+      schema:
+        type: string
+        format: uuid
+    AlbumId:
+      name: album_id
+      in: path
+      required: true
+      description: Идентификатор альбома
+      schema:
+        type: string
+        format: uuid
+    TrackId:
+      name: track_id
+      in: path
+      required: true
+      description: Идентификатор трека
+      schema:
+        type: string
+        format: uuid
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      description: Идентификатор пользователя
+      schema:
+        type: string
+        format: uuid
+    Language:
+      name: language
+      in: path
+      required: true
+      description: Код языка, например `ru`
+      schema:
+        type: string
+        minLength: 2
+        maxLength: 8
+    Query:
+      name: q
+      in: query
+      required: false
+      description: Поиск по названию
+      schema:
+        type: string
+        maxLength: 255
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на странице
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Значение `next_cursor` из предыдущей страницы
+      schema:
+        type: string
+  responses:
+    UnauthorizedError:
+      description: Нет сессии
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    ForbiddenError:
+      description: Нужна роль `admin`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    NotFoundError:
+      description: Объект не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    ConflictError:
+      description: Действие недоступно в текущем состоянии объекта
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    ValidationError:
+      description: Ошибка валидации запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    PayloadTooLargeError:
+      description: Файл слишком большой
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    UnsupportedMediaTypeError:
+      description: Неподдерживаемый формат файла
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    InternalServerError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+  schemas:
+    ErrorCode:
+      type: string
+      enum:
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT
+        - VALIDATION_ERROR
+        - PAYLOAD_TOO_LARGE
+        - UNSUPPORTED_MEDIA_TYPE
+        - INTERNAL_ERROR
+    ErrorReply:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: Что не так, можно показать админу
+    Image:
+      type: object
+      required:
+        - small_url
+        - medium_url
+        - large_url
+      properties:
+        small_url:
+          type: string
+          description: 96 px
+        medium_url:
+          type: string
+          description: 300 px
+        large_url:
+          type: string
+          description: 640 px
+    ArtistRef:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    AlbumType:
+      type: string
+      enum:
+        - album
+        - ep
+        - single
+        - compilation
+    TrackStatus:
+      type: string
+      description: >-
+        `draft` без аудио, `processing` обрабатывается, `ready` готов, `failed`
+        обработка упала
+      enum:
+        - draft
+        - processing
+        - ready
+        - failed
+    TrackArtistRole:
+      type: string
+      enum:
+        - main
+        - feat
+    TrackFileKind:
+      type: string
+      enum:
+        - source
+        - stream
+    AdminArtist:
+      type: object
+      required:
+        - id
+        - name
+        - bio
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        bio:
+          type: string
+        avatar:
+          $ref: '#/components/schemas/Image'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AdminArtistReply:
+      type: object
+      required:
+        - artist
+      properties:
+        artist:
+          $ref: '#/components/schemas/AdminArtist'
+    AdminListArtists200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminArtist'
+        next_cursor:
+          type: string
+          nullable: true
+    AdminCreateArtistRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        bio:
+          type: string
+    AdminUpdateArtistRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        bio:
+          type: string
+    AdminAlbum:
+      type: object
+      required:
+        - id
+        - title
+        - type
+        - artists
+        - track_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        type:
+          $ref: '#/components/schemas/AlbumType'
+        release_date:
+          type: string
+          format: date
+        cover:
+          $ref: '#/components/schemas/Image'
+        artists:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtistRef'
+        track_count:
+          type: integer
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Дата публикации, `null` у черновика. В будущем значит отложенный релиз
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AdminAlbumReply:
+      type: object
+      required:
+        - album
+      properties:
+        album:
+          $ref: '#/components/schemas/AdminAlbum'
+    AdminListAlbums200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminAlbum'
+        next_cursor:
+          type: string
+          nullable: true
+    AdminGetAlbum200Reply:
+      type: object
+      required:
+        - album
+        - tracks
+      properties:
+        album:
+          $ref: '#/components/schemas/AdminAlbum'
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminTrack'
+    AdminCreateAlbumRequest:
+      type: object
+      required:
+        - title
+        - type
+        - artist_ids
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        type:
+          $ref: '#/components/schemas/AlbumType'
+        release_date:
+          type: string
+          format: date
+        artist_ids:
+          type: array
+          description: Артисты в порядке показа
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+    AdminUpdateAlbumRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        type:
+          $ref: '#/components/schemas/AlbumType'
+        release_date:
+          type: string
+          format: date
+        artist_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+    AdminPublishAlbumRequest:
+      type: object
+      properties:
+        published_at:
+          type: string
+          format: date-time
+          description: Дата в будущем для отложенного релиза. Без неё публикуется сразу
+    AdminAlbumTrackPosition:
+      type: object
+      required:
+        - track_id
+        - disc_no
+        - track_no
+      properties:
+        track_id:
+          type: string
+          format: uuid
+        disc_no:
+          type: integer
+          minimum: 1
+        track_no:
+          type: integer
+          minimum: 1
+    AdminSetAlbumTrackOrderRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminAlbumTrackPosition'
+    AdminTrackArtist:
+      type: object
+      required:
+        - id
+        - name
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/TrackArtistRole'
+    AdminTrackArtistInput:
+      type: object
+      required:
+        - artist_id
+        - role
+      properties:
+        artist_id:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/TrackArtistRole'
+    AdminTrackFile:
+      type: object
+      required:
+        - kind
+        - format
+        - size_bytes
+      properties:
+        kind:
+          $ref: '#/components/schemas/TrackFileKind'
+        format:
+          type: string
+        bitrate_kbps:
+          type: integer
+          nullable: true
+        size_bytes:
+          type: integer
+          format: int64
+    AdminTrack:
+      type: object
+      required:
+        - id
+        - album_id
+        - title
+        - disc_no
+        - track_no
+        - explicit
+        - status
+        - artists
+        - files
+        - lyrics_languages
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        album_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        disc_no:
+          type: integer
+        track_no:
+          type: integer
+        duration_ms:
+          type: integer
+          nullable: true
+          description: Известна после обработки
+        explicit:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/TrackStatus'
+        processing_error:
+          type: string
+          nullable: true
+          description: Почему упала обработка, для статуса `failed`
+        artists:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminTrackArtist'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminTrackFile'
+        lyrics_languages:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AdminTrackReply:
+      type: object
+      required:
+        - track
+      properties:
+        track:
+          $ref: '#/components/schemas/AdminTrack'
+    AdminListTracks200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminTrack'
+        next_cursor:
+          type: string
+          nullable: true
+    AdminCreateTrackRequest:
+      type: object
+      required:
+        - album_id
+        - title
+        - track_no
+        - artists
+      properties:
+        album_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        disc_no:
+          type: integer
+          minimum: 1
+          default: 1
+        track_no:
+          type: integer
+          minimum: 1
+        explicit:
+          type: boolean
+          default: false
+        artists:
+          type: array
+          description: Артисты в порядке показа
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AdminTrackArtistInput'
+    AdminUpdateTrackRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        explicit:
+          type: boolean
+        artists:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AdminTrackArtistInput'
+    AdminLyricsWord:
+      type: object
+      required:
+        - start_ms
+        - end_ms
+        - text
+      properties:
+        start_ms:
+          type: integer
+          minimum: 0
+        end_ms:
+          type: integer
+          minimum: 0
+        text:
+          type: string
+    AdminLyricsLine:
+      type: object
+      required:
+        - start_ms
+        - text
+      properties:
+        start_ms:
+          type: integer
+          minimum: 0
+          description: Начало строки от начала трека. У несинхронизированного текста `0`
+        end_ms:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Конец строки. `null`, если строка длится до следующей
+        text:
+          type: string
+        words:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/AdminLyricsWord'
+    AdminLyrics:
+      type: object
+      required:
+        - language
+        - synced
+        - offset_ms
+        - lines
+        - source
+        - updated_at
+      properties:
+        language:
+          type: string
+        synced:
+          type: boolean
+        offset_ms:
+          type: integer
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminLyricsLine'
+        source:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+    AdminLyricsReply:
+      type: object
+      required:
+        - lyrics
+      properties:
+        lyrics:
+          $ref: '#/components/schemas/AdminLyrics'
+    AdminListTrackLyrics200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminLyrics'
+    AdminPutTrackLyricsRequest:
+      type: object
+      required:
+        - synced
+        - lines
+      properties:
+        synced:
+          type: boolean
+        offset_ms:
+          type: integer
+          default: 0
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/AdminLyricsLine'
+        source:
+          type: string
+          maxLength: 255
+          description: Откуда взят текст, например `lrc` или `whisper`
+    UserRole:
+      type: string
+      enum:
+        - user
+        - admin
+    AdminUser:
+      type: object
+      required:
+        - id
+        - email
+        - username
+        - role
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        created_at:
+          type: string
+          format: date-time
+    AdminUserReply:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/AdminUser'
+    AdminListUsers200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUser'
+        next_cursor:
+          type: string
+          nullable: true
+    AdminCreateUserRequest:
+      type: object
+      required:
+        - email
+        - username
+        - password
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        role:
+          $ref: '#/components/schemas/UserRole'
+    AdminSetUserRoleRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          $ref: '#/components/schemas/UserRole'
