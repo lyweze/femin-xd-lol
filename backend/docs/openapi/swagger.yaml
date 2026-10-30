@@ -1,0 +1,1495 @@
+openapi: 3.0.3
+info:
+  title: Femin. Public API
+  description: >-
+    API плеера: авторизация, каталог, стриминг, тексты песен и библиотека
+    пользователя.
+
+
+    Авторизация через HttpOnly cookie `femin_session`, которую выставляют
+    `Register` и `Login`. Фронт и API живут на одном домене, поэтому cookie
+    уходит и с запросами `<audio src>`.
+
+
+    URL картинок непрозрачны: клиент использует их как есть и не собирает сам.
+  version: '1.0'
+  contact: {}
+servers:
+  - url: /
+tags:
+  - name: auth
+    description: Регистрация, вход и выход
+  - name: catalog
+    description: Артисты, альбомы, треки и поиск
+  - name: playback
+    description: Стриминг, тексты песен и история прослушиваний
+  - name: library
+    description: Лайки и подписки пользователя
+  - name: playlists
+    description: Плейлисты пользователя
+security:
+  - sessionCookie: []
+paths:
+  /api/v1/auth/register:
+    post:
+      tags:
+        - auth
+      operationId: Register
+      summary: Зарегистрироваться
+      description: Создаёт пользователя и сразу открывает сессию
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Пользователь создан
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserReply'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/auth/login:
+    post:
+      tags:
+        - auth
+      operationId: Login
+      summary: Войти
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Сессия открыта
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - auth
+      operationId: Logout
+      summary: Выйти
+      description: Закрывает текущую сессию
+      responses:
+        '204':
+          description: Сессия закрыта
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/auth/logout-all:
+    post:
+      tags:
+        - auth
+      operationId: LogoutAll
+      summary: Выйти на всех устройствах
+      responses:
+        '204':
+          description: Все сессии закрыты
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/me:
+    get:
+      tags:
+        - auth
+      operationId: GetMe
+      summary: Текущий пользователь
+      responses:
+        '200':
+          description: Текущий пользователь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/search:
+    get:
+      tags:
+        - catalog
+      operationId: Search
+      summary: Поиск по каталогу
+      description: Возвращает лучшие совпадения по трекам, альбомам и артистам
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Поисковая строка
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - name: limit
+          in: query
+          required: false
+          description: Максимум результатов в каждой группе
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+      responses:
+        '200':
+          description: Результаты поиска
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Search200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/artists/{artist_id}:
+    get:
+      tags:
+        - catalog
+      operationId: GetArtist
+      summary: Получить артиста
+      parameters:
+        - $ref: '#/components/parameters/ArtistId'
+      responses:
+        '200':
+          description: Артист
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetArtist200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/artists/{artist_id}/albums:
+    get:
+      tags:
+        - catalog
+      operationId: ListArtistAlbums
+      summary: Альбомы артиста
+      description: Опубликованные альбомы, новые сначала
+      parameters:
+        - $ref: '#/components/parameters/ArtistId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница альбомов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlbumsPage'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/albums:
+    get:
+      tags:
+        - catalog
+      operationId: ListAlbums
+      summary: Новые релизы
+      description: Опубликованные альбомы, новые сначала
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница альбомов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlbumsPage'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/albums/{album_id}:
+    get:
+      tags:
+        - catalog
+      operationId: GetAlbum
+      summary: Получить альбом с треками
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      responses:
+        '200':
+          description: Альбом и его треки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAlbum200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/tracks/{track_id}:
+    get:
+      tags:
+        - catalog
+      operationId: GetTrack
+      summary: Получить трек
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Трек
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTrack200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/tracks/{track_id}/stream:
+    get:
+      tags:
+        - playback
+      operationId: StreamTrack
+      summary: Слушать трек
+      description: >-
+        Отдаёт аудио с поддержкой заголовка `Range`, браузер сам докачивает и
+        перематывает. Используется напрямую как `<audio src>`.
+
+
+        Вместо тела сервер может вернуть `302` на временную ссылку хранилища,
+        клиент обязан идти по редиректу.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - name: Range
+          in: header
+          required: false
+          description: Запрашиваемый диапазон байт
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Файл целиком
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+        '206':
+          description: Запрошенный диапазон
+          headers:
+            Content-Range:
+              description: Отданный диапазон байт
+              schema:
+                type: string
+          content:
+            audio/*:
+              schema:
+                type: string
+                format: binary
+        '302':
+          description: Редирект на временную ссылку хранилища
+          headers:
+            Location:
+              description: Адрес файла
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '416':
+          description: Недопустимый диапазон
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/tracks/{track_id}/lyrics:
+    get:
+      tags:
+        - playback
+      operationId: GetTrackLyrics
+      summary: Получить текст песни
+      description: >-
+        Доступные языки перечислены в `Track.lyrics_languages`. Без параметра
+        `language` вернётся первый из них.
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+        - name: language
+          in: query
+          required: false
+          description: Код языка, например `ru`
+          schema:
+            type: string
+            maxLength: 8
+      responses:
+        '200':
+          description: Текст песни
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTrackLyrics200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/tracks/{track_id}/plays:
+    post:
+      tags:
+        - playback
+      operationId: RecordPlay
+      summary: Записать прослушивание
+      description: Клиент отправляет, когда трек дослушан или переключён
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordPlayRequest'
+      responses:
+        '204':
+          description: Записано
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/me/history:
+    get:
+      tags:
+        - playback
+      operationId: ListHistory
+      summary: История прослушиваний
+      description: Новые сначала
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница истории
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListHistory200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/me/liked/tracks:
+    get:
+      tags:
+        - library
+      operationId: ListLikedTracks
+      summary: Лайкнутые треки
+      description: Последние лайки сначала
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница лайкнутых треков
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListLikedTracks200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/me/liked/tracks/{track_id}:
+    put:
+      tags:
+        - library
+      operationId: LikeTrack
+      summary: Лайкнуть трек
+      description: Идемпотентно, повторный лайк не меняет дату
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '204':
+          description: Трек лайкнут
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - library
+      operationId: UnlikeTrack
+      summary: Убрать лайк с трека
+      description: Идемпотентно
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '204':
+          description: Лайк снят
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/me/liked/albums:
+    get:
+      tags:
+        - library
+      operationId: ListLikedAlbums
+      summary: Лайкнутые альбомы
+      description: Последние лайки сначала
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница альбомов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlbumsPage'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/me/liked/albums/{album_id}:
+    put:
+      tags:
+        - library
+      operationId: LikeAlbum
+      summary: Лайкнуть альбом
+      description: Идемпотентно
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      responses:
+        '204':
+          description: Альбом лайкнут
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - library
+      operationId: UnlikeAlbum
+      summary: Убрать лайк с альбома
+      description: Идемпотентно
+      parameters:
+        - $ref: '#/components/parameters/AlbumId'
+      responses:
+        '204':
+          description: Лайк снят
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/me/followed/artists:
+    get:
+      tags:
+        - library
+      operationId: ListFollowedArtists
+      summary: Артисты в подписках
+      description: Последние подписки сначала
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница артистов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListFollowedArtists200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/me/followed/artists/{artist_id}:
+    put:
+      tags:
+        - library
+      operationId: FollowArtist
+      summary: Подписаться на артиста
+      description: Идемпотентно
+      parameters:
+        - $ref: '#/components/parameters/ArtistId'
+      responses:
+        '204':
+          description: Подписка оформлена
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - library
+      operationId: UnfollowArtist
+      summary: Отписаться от артиста
+      description: Идемпотентно
+      parameters:
+        - $ref: '#/components/parameters/ArtistId'
+      responses:
+        '204':
+          description: Подписка снята
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/me/playlists:
+    get:
+      tags:
+        - playlists
+      operationId: ListMyPlaylists
+      summary: Мои плейлисты
+      description: Новые сначала
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница плейлистов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListMyPlaylists200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/playlists:
+    post:
+      tags:
+        - playlists
+      operationId: CreatePlaylist
+      summary: Создать плейлист
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaylistRequest'
+      responses:
+        '201':
+          description: Плейлист создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/playlists/{playlist_id}:
+    get:
+      tags:
+        - playlists
+      operationId: GetPlaylist
+      summary: Получить плейлист
+      description: Чужой приватный плейлист возвращает `404`
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '200':
+          description: Плейлист
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags:
+        - playlists
+      operationId: UpdatePlaylist
+      summary: Изменить плейлист
+      description: Меняются только переданные поля. Доступно владельцу
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaylistRequest'
+      responses:
+        '200':
+          description: Плейлист обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaylistReply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - playlists
+      operationId: DeletePlaylist
+      summary: Удалить плейлист
+      description: Доступно владельцу
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      responses:
+        '204':
+          description: Плейлист удалён
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/playlists/{playlist_id}/tracks:
+    get:
+      tags:
+        - playlists
+      operationId: ListPlaylistTracks
+      summary: Треки плейлиста
+      description: В порядке плейлиста
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Страница треков плейлиста
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPlaylistTracks200Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - playlists
+      operationId: AddPlaylistTrack
+      summary: Добавить трек в плейлист
+      description: Добавляет в конец. Один трек можно добавить несколько раз
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddPlaylistTrackRequest'
+      responses:
+        '201':
+          description: Трек добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddPlaylistTrack201Reply'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/playlists/{playlist_id}/tracks/{item_id}:
+    delete:
+      tags:
+        - playlists
+      operationId: RemovePlaylistTrack
+      summary: Убрать трек из плейлиста
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - $ref: '#/components/parameters/PlaylistItemId'
+      responses:
+        '204':
+          description: Трек убран
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/playlists/{playlist_id}/tracks/{item_id}/move:
+    post:
+      tags:
+        - playlists
+      operationId: MovePlaylistTrack
+      summary: Переместить трек в плейлисте
+      parameters:
+        - $ref: '#/components/parameters/PlaylistId'
+        - $ref: '#/components/parameters/PlaylistItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MovePlaylistTrackRequest'
+      responses:
+        '204':
+          description: Трек перемещён
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: femin_session
+  headers:
+    SessionCookie:
+      description: Cookie сессии `femin_session` (HttpOnly, Secure, SameSite=Lax)
+      schema:
+        type: string
+  parameters:
+    ArtistId:
+      name: artist_id
+      in: path
+      required: true
+      description: Идентификатор артиста
+      schema:
+        type: string
+        format: uuid
+    AlbumId:
+      name: album_id
+      in: path
+      required: true
+      description: Идентификатор альбома
+      schema:
+        type: string
+        format: uuid
+    TrackId:
+      name: track_id
+      in: path
+      required: true
+      description: Идентификатор трека
+      schema:
+        type: string
+        format: uuid
+    PlaylistId:
+      name: playlist_id
+      in: path
+      required: true
+      description: Идентификатор плейлиста
+      schema:
+        type: string
+        format: uuid
+    PlaylistItemId:
+      name: item_id
+      in: path
+      required: true
+      description: Идентификатор позиции в плейлисте (не трека)
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на странице
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Значение `next_cursor` из предыдущей страницы
+      schema:
+        type: string
+  responses:
+    UnauthorizedError:
+      description: Нет сессии или неверный логин и пароль
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    ForbiddenError:
+      description: Недостаточно прав
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    NotFoundError:
+      description: Объект не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    ConflictError:
+      description: Конфликт, например email уже занят
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    ValidationError:
+      description: Ошибка валидации запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    TooManyRequestsError:
+      description: Слишком много попыток
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+    InternalServerError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorReply'
+  schemas:
+    ErrorCode:
+      type: string
+      enum:
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT
+        - VALIDATION_ERROR
+        - TOO_MANY_REQUESTS
+        - INTERNAL_ERROR
+    ErrorReply:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: Текст для разработчика, не для показа пользователю
+    UserRole:
+      type: string
+      enum:
+        - user
+        - admin
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - username
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+    UserReply:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - username
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    Image:
+      type: object
+      required:
+        - small_url
+        - medium_url
+        - large_url
+      properties:
+        small_url:
+          type: string
+          description: 96 px
+        medium_url:
+          type: string
+          description: 300 px
+        large_url:
+          type: string
+          description: 640 px
+    ArtistRef:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    AlbumRef:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        cover:
+          $ref: '#/components/schemas/Image'
+    AlbumType:
+      type: string
+      enum:
+        - album
+        - ep
+        - single
+        - compilation
+    TrackArtistRole:
+      type: string
+      enum:
+        - main
+        - feat
+    TrackArtist:
+      type: object
+      required:
+        - id
+        - name
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/TrackArtistRole'
+    Artist:
+      type: object
+      required:
+        - id
+        - name
+        - bio
+        - is_followed
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        bio:
+          type: string
+        avatar:
+          $ref: '#/components/schemas/Image'
+        is_followed:
+          type: boolean
+    Album:
+      type: object
+      required:
+        - id
+        - title
+        - type
+        - artists
+        - track_count
+        - is_liked
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        type:
+          $ref: '#/components/schemas/AlbumType'
+        release_date:
+          type: string
+          format: date
+        cover:
+          $ref: '#/components/schemas/Image'
+        artists:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtistRef'
+        track_count:
+          type: integer
+        is_liked:
+          type: boolean
+    Track:
+      type: object
+      required:
+        - id
+        - title
+        - duration_ms
+        - disc_no
+        - track_no
+        - explicit
+        - artists
+        - album
+        - is_liked
+        - lyrics_languages
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        duration_ms:
+          type: integer
+        disc_no:
+          type: integer
+        track_no:
+          type: integer
+        explicit:
+          type: boolean
+        artists:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackArtist'
+        album:
+          $ref: '#/components/schemas/AlbumRef'
+        is_liked:
+          type: boolean
+        lyrics_languages:
+          type: array
+          description: Языки, на которых есть текст. Пусто, если текста нет
+          items:
+            type: string
+    AlbumsPage:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Album'
+        next_cursor:
+          type: string
+          nullable: true
+          description: Курсор следующей страницы, `null` на последней
+    Search200Reply:
+      type: object
+      required:
+        - tracks
+        - albums
+        - artists
+      properties:
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Track'
+        albums:
+          type: array
+          items:
+            $ref: '#/components/schemas/Album'
+        artists:
+          type: array
+          items:
+            $ref: '#/components/schemas/Artist'
+    GetArtist200Reply:
+      type: object
+      required:
+        - artist
+      properties:
+        artist:
+          $ref: '#/components/schemas/Artist'
+    GetAlbum200Reply:
+      type: object
+      required:
+        - album
+        - tracks
+      properties:
+        album:
+          $ref: '#/components/schemas/Album'
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Track'
+    GetTrack200Reply:
+      type: object
+      required:
+        - track
+      properties:
+        track:
+          $ref: '#/components/schemas/Track'
+    LyricsWord:
+      type: object
+      required:
+        - start_ms
+        - end_ms
+        - text
+      properties:
+        start_ms:
+          type: integer
+        end_ms:
+          type: integer
+        text:
+          type: string
+    LyricsLine:
+      type: object
+      required:
+        - start_ms
+        - text
+      properties:
+        start_ms:
+          type: integer
+          description: Начало строки от начала трека. У несинхронизированного текста `0`
+        end_ms:
+          type: integer
+          nullable: true
+          description: Конец строки. `null`, если строка длится до следующей
+        text:
+          type: string
+        words:
+          type: array
+          nullable: true
+          description: Тайминги по словам для караоке, если есть
+          items:
+            $ref: '#/components/schemas/LyricsWord'
+    Lyrics:
+      type: object
+      required:
+        - language
+        - synced
+        - offset_ms
+        - lines
+      properties:
+        language:
+          type: string
+        synced:
+          type: boolean
+          description: Есть ли тайминги. Если нет, текст показывается без подсветки
+        offset_ms:
+          type: integer
+          description: Поправка, которую надо прибавить ко всем таймингам
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/LyricsLine'
+    GetTrackLyrics200Reply:
+      type: object
+      required:
+        - lyrics
+      properties:
+        lyrics:
+          $ref: '#/components/schemas/Lyrics'
+    RecordPlayRequest:
+      type: object
+      required:
+        - ms_listened
+      properties:
+        ms_listened:
+          type: integer
+          minimum: 0
+          description: Сколько миллисекунд трека реально прослушано
+    HistoryItem:
+      type: object
+      required:
+        - track
+        - played_at
+      properties:
+        track:
+          $ref: '#/components/schemas/Track'
+        played_at:
+          type: string
+          format: date-time
+    ListHistory200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryItem'
+        next_cursor:
+          type: string
+          nullable: true
+    LikedTrack:
+      type: object
+      required:
+        - track
+        - liked_at
+      properties:
+        track:
+          $ref: '#/components/schemas/Track'
+        liked_at:
+          type: string
+          format: date-time
+    ListLikedTracks200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LikedTrack'
+        next_cursor:
+          type: string
+          nullable: true
+    ListFollowedArtists200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Artist'
+        next_cursor:
+          type: string
+          nullable: true
+    PlaylistOwner:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+    Playlist:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - is_public
+        - owner
+        - track_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        is_public:
+          type: boolean
+        owner:
+          $ref: '#/components/schemas/PlaylistOwner'
+        track_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PlaylistReply:
+      type: object
+      required:
+        - playlist
+      properties:
+        playlist:
+          $ref: '#/components/schemas/Playlist'
+    ListMyPlaylists200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Playlist'
+        next_cursor:
+          type: string
+          nullable: true
+    CreatePlaylistRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 4096
+        is_public:
+          type: boolean
+          default: false
+    UpdatePlaylistRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 4096
+        is_public:
+          type: boolean
+    PlaylistItem:
+      type: object
+      required:
+        - id
+        - track
+        - added_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор позиции, нужен для удаления и перемещения
+        track:
+          $ref: '#/components/schemas/Track'
+        added_at:
+          type: string
+          format: date-time
+    ListPlaylistTracks200Reply:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaylistItem'
+        next_cursor:
+          type: string
+          nullable: true
+    AddPlaylistTrackRequest:
+      type: object
+      required:
+        - track_id
+      properties:
+        track_id:
+          type: string
+          format: uuid
+    AddPlaylistTrack201Reply:
+      type: object
+      required:
+        - item
+      properties:
+        item:
+          $ref: '#/components/schemas/PlaylistItem'
+    MovePlaylistTrackRequest:
+      type: object
+      properties:
+        after_item_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Позиция, после которой поставить трек. `null` ставит в начало
