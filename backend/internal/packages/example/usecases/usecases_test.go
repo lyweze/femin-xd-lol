@@ -61,7 +61,7 @@ type fixedUUID struct{ id uuid.UUID }
 
 func (f fixedUUID) New() uuid.UUID { return f.id }
 
-func newUsecases(id uuid.UUID, now time.Time) *usecases.Usecases {
+func newUsecases(id uuid.UUID, now time.Time) *usecases.ExampleUsecases {
 	return usecases.New(&usecases.NewArgs{
 		RepoHandler:  &fakeRepoHandler{repo: &fakeRepo{items: map[uuid.UUID]*models.Item{}}},
 		TimeProvider: fixedTime{t: now},

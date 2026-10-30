@@ -1,6 +1,8 @@
 package repo
 
 import (
+	"fmt"
+
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/lyweze/femin-xd-lol/backend/internal/entities"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/repositories"
@@ -8,6 +10,8 @@ import (
 )
 
 const pgUniqueViolation = "23505"
+
+var spf = fmt.Sprintf //nolint:gochecknoglobals
 
 func builder() sqlbuilder.Flavor {
 	return sqlbuilder.PostgreSQL
@@ -28,6 +32,7 @@ func userToModel(entity entities.User) *models.User {
 	user.SetEmail(entity.Email)
 	user.SetUsername(entity.Username)
 	user.SetRole(models.UserRole(entity.Role))
+	user.SetPasswordHash(entity.PasswordHash)
 	user.SetCreatedAt(entity.CreatedAt)
 	user.SetUpdatedAt(entity.UpdatedAt)
 

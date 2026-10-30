@@ -103,6 +103,9 @@ paths:
       responses:
         '204':
           description: Сессия закрыта
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '500':
@@ -116,6 +119,9 @@ paths:
       responses:
         '204':
           description: Все сессии закрыты
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/SessionCookie'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '500':

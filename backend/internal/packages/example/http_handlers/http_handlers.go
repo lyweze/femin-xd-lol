@@ -15,24 +15,24 @@ const (
 	inLogKey      = "in"
 )
 
-type HttpHandlers struct {
-	usecases *usecases.Usecases
+type ExampleHttpHandlers struct {
+	usecases *usecases.ExampleUsecases
 	logger   *zap.Logger
 }
 
 type NewArgs struct {
-	Usecases *usecases.Usecases
+	Usecases *usecases.ExampleUsecases
 	Logger   *zap.Logger
 }
 
-func New(args *NewArgs) *HttpHandlers {
-	return &HttpHandlers{
+func New(args *NewArgs) *ExampleHttpHandlers {
+	return &ExampleHttpHandlers{
 		usecases: args.Usecases,
 		logger:   args.Logger,
 	}
 }
 
-func (h *HttpHandlers) isCtxError(err error) bool {
+func (h *ExampleHttpHandlers) isCtxError(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 

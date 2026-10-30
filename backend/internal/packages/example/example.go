@@ -12,19 +12,19 @@ import (
 	"github.com/samber/do"
 )
 
-func InvokeHttpHandlers(i *do.Injector) *http_handlers.HttpHandlers {
-	return do.MustInvoke[*http_handlers.HttpHandlers](i)
+func InvokeHttpHandlers(i *do.Injector) *http_handlers.ExampleHttpHandlers {
+	return do.MustInvoke[*http_handlers.ExampleHttpHandlers](i)
 }
 
 func Provide(i *do.Injector) {
-	do.Provide(i, func(i *do.Injector) (*http_handlers.HttpHandlers, error) {
+	do.Provide(i, func(i *do.Injector) (*http_handlers.ExampleHttpHandlers, error) {
 		return http_handlers.New(&http_handlers.NewArgs{
-			Usecases: do.MustInvoke[*usecases.Usecases](i),
+			Usecases: do.MustInvoke[*usecases.ExampleUsecases](i),
 			Logger:   di.InvokeLogger(i),
 		}), nil
 	})
 
-	do.Provide(i, func(i *do.Injector) (*usecases.Usecases, error) {
+	do.Provide(i, func(i *do.Injector) (*usecases.ExampleUsecases, error) {
 		return usecases.New(&usecases.NewArgs{
 			TimeProvider: time_provider.NewTimeProvider(),
 			UUIDProvider: uuid_provider.NewUUIDProvider(),

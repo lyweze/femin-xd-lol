@@ -19,13 +19,21 @@ type UUIDProvider interface {
 
 type PasswordHasher interface {
 	Hash(password string) (string, error)
+	Verify(password, hash string) (bool, error)
 }
 
 type Repo interface {
 	CreateUser(ctx context.Context, cmd dto.CreateUserCommand) (dto.CreateUserResult, error)
+	GetUser(ctx context.Context, q dto.GetUserQuery) (dto.GetUserResult, error)
+	GetUserByEmail(ctx context.Context, q dto.GetUserByEmailQuery) (dto.GetUserByEmailResult, error)
+	ListUsers(ctx context.Context, q dto.ListUsersQuery) (dto.ListUsersResult, error)
+	UpdateUserRole(ctx context.Context, cmd dto.UpdateUserRoleCommand) (dto.UpdateUserRoleResult, error)
+
+	// LockAdmins блокирует строки администраторов до конца транзакции.
+	LockAdmins(ctx context.Context) (dto.LockAdminsResult, error)
 }
 
-type Usecases struct {
+type UsersUsecases struct {
 	repoHandler    interfaces.RepoHandler[Repo]
 	timeProvider   TimeProvider
 	uuidProvider   UUIDProvider
@@ -39,8 +47,8 @@ type NewArgs struct {
 	PasswordHasher PasswordHasher
 }
 
-func New(args *NewArgs) *Usecases {
-	return &Usecases{
+func New(args *NewArgs) *UsersUsecases {
+	return &UsersUsecases{
 		repoHandler:    args.RepoHandler,
 		timeProvider:   args.TimeProvider,
 		uuidProvider:   args.UUIDProvider,
