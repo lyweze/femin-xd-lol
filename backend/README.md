@@ -35,6 +35,9 @@ internal/
       view_models/               то, что usecase отдаёт наружу
 pkg/                             переиспользуемые утилиты без доменной логики
 gen/                             код из OpenAPI (make gen), руками не менять
+tests/
+  mocks/                         моки из интерфейсов (make gen-mocks), руками не менять
+  stubs/                         RepoHandler без транзакций для unit-тестов
 docs/openapi/
   swagger.yaml                   контракт плеера (/api/v1)
   swagger-admin-v1.yaml          контракт админки (/admin/v1), нужна роль admin
@@ -79,6 +82,20 @@ make admin-create EMAIL=admin@example.com USERNAME=admin
 Все маршруты закрыты по умолчанию. Публичны только те, что перечислены в `publicRoutes` в `internal/httpserver/handlers.go`. Роль администратора проверяется по Postgres на каждый запрос, поэтому снятие роли действует сразу.
 
 За reverse proxy задай `FEMIN_HTTP_SERVER_CLIENT_IP_HEADER`, иначе лимит по IP будет один на всех. Только если прокси сам перезаписывает этот заголовок.
+
+## Тесты
+
+```bash
+make test
+```
+
+Команда поднимает `build/local/docker-compose.test.yml` (нужен запущенный Docker) и запускает всё с `--race`. Тесты под тегом `tests`, поэтому обычный `go test ./...` их не видит, а в IDE тег надо включить в настройках сборки. Окружение остаётся работать, останавливает его `make down-test`.
+
+- **`internal/httpserver`:** suite на настоящих Postgres и Valkey, запросы идут через весь роутер. Один файл на хендлер: `auth_login_test.go`, `admin_user_list_test.go` и так далее.
+- **`usecases`, `middleware`:** тест лежит рядом с кодом, зависимости заменены моками.
+- **Моки:** `tests/mocks` генерируется из интерфейсов командой `make gen-mocks`, руками не правится. Изменил интерфейс, запусти её снова.
+
+База для тестов своя и живёт в памяти, потому что suite чистит таблицы перед каждым подтестом и удаляет схему в конце.
 
 ## Контракт и генерация
 

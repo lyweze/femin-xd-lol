@@ -27,8 +27,22 @@ type ListUsersIn struct {
 func (i ListUsersIn) Validate() error {
 	return validation.ValidateStruct(&i, //nolint:wrapcheck
 		validation.Field(&i.Role, validation.In(models.UserRoleUser, models.UserRoleAdmin)),
-		validation.Field(&i.Limit, validation.Min(1), validation.Max(usersPageMaxLimit)),
+		// Min(1) здесь не подходит: ozzo считает ноль пустым значением и пропускает его.
+		validation.Field(&i.Limit, validation.By(limitInRange)),
 	)
+}
+
+func limitInRange(value any) error {
+	limit, ok := value.(*int)
+	if !ok {
+		return fmt.Errorf("invalid type: expected *int, got %T", value)
+	}
+
+	if limit != nil && (*limit < 1 || *limit > usersPageMaxLimit) {
+		return fmt.Errorf("must be between 1 and %d", usersPageMaxLimit)
+	}
+
+	return nil
 }
 
 type ListUsersOut struct {

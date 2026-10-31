@@ -1,3 +1,5 @@
+//go:build tests
+
 package password_hasher_test
 
 import (
