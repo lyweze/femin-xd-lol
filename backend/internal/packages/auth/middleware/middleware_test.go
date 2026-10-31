@@ -1,4 +1,6 @@
-package middleware_test
+//go:build tests
+
+package middleware
 
 import (
 	"context"
@@ -8,40 +10,26 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/lyweze/femin-xd-lol/backend/internal/packages/auth/middleware"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/auth/usecases"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/requestctx"
+	mocks "github.com/lyweze/femin-xd-lol/backend/tests/mocks/packages/auth/middleware"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
-type fakeUsecases struct {
-	userID      uuid.UUID
-	authErr     error
-	adminErr    error
-	adminCalled bool
-}
+func newMiddleware(t *testing.T) (*Middleware, *mocks.MockUsecases) {
+	m := mocks.NewMockUsecases(t)
 
-func (f *fakeUsecases) Authenticate(_ context.Context, _ string) (uuid.UUID, error) {
-	return f.userID, f.authErr
-}
-
-func (f *fakeUsecases) RequireAdmin(_ context.Context, _ uuid.UUID) error {
-	f.adminCalled = true
-
-	return f.adminErr
-}
-
-func newMiddleware(f *fakeUsecases) *middleware.Middleware {
-	return middleware.New(&middleware.NewArgs{Usecases: f, Logger: zap.NewNop()})
+	return New(&NewArgs{Usecases: m, Logger: zap.NewNop()}), m
 }
 
 func never(_ *http.Request) bool { return false }
 
-func request(withCookie bool) *http.Request {
+func newRequest(withCookie bool) *http.Request {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	if withCookie {
-		r.AddCookie(&http.Cookie{Name: middleware.SessionCookieName, Value: "token"}) //nolint:exhaustruct
+		r.AddCookie(&http.Cookie{Name: SessionCookieName, Value: "token"}) //nolint:exhaustruct
 	}
 
 	return r
@@ -55,130 +43,207 @@ func serve(h http.Handler, r *http.Request) *httptest.ResponseRecorder {
 	return w
 }
 
-func TestRequireSessionWithoutCookie(t *testing.T) {
-	t.Parallel()
-
-	called := false
-	h := newMiddleware(&fakeUsecases{}).RequireSession(never)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		called = true
-	}))
-
-	w := serve(h, request(false))
-
-	require.Equal(t, http.StatusUnauthorized, w.Code)
-	require.False(t, called)
-	require.JSONEq(t, `{"code":"UNAUTHORIZED"}`, w.Body.String())
+// mustNotRun fails the test if the protected handler is reached.
+func mustNotRun(t *testing.T) http.Handler {
+	return http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("handler must not be reached")
+	})
 }
 
-func TestRequireSessionUnknownToken(t *testing.T) {
+func TestMiddleware_RequireSession(t *testing.T) {
 	t.Parallel()
 
-	h := newMiddleware(&fakeUsecases{authErr: usecases.ErrUnauthorized}).RequireSession(never)(http.NotFoundHandler())
+	t.Run("ok: puts the session into context", func(t *testing.T) {
+		t.Parallel()
 
-	w := serve(h, request(true))
+		r := require.New(t)
+		m, u := newMiddleware(t)
 
-	require.Equal(t, http.StatusUnauthorized, w.Code)
+		userID := uuid.New()
+		u.EXPECT().Authenticate(mock.Anything, "token").Return(userID, nil).Once()
+
+		var (
+			gotUser  uuid.UUID
+			gotToken string
+		)
+
+		w := serve(m.RequireSession(never)(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+			gotUser, _ = requestctx.UserID(req.Context())
+			gotToken, _ = requestctx.SessionToken(req.Context())
+		})), newRequest(true))
+
+		r.Equal(http.StatusOK, w.Code)
+		r.Equal(userID, gotUser)
+		r.Equal("token", gotToken)
+	})
+
+	t.Run("ok: public route needs no session", func(t *testing.T) {
+		t.Parallel()
+
+		m, _ := newMiddleware(t)
+
+		called := false
+
+		serve(m.RequireSession(func(*http.Request) bool { return true })(
+			http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }),
+		), newRequest(false))
+
+		require.True(t, called)
+	})
+
+	t.Run("error: no cookie", func(t *testing.T) {
+		t.Parallel()
+
+		r := require.New(t)
+		m, _ := newMiddleware(t)
+
+		w := serve(m.RequireSession(never)(mustNotRun(t)), newRequest(false))
+
+		r.Equal(http.StatusUnauthorized, w.Code)
+		r.JSONEq(`{"code":"UNAUTHORIZED"}`, w.Body.String())
+	})
+
+	t.Run("error: unknown token", func(t *testing.T) {
+		t.Parallel()
+
+		m, u := newMiddleware(t)
+
+		u.EXPECT().Authenticate(mock.Anything, mock.Anything).Return(uuid.Nil, usecases.ErrUnauthorized).Once()
+
+		w := serve(m.RequireSession(never)(mustNotRun(t)), newRequest(true))
+
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("error: storage failure is 500 and hides details", func(t *testing.T) {
+		t.Parallel()
+
+		r := require.New(t)
+		m, u := newMiddleware(t)
+
+		u.EXPECT().Authenticate(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("valkey is down")).Once()
+
+		w := serve(m.RequireSession(never)(mustNotRun(t)), newRequest(true))
+
+		r.Equal(http.StatusInternalServerError, w.Code)
+		r.NotContains(w.Body.String(), "valkey")
+	})
+
+	t.Run("error: cancelled request writes nothing", func(t *testing.T) {
+		t.Parallel()
+
+		r := require.New(t)
+		m, u := newMiddleware(t)
+
+		u.EXPECT().Authenticate(mock.Anything, mock.Anything).Return(uuid.Nil, context.Canceled).Once()
+
+		w := serve(m.RequireSession(never)(mustNotRun(t)), newRequest(true))
+
+		r.Empty(w.Body.String())
+	})
 }
 
-func TestRequireSessionStorageErrorIsNotUnauthorized(t *testing.T) {
+func TestMiddleware_RequireAdmin(t *testing.T) {
 	t.Parallel()
 
-	h := newMiddleware(&fakeUsecases{authErr: errors.New("valkey is down")}).RequireSession(never)(http.NotFoundHandler())
+	withSession := func() *http.Request {
+		r := newRequest(true)
 
-	w := serve(h, request(true))
-
-	require.Equal(t, http.StatusInternalServerError, w.Code)
-	require.NotContains(t, w.Body.String(), "valkey")
-}
-
-func TestRequireSessionPutsSessionIntoContext(t *testing.T) {
-	t.Parallel()
-
-	userID := uuid.New()
-
-	var (
-		gotUser  uuid.UUID
-		gotToken string
-	)
-
-	h := newMiddleware(&fakeUsecases{userID: userID}).RequireSession(never)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		gotUser, _ = requestctx.UserID(r.Context())
-		gotToken, _ = requestctx.SessionToken(r.Context())
-	}))
-
-	w := serve(h, request(true))
-
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, userID, gotUser)
-	require.Equal(t, "token", gotToken)
-}
-
-func TestRequireSessionPublicRoute(t *testing.T) {
-	t.Parallel()
-
-	called := false
-	h := newMiddleware(&fakeUsecases{}).RequireSession(func(*http.Request) bool { return true })(
-		http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }),
-	)
-
-	serve(h, request(false))
-
-	require.True(t, called)
-}
-
-func TestRequireAdmin(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]struct {
-		adminErr error
-		status   int
-	}{
-		"admin":        {adminErr: nil, status: http.StatusOK},
-		"not admin":    {adminErr: usecases.ErrForbidden, status: http.StatusForbidden},
-		"user deleted": {adminErr: usecases.ErrUnauthorized, status: http.StatusUnauthorized},
+		return r.WithContext(requestctx.WithSession(r.Context(), uuid.New(), "token"))
 	}
 
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+	t.Run("ok: admin", func(t *testing.T) {
+		t.Parallel()
 
-			f := &fakeUsecases{userID: uuid.New(), adminErr: tt.adminErr}
-			m := newMiddleware(f)
-			h := m.RequireSession(never)(m.RequireAdmin(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
+		r := require.New(t)
+		m, u := newMiddleware(t)
 
-			w := serve(h, request(true))
+		u.EXPECT().RequireAdmin(mock.Anything, mock.Anything).Return(nil).Once()
 
-			require.Equal(t, tt.status, w.Code)
-		})
-	}
-}
+		called := false
 
-func TestRequireAdminWithoutSession(t *testing.T) {
-	t.Parallel()
+		w := serve(m.RequireAdmin(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })), withSession())
 
-	f := &fakeUsecases{}
+		r.Equal(http.StatusOK, w.Code)
+		r.True(called)
+	})
 
-	w := serve(newMiddleware(f).RequireAdmin(http.NotFoundHandler()), request(false))
+	t.Run("error: plain user", func(t *testing.T) {
+		t.Parallel()
 
-	require.Equal(t, http.StatusUnauthorized, w.Code)
-	require.False(t, f.adminCalled)
+		r := require.New(t)
+		m, u := newMiddleware(t)
+
+		u.EXPECT().RequireAdmin(mock.Anything, mock.Anything).Return(usecases.ErrForbidden).Once()
+
+		w := serve(m.RequireAdmin(mustNotRun(t)), withSession())
+
+		r.Equal(http.StatusForbidden, w.Code)
+		r.JSONEq(`{"code":"FORBIDDEN"}`, w.Body.String())
+	})
+
+	t.Run("error: user is gone", func(t *testing.T) {
+		t.Parallel()
+
+		m, u := newMiddleware(t)
+
+		u.EXPECT().RequireAdmin(mock.Anything, mock.Anything).Return(usecases.ErrUnauthorized).Once()
+
+		w := serve(m.RequireAdmin(mustNotRun(t)), withSession())
+
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("error: no session in context never reaches the role check", func(t *testing.T) {
+		t.Parallel()
+
+		m, _ := newMiddleware(t)
+
+		w := serve(m.RequireAdmin(mustNotRun(t)), newRequest(false))
+
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 }
 
 func TestClientIP(t *testing.T) {
 	t.Parallel()
 
-	got := ""
-	inner := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		got = requestctx.ClientIP(r.Context())
+	newReq := func() *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = "192.0.2.1:1234"
+		r.Header.Set("X-Real-IP", "203.0.113.9")
+
+		return r
+	}
+
+	ip := func(header string, r *http.Request) string {
+		got := ""
+
+		ClientIP(header)(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+			got = requestctx.ClientIP(req.Context())
+		})).ServeHTTP(httptest.NewRecorder(), r)
+
+		return got
+	}
+
+	t.Run("ok: header is ignored unless configured", func(t *testing.T) {
+		t.Parallel()
+
+		require.Equal(t, "192.0.2.1", ip("", newReq()))
 	})
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	r.RemoteAddr = "192.0.2.1:1234"
-	r.Header.Set("X-Real-IP", "203.0.113.9")
+	t.Run("ok: configured header wins", func(t *testing.T) {
+		t.Parallel()
 
-	middleware.ClientIP("")(inner).ServeHTTP(httptest.NewRecorder(), r)
-	require.Equal(t, "192.0.2.1", got, "header must be ignored unless configured")
+		require.Equal(t, "203.0.113.9", ip("X-Real-IP", newReq()))
+	})
 
-	middleware.ClientIP("X-Real-IP")(inner).ServeHTTP(httptest.NewRecorder(), r)
-	require.Equal(t, "203.0.113.9", got)
+	t.Run("ok: falls back to the connection when the header is empty", func(t *testing.T) {
+		t.Parallel()
+
+		r := newReq()
+		r.Header.Del("X-Real-IP")
+
+		require.Equal(t, "192.0.2.1", ip("X-Real-IP", r))
+	})
 }
