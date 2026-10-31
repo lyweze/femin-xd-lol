@@ -1,151 +1,23 @@
-package usecases_test
+//go:build tests
+
+package usecases
 
 import (
-	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/dto"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/models"
-	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/usecases"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/view_models"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-type fakeRepo struct {
-	emails map[string]struct{}
-	last   dto.CreateUserCommand
-	users  []*models.User
-}
-
-func (r *fakeRepo) CreateUser(_ context.Context, cmd dto.CreateUserCommand) (dto.CreateUserResult, error) {
-	if _, ok := r.emails[cmd.Email]; ok {
-		return dto.CreateUserResult{}, usecases.ErrUserAlreadyExists
-	}
-
-	r.emails[cmd.Email] = struct{}{}
-	r.last = cmd
-
-	user := models.NewUser(cmd.ID)
-	user.SetEmail(cmd.Email)
-	user.SetUsername(cmd.Username)
-	user.SetRole(cmd.Role)
-	user.SetCreatedAt(cmd.CreatedAt)
-	user.SetUpdatedAt(cmd.UpdatedAt)
-	user.SetPasswordHash(cmd.PasswordHash)
-
-	r.users = append(r.users, user)
-
-	return dto.CreateUserResult{Result: user}, nil
-}
-
-func (r *fakeRepo) GetUser(_ context.Context, q dto.GetUserQuery) (dto.GetUserResult, error) {
-	for _, user := range r.users {
-		if user.ID() == q.ID {
-			return dto.GetUserResult{Result: user}, nil
-		}
-	}
-
-	return dto.GetUserResult{}, usecases.ErrUserNotFound
-}
-
-func (r *fakeRepo) GetUserByEmail(_ context.Context, q dto.GetUserByEmailQuery) (dto.GetUserByEmailResult, error) {
-	for _, user := range r.users {
-		if user.Email() == q.Email {
-			return dto.GetUserByEmailResult{Result: user}, nil
-		}
-	}
-
-	return dto.GetUserByEmailResult{}, usecases.ErrUserNotFound
-}
-
-func (r *fakeRepo) ListUsers(_ context.Context, q dto.ListUsersQuery) (dto.ListUsersResult, error) {
-	items := make([]*models.User, 0, len(r.users))
-
-	for _, user := range r.users {
-		if q.AfterID != nil && user.ID().String() >= q.AfterID.String() {
-			continue
-		}
-
-		items = append(items, user)
-	}
-
-	if len(items) > q.Limit {
-		items = items[:q.Limit]
-	}
-
-	return dto.ListUsersResult{Items: items}, nil
-}
-
-func (r *fakeRepo) UpdateUserRole(_ context.Context, cmd dto.UpdateUserRoleCommand) (dto.UpdateUserRoleResult, error) {
-	for _, user := range r.users {
-		if user.ID() == cmd.ID {
-			user.SetRole(cmd.Role)
-
-			return dto.UpdateUserRoleResult{Result: user}, nil
-		}
-	}
-
-	return dto.UpdateUserRoleResult{}, usecases.ErrUserNotFound
-}
-
-func (r *fakeRepo) LockAdmins(_ context.Context) (dto.LockAdminsResult, error) {
-	ids := make([]uuid.UUID, 0, len(r.users))
-
-	for _, user := range r.users {
-		if user.Role() == models.UserRoleAdmin {
-			ids = append(ids, user.ID())
-		}
-	}
-
-	return dto.LockAdminsResult{IDs: ids}, nil
-}
-
-type fakeRepoHandler struct {
-	repo *fakeRepo
-}
-
-func (h *fakeRepoHandler) WithTxRW(_ context.Context, fn func(usecases.Repo) error) error {
-	return fn(h.repo)
-}
-
-func (h *fakeRepoHandler) WithTxRO(_ context.Context, fn func(usecases.Repo) error) error {
-	return fn(h.repo)
-}
-
-func (h *fakeRepoHandler) GetRepoRO() usecases.Repo { return h.repo }
-func (h *fakeRepoHandler) GetRepoRW() usecases.Repo { return h.repo }
-
-type fixedTime struct{ t time.Time }
-
-func (f fixedTime) Now() time.Time { return f.t }
-
-type fixedUUID struct{ id uuid.UUID }
-
-func (f fixedUUID) New() uuid.UUID { return f.id }
-
-type fakeHasher struct{}
-
-func (fakeHasher) Hash(password string) (string, error) { return "hashed:" + password, nil }
-
-func (fakeHasher) Verify(password, hash string) (bool, error) { return hash == "hashed:"+password, nil }
-
-func newUsecases(repo *fakeRepo, id uuid.UUID, now time.Time) *usecases.UsersUsecases {
-	return usecases.New(&usecases.NewArgs{
-		RepoHandler:    &fakeRepoHandler{repo: repo},
-		TimeProvider:   fixedTime{t: now},
-		UUIDProvider:   fixedUUID{id: id},
-		PasswordHasher: fakeHasher{},
-	})
-}
-
-func newRepo() *fakeRepo {
-	return &fakeRepo{emails: map[string]struct{}{}}
-}
-
-func validIn() usecases.CreateUserIn {
-	return usecases.CreateUserIn{
+func validCreateUserIn() CreateUserIn {
+	return CreateUserIn{
 		Email:    "admin@femin.test",
 		Username: "admin",
 		Password: "long enough",
@@ -153,61 +25,119 @@ func validIn() usecases.CreateUserIn {
 	}
 }
 
-func TestCreateUser(t *testing.T) {
+func TestCreateUserIn_Validate(t *testing.T) {
 	t.Parallel()
 
-	repo := newRepo()
-	id := uuid.New()
-	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	t.Run("ok", func(t *testing.T) {
+		t.Parallel()
 
-	in := validIn()
-	in.Email = "  admin@femin.test "
+		require.NoError(t, validCreateUserIn().Validate())
+	})
 
-	out, err := newUsecases(repo, id, now).CreateUser(t.Context(), in)
-	require.NoError(t, err)
-
-	require.Equal(t, id, out.User.ID)
-	require.Equal(t, "admin@femin.test", out.User.Email)
-	require.Equal(t, view_models.UserRoleAdmin, out.User.Role)
-	require.Equal(t, now, out.User.CreatedAt)
-	require.Equal(t, "hashed:long enough", repo.last.PasswordHash)
-}
-
-func TestCreateUserValidation(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]func(in *usecases.CreateUserIn){
-		"bad email":      func(in *usecases.CreateUserIn) { in.Email = "nope" },
-		"short username": func(in *usecases.CreateUserIn) { in.Username = "ab" },
-		"short password": func(in *usecases.CreateUserIn) { in.Password = "short" },
-		"unknown role":   func(in *usecases.CreateUserIn) { in.Role = "root" },
-		"empty role":     func(in *usecases.CreateUserIn) { in.Role = "" },
+	errorCases := map[string]func(in *CreateUserIn){
+		"error: empty email":    func(in *CreateUserIn) { in.Email = "" },
+		"error: bad email":      func(in *CreateUserIn) { in.Email = "nope" },
+		"error: long email":     func(in *CreateUserIn) { in.Email = strings.Repeat("a", 321) + "@femin.test" },
+		"error: short username": func(in *CreateUserIn) { in.Username = "ab" },
+		"error: long username":  func(in *CreateUserIn) { in.Username = strings.Repeat("a", 33) },
+		"error: short password": func(in *CreateUserIn) { in.Password = "short" },
+		"error: long password":  func(in *CreateUserIn) { in.Password = strings.Repeat("a", 129) },
+		"error: unknown role":   func(in *CreateUserIn) { in.Role = "root" },
+		"error: empty role":     func(in *CreateUserIn) { in.Role = "" },
 	}
 
-	for name, mutate := range tests {
+	for name, mutate := range errorCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			in := validIn()
+			in := validCreateUserIn()
 			mutate(&in)
 
-			repo := newRepo()
-
-			_, err := newUsecases(repo, uuid.New(), time.Now()).CreateUser(t.Context(), in)
-			require.ErrorIs(t, err, usecases.ErrValidation)
-			require.Empty(t, repo.emails)
+			require.Error(t, in.Validate())
 		})
 	}
 }
 
-func TestCreateUserAlreadyExists(t *testing.T) {
+func TestUsersUsecases_CreateUser(t *testing.T) {
 	t.Parallel()
 
-	u := newUsecases(newRepo(), uuid.New(), time.Now())
+	t.Run("ok: trims input and stores only the hash", func(t *testing.T) {
+		t.Parallel()
 
-	_, err := u.CreateUser(t.Context(), validIn())
-	require.NoError(t, err)
+		r := require.New(t)
+		d := newDeps(t)
 
-	_, err = u.CreateUser(t.Context(), validIn())
-	require.ErrorIs(t, err, usecases.ErrUserAlreadyExists)
+		id := uuid.Must(uuid.NewV7())
+		now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+
+		user := models.NewUser(id)
+		user.SetEmail("admin@femin.test")
+		user.SetUsername("admin")
+		user.SetRole(models.UserRoleAdmin)
+		user.SetPasswordHash("hashed")
+		user.SetCreatedAt(now)
+		user.SetUpdatedAt(now)
+
+		d.passwordHasher.EXPECT().Hash("long enough").Return("hashed", nil).Once()
+		d.timeProvider.EXPECT().Now().Return(now).Once()
+		d.uuidProvider.EXPECT().New().Return(id).Once()
+		d.repo.EXPECT().CreateUser(mock.Anything, dto.CreateUserCommand{
+			ID:           id,
+			Email:        "admin@femin.test",
+			Username:     "admin",
+			PasswordHash: "hashed",
+			Role:         models.UserRoleAdmin,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		}).Return(dto.CreateUserResult{Result: user}, nil).Once()
+
+		in := validCreateUserIn()
+		in.Email = "  admin@femin.test "
+		in.Username = " admin "
+
+		out, err := newUsecase(d).CreateUser(t.Context(), in)
+		r.NoError(err)
+		r.Equal(id, out.User.ID)
+		r.Equal(view_models.UserRoleAdmin, out.User.Role)
+		r.Equal(now, out.User.CreatedAt)
+	})
+
+	t.Run("error: validation stops before hashing", func(t *testing.T) {
+		t.Parallel()
+
+		d := newDeps(t)
+
+		in := validCreateUserIn()
+		in.Password = "short"
+
+		_, err := newUsecase(d).CreateUser(t.Context(), in)
+		require.ErrorIs(t, err, ErrValidation)
+	})
+
+	t.Run("error: user already exists", func(t *testing.T) {
+		t.Parallel()
+
+		d := newDeps(t)
+
+		d.passwordHasher.EXPECT().Hash(mock.Anything).Return("hashed", nil).Once()
+		d.timeProvider.EXPECT().Now().Return(time.Now()).Once()
+		d.uuidProvider.EXPECT().New().Return(uuid.New()).Once()
+		d.repo.EXPECT().CreateUser(mock.Anything, mock.Anything).
+			Return(dto.CreateUserResult{}, ErrUserAlreadyExists).Once()
+
+		_, err := newUsecase(d).CreateUser(t.Context(), validCreateUserIn())
+		require.ErrorIs(t, err, ErrUserAlreadyExists)
+	})
+
+	t.Run("error: hasher failed", func(t *testing.T) {
+		t.Parallel()
+
+		d := newDeps(t)
+
+		hashErr := errors.New("no entropy")
+		d.passwordHasher.EXPECT().Hash(mock.Anything).Return("", hashErr).Once()
+
+		_, err := newUsecase(d).CreateUser(t.Context(), validCreateUserIn())
+		require.ErrorIs(t, err, hashErr)
+	})
 }

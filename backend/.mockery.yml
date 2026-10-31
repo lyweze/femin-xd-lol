@@ -1,0 +1,27 @@
+all: false
+recursive: false
+dir: ./tests/mocks/{{ trimPrefix "internal" .InterfaceDirRelative  }}
+filename: "{{ .InterfaceName | snakecase }}.go"
+force-file-write: true
+formatter: gofmt
+log-level: info
+structname: "{{.Mock}}{{.InterfaceName}}"
+pkgname: "{{.SrcPackageName}}"
+require-template-schema-exists: true
+template: testify
+template-data:
+  mock-build-tags: "tests"
+template-schema: "{{.Template}}.schema.json"
+packages:
+  github.com/lyweze/femin-xd-lol/backend/internal/packages/auth:
+    config:
+      recursive: true
+      all: true
+  github.com/lyweze/femin-xd-lol/backend/internal/packages/users:
+    config:
+      recursive: true
+      all: true
+  github.com/lyweze/femin-xd-lol/backend/internal/packages/example:
+    config:
+      recursive: true
+      all: true

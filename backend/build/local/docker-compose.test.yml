@@ -1,0 +1,30 @@
+# Отдельное окружение для make test: свои порты и хранение в памяти.
+# Тесты чистят таблицы и удаляют схему, поэтому общая с разработкой база здесь не подходит.
+name: femin-test
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: femin
+      POSTGRES_PASSWORD: femin
+      POSTGRES_DB: femin_test
+    ports:
+      - "127.0.0.1:55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U femin -d femin_test"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:8
+    ports:
+      - "127.0.0.1:56379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
