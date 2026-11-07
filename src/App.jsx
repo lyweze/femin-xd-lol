@@ -1,16 +1,11 @@
 import { useState } from "react";
 import "./App.css";
+import Sidebar from "./components/sidebar/Sidebar.jsx";
 
 function App() {
 	const [count, setCount] = useState(0);
 
-	return (
-		<div className="App">
-			<button onClick={() => setCount((count) => count + 1)}>
-				count is {count}
-			</button>
-		</div>
-	);
+	return <Sidebar />;
 }
 
 export default App;
