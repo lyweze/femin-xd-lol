@@ -1,5 +1,50 @@
+/* Работа гемини */
+@import url("[https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500&family=JetBrains+Mono&display=swap](https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500&family=JetBrains+Mono&display=swap)");
+
+:root {
+	/* Фоновые слои и материалы (Matte Obsidian & Smoked Glass) */
+	--bg-canvas: #161615;
+	--surface-sidebar: rgba(27, 27, 25, 0.75);
+	--surface-player: rgba(34, 34, 32, 0.8);
+	--surface-hover: rgba(230, 227, 221, 0.04);
+	--surface-active: rgba(230, 227, 221, 0.08);
+	--ambient-mask: rgba(22, 22, 21, 0.88);
+
+	/* Эффекты размытия и теней */
+	--blur-sidebar: blur(32px);
+	--blur-player: blur(48px);
+	--blur-ambient: blur(140px);
+	--shadow-player: 0 0 8px 4px rgba(0, 0, 0, 0.22);
+
+	/* Границы и блики (1px) */
+	--border-hairline: rgba(230, 227, 221, 0.05);
+	--border-specular: rgba(255, 255, 255, 0.07);
+
+	/* Типографика */
+	--text-primary: #e6e3dd;
+	--text-secondary: #8a867e;
+	--text-tertiary: #52504b;
+
+	/* Динамический акцент обложки (перезаписывается из JS) */
+	--accent-cover: #c56b4e;
+
+	/* Семейства шрифтов */
+	--font-editorial: "Instrument Serif", Georgia, serif;
+	--font-ui: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+	--font-mono: "JetBrains Mono", "SF Mono", monospace;
+
+	/* Скругления и отступы */
+	--radius-window: 16px;
+	--radius-player: 20px;
+	--radius-cover: 12px;
+	--radius-item: 8px;
+	--layout-inset: 12px;
+}
+
 body {
 	margin: 0;
 	padding: 12px;
-	background-color: #161615;
+	/* background-color: var(--bg-canvas); */
+	background-color: var(--accent-cover);
+	height: calc(100dvh - 24px);
 }
