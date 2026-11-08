@@ -48,3 +48,10 @@ body {
 	background-color: var(--accent-cover);
 	height: calc(100dvh - 24px);
 }
+
+.app {
+	display: flex;
+	flex-direction: row;
+	gap: 12px;
+	height: 100%;
+}

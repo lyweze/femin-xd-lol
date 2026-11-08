@@ -1,5 +1,5 @@
 .sidebar {
-	width: 206px;
+	width: 240px;
 	height: calc(100vh - (var(--layout-inset) * 2));
 	height: calc(100dvh - (var(--layout-inset) * 2));
 	box-sizing: border-box;
@@ -47,7 +47,7 @@
 			border-radius: var(--radius-item);
 			background-color: var(--surface-active);
 			color: var(--text-primary);
-			font-family: var(--font-ui);
+			font-family: var(--font-editorial);
 			cursor: pointer;
 			user-select: none;
 			transition:
