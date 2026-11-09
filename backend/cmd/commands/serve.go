@@ -13,7 +13,10 @@ import (
 	"github.com/lyweze/femin-xd-lol/backend/internal/debugserver"
 	"github.com/lyweze/femin-xd-lol/backend/internal/di"
 	"github.com/lyweze/femin-xd-lol/backend/internal/httpserver"
+	"github.com/lyweze/femin-xd-lol/backend/internal/packages/auth"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/example"
+	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users"
+	"github.com/lyweze/femin-xd-lol/backend/internal/valkey"
 	"github.com/samber/do"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -28,17 +31,24 @@ var Serve = &cobra.Command{ //nolint:exhaustruct,gochecknoglobals
 	RunE: runE,
 }
 
+func provideServe(container *do.Injector) {
+	di.Provide(container)
+	valkey.Provide(container)
+	db.ProvideServe(container)
+	users.Provide(container)
+	auth.Provide(container)
+	example.Provide(container)
+	httpserver.Provide(container)
+	debugserver.Provide(container)
+}
+
 func runE(_ *cobra.Command, _ []string) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	container := do.New()
 
-	di.Provide(container)
-	db.ProvideServe(container)
-	example.Provide(container)
-	httpserver.Provide(container)
-	debugserver.Provide(container)
+	provideServe(container)
 
 	config := di.InvokeConfig(container)
 

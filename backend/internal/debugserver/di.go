@@ -6,6 +6,7 @@ import (
 
 	"github.com/lyweze/femin-xd-lol/backend/internal/db"
 	"github.com/lyweze/femin-xd-lol/backend/internal/di"
+	"github.com/lyweze/femin-xd-lol/backend/internal/valkey"
 	"github.com/samber/do"
 )
 
@@ -18,6 +19,7 @@ func Provide(i *do.Injector) {
 		cfg := di.InvokeConfig(i)
 
 		pool := db.InvokeMaster(i)
+		valkeyClient := valkey.InvokeValkeyClient(i)
 
 		return New(&NewArgs{
 			Port: cfg.DebugServerListenPort,
@@ -25,6 +27,14 @@ func Provide(i *do.Injector) {
 				"postgres": func(ctx context.Context) error {
 					if err := pool.Ping(ctx); err != nil {
 						return fmt.Errorf("failed to ping postgres: %w", err)
+					}
+
+					return nil
+				},
+				"valkey": func(ctx context.Context) error {
+					err := valkeyClient.Do(ctx, valkeyClient.B().Ping().Build()).Error()
+					if err != nil {
+						return fmt.Errorf("failed to ping valkey: %w", err)
 					}
 
 					return nil

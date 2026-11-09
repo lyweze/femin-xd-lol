@@ -8,6 +8,12 @@ services:
     ports:
       - "5432:5432"
 
+  valkey:
+    image: valkey/valkey:8
+    command: ["valkey-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+
   migrate:
     image: migrate/migrate:v4.18.3
     depends_on:

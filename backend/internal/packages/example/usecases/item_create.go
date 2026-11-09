@@ -31,7 +31,7 @@ type CreateItemOut struct {
 	Item view_models.Item
 }
 
-func (u *Usecases) CreateItem(ctx context.Context, in CreateItemIn) (CreateItemOut, error) {
+func (u *ExampleUsecases) CreateItem(ctx context.Context, in CreateItemIn) (CreateItemOut, error) {
 	if err := in.Validate(); err != nil {
 		return CreateItemOut{}, errors.Join(ErrValidation, err)
 	}
@@ -40,7 +40,7 @@ func (u *Usecases) CreateItem(ctx context.Context, in CreateItemIn) (CreateItemO
 
 	var out CreateItemOut
 
-	err := u.repoHandler.WithTxRW(ctx, func(repo Repo, _ Outbox) error {
+	err := u.repoHandler.WithTxRW(ctx, func(repo Repo) error {
 		result, err := repo.CreateItem(ctx, dto.CreateItemCommand{
 			ID:          u.uuidProvider.New(),
 			Title:       in.Title,

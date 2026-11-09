@@ -1,0 +1,10 @@
+# Теги подключаются по мере реализации: StrictServerInterface требует все методы тега.
+package: serverhttp
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true
+output-options:
+  include-tags:
+    - auth
+output: gen/serverhttp/serverhttp.gen.go

@@ -26,6 +26,29 @@ type DBConfig struct {
 
 type HTTPServerConfig struct {
 	Port int `envconfig:"PORT" default:"8000"`
+	// ClientIPHeader заголовок с IP клиента, например X-Real-IP.
+	// Задавать только за прокси, который сам его перезаписывает, иначе клиент подделает IP.
+	ClientIPHeader string `envconfig:"CLIENT_IP_HEADER"`
+}
+
+type ValkeyConfig struct {
+	Address  string `envconfig:"ADDRESS" required:"true"`
+	Password string `envconfig:"PASSWORD"`
+	DB       int    `envconfig:"DB" default:"0"`
+	// Timeout ограничивает каждую операцию: без него при падении Valkey запросы висят, а не падают.
+	Timeout time.Duration `envconfig:"TIMEOUT" default:"2s"`
+}
+
+type SessionConfig struct {
+	TTL          time.Duration `envconfig:"TTL" default:"2160h"` // 90 дней
+	CookieSecure bool          `envconfig:"COOKIE_SECURE" default:"true"`
+}
+
+type AuthLimitsConfig struct {
+	LoginPerEmail int64         `envconfig:"LOGIN_PER_EMAIL" default:"10"`
+	LoginPerIP    int64         `envconfig:"LOGIN_PER_IP" default:"50"`
+	RegisterPerIP int64         `envconfig:"REGISTER_PER_IP" default:"10"`
+	Window        time.Duration `envconfig:"WINDOW" default:"15m"`
 }
 
 type Config struct {
@@ -43,6 +66,11 @@ type Config struct {
 
 	ServePGXPool        DBPoolConfig `envconfig:"SERVE_PGX_POOL"`
 	ServePGXPoolReplica DBPoolConfig `envconfig:"SERVE_PGX_POOL_REPLICA"`
+
+	Valkey ValkeyConfig `envconfig:"VALKEY"`
+
+	Session    SessionConfig    `envconfig:"SESSION"`
+	AuthLimits AuthLimitsConfig `envconfig:"AUTH_LIMITS"`
 
 	Logger LoggerConfig `envconfig:"LOGGER"`
 }
