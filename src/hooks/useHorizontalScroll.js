@@ -1,42 +1,25 @@
 import { useState, useCallback, useEffect } from "react";
 
 // ============================================================================
-// Константы скролла, краевых затуханий и физики пружинного отскока (Rubber-Band)
+// Константы настройки скролла, перетаскивания и краевых градиентов (fades)
 // ============================================================================
 const DRAG_THRESHOLD_PX = 5; // Минимальный сдвиг мыши, после которого клик считается перетаскиванием
 const DRAG_SPEED_MULTIPLIER = 1.4; // Коэффициент скорости прокрутки при удержании ЛКМ
 const SCROLL_IDLE_DELAY_MS = 700; // Задержка перед снятием `.is-scrolling` (скрытие скроллбара)
-const WHEEL_RELEASE_DELAY_MS = 110; // Пауза после последнего тика колесика перед возвратом пружины
 const SCROLL_EDGE_TOLERANCE_PX = 2; // Допуск в пикселях для определения краёв (учёт дробного зума)
 
 const FADE_LEFT_WIDTH = "44px"; // Ширина мягкого затухания слева при наличии скрытого контента
 const FADE_RIGHT_WIDTH = "56px"; // Ширина мягкого затухания справа при наличии скрытого контента
 
-const MAX_RUBBER_STRETCH_PX = 72; // Максимальный предел оттягивания ленты на краях (как в macOS)
-const RUBBER_RESISTANCE = 0.007; // Коэффициент прогрессивного сопротивления при натяжении
-
 /**
- * Нелинейное «маковское» сопротивление (Rubber-Band):
- * чем дальше тянешь ленту за край, тем сильнее она упирается, асимптотически приближаясь к maxStretch.
- */
-const applyRubberBand = (overscroll, maxStretch = MAX_RUBBER_STRETCH_PX) => {
-	if (overscroll === 0) return 0;
-	const sign = Math.sign(overscroll);
-	const abs = Math.abs(overscroll);
-	return sign * maxStretch * (1 - 1 / (abs * RUBBER_RESISTANCE + 1));
-};
-
-/**
- * Хук для горизонтальной прокрутки с физикой инерционного отскока macOS.
+ * Хук для горизонтальной прокрутки контейнера колесиком мыши и перетаскиванием (Drag-to-Scroll).
  *
- * Управляемые CSS-переменные на контейнере:
- * - `--fade-left` / `--fade-right` — ширина боковых градиентов затухания (`mask-image`)
- * - `--bounce-x` — текущее смещение отскока на краях (применяется к карточкам через `translate3d`)
- *
- * Управляемые классы состояния:
- * - `.is-scrolling` — активная прокрутка (проявление скроллбара)
- * - `.is-dragging` — активное перетаскивание зажатой кнопкой мыши
- * - `.is-springing` — фаза плавного возврата ленты из растянутого состояния (transition в CSS)
+ * Что делает автоматически:
+ * 1. Переводит вертикальное колесико мыши в горизонтальный скролл (не ломая жесты трекпада).
+ * 2. Позволяет перетаскивать ленту зажатой левой кнопкой мыши и блокирует случайный клик после скролла.
+ * 3. Управляет классами `.is-scrolling` и `.is-dragging` для плавного показа/скрытия скроллбара.
+ * 4. Обновляет CSS-переменные `--fade-left` и `--fade-right` через `requestAnimationFrame`
+ *    для динамического затухания краёв списка при ресайзе или подгрузке карточек.
  */
 export function useHorizontalScroll() {
 	const [slider, setSlider] = useState(null);
@@ -49,41 +32,20 @@ export function useHorizontalScroll() {
 	useEffect(() => {
 		if (!slider) return;
 
-		// Состояние перетаскивания и пружины (храним в замыкании без лишних ререндеров)
+		// Локальное состояние перетаскивания (в замыкании, чтобы не вызывать лишние ререндеры)
 		let isDown = false;
 		let startX = 0;
 		let startScrollLeft = 0;
 		let moved = false;
-
-		let bounceOffset = 0;
-		let wheelOverscroll = 0;
 		let scrollTimeout = null;
-		let wheelReleaseTimeout = null;
 		let rafId = null;
 
-		// Кэш состояний краёв: записываем CSS-переменные только при реальном пересечении границы
+		// Кэш состояний краёв: записываем CSS-переменные только в момент реального перехода
 		let prevHasLeft = null;
 		let prevHasRight = null;
 
 		// ====================================================================
-		// 1. Управление пружинным отскоком (--bounce-x и класс .is-springing)
-		// ====================================================================
-		const setBounce = (px, animate = false) => {
-			bounceOffset = px;
-			slider.classList.toggle("is-springing", animate);
-			slider.style.setProperty("--bounce-x", `${px.toFixed(1)}px`);
-		};
-
-		// Запускает плавный возврат ленты в исходное положение (0px)
-		const springBack = () => {
-			wheelOverscroll = 0;
-			if (bounceOffset !== 0) {
-				setBounce(0, true);
-			}
-		};
-
-		// ====================================================================
-		// 2. Расчёт краевых затуханий (--fade-left / --fade-right) через rAF
+		// 1. Расчёт краевых затуханий (--fade-left / --fade-right) через rAF
 		// ====================================================================
 		const updateFades = () => {
 			rafId = null;
@@ -113,6 +75,7 @@ export function useHorizontalScroll() {
 			}
 		};
 
+		// Группируем вызовы в один кадр отрисовки браузера (60–240 Гц)
 		const scheduleFadeUpdate = () => {
 			if (rafId === null) {
 				rafId = requestAnimationFrame(updateFades);
@@ -120,7 +83,7 @@ export function useHorizontalScroll() {
 		};
 
 		// ====================================================================
-		// 3. Отслеживание скролла (обновление масок + показ скроллбара)
+		// 2. Отслеживание прокрутки (обновление масок + класс .is-scrolling)
 		// ====================================================================
 		const onScroll = () => {
 			scheduleFadeUpdate();
@@ -136,55 +99,27 @@ export function useHorizontalScroll() {
 		};
 
 		// ====================================================================
-		// 4. Колесико мыши и трекпад + упругий отскок при достижении краёв
+		// 3. Перевод вертикального колесика мыши в горизонтальный скролл
 		// ====================================================================
 		const onWheel = (e) => {
-			const isVerticalWheel = Math.abs(e.deltaY) > Math.abs(e.deltaX);
-			const delta = isVerticalWheel ? e.deltaY : e.deltaX;
-			if (delta === 0) return;
+			if (e.deltaY === 0) return;
 
-			if (isVerticalWheel) {
+			// Пропускаем горизонтальные жесты трекпада (где deltaX доминирует над deltaY)
+			if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
 				e.preventDefault();
+				slider.scrollLeft += e.deltaY;
 			}
-
-			const maxScroll = Math.max(0, slider.scrollWidth - slider.clientWidth);
-			const nextScroll = slider.scrollLeft + delta;
-
-			// Упёрлись в левый край — накапливаем натяжение вправо (+bounceOffset)
-			if (nextScroll < 0) {
-				e.preventDefault();
-				slider.scrollLeft = 0;
-				wheelOverscroll += -nextScroll;
-				setBounce(applyRubberBand(wheelOverscroll), false);
-				// Упёрлись в правый край — накапливаем натяжение влево (-bounceOffset)
-			} else if (nextScroll > maxScroll) {
-				e.preventDefault();
-				slider.scrollLeft = maxScroll;
-				wheelOverscroll -= nextScroll - maxScroll;
-				setBounce(applyRubberBand(wheelOverscroll), false);
-				// Движение внутри рабочих границ списка
-			} else {
-				if (wheelOverscroll !== 0) springBack();
-				if (isVerticalWheel) {
-					slider.scrollLeft = nextScroll;
-				}
-			}
-
-			// Когда импульс колесика затихает — отпускаем пружину обратно
-			clearTimeout(wheelReleaseTimeout);
-			wheelReleaseTimeout = setTimeout(springBack, WHEEL_RELEASE_DELAY_MS);
 		};
 
 		// ====================================================================
-		// 5. Перетаскивание мышью (Drag-to-Scroll + натяжение на границах)
+		// 4. Механика перетаскивания мышью (Drag-to-Scroll)
 		// ====================================================================
 		const onMouseDown = (e) => {
-			if (e.button !== 0) return; // Реагируем только на левую кнопку мыши
+			if (e.button !== 0) return; // Игнорируем правую и среднюю кнопки мыши
 			isDown = true;
 			moved = false;
 			startX = e.clientX;
 			startScrollLeft = slider.scrollLeft;
-			setBounce(0, false); // Останавливаем текущую анимацию отскока при перехвате
 		};
 
 		const onMouseMove = (e) => {
@@ -192,7 +127,7 @@ export function useHorizontalScroll() {
 
 			const delta = e.clientX - startX;
 
-			// Включаем режим перетаскивания только после порога в 5px
+			// Активируем режим перетаскивания только после преодоления порога в 5px
 			if (!moved && Math.abs(delta) > DRAG_THRESHOLD_PX) {
 				moved = true;
 				slider.classList.add("is-dragging");
@@ -200,19 +135,7 @@ export function useHorizontalScroll() {
 
 			if (moved) {
 				e.preventDefault();
-				const maxScroll = Math.max(0, slider.scrollWidth - slider.clientWidth);
-				const targetScroll = startScrollLeft - delta * DRAG_SPEED_MULTIPLIER;
-
-				if (targetScroll < 0) {
-					slider.scrollLeft = 0;
-					setBounce(applyRubberBand(-targetScroll), false);
-				} else if (targetScroll > maxScroll) {
-					slider.scrollLeft = maxScroll;
-					setBounce(applyRubberBand(-(targetScroll - maxScroll)), false);
-				} else {
-					slider.scrollLeft = targetScroll;
-					if (bounceOffset !== 0) setBounce(0, false);
-				}
+				slider.scrollLeft = startScrollLeft - delta * DRAG_SPEED_MULTIPLIER;
 			}
 		};
 
@@ -220,10 +143,9 @@ export function useHorizontalScroll() {
 			if (!isDown) return;
 			isDown = false;
 			slider.classList.remove("is-dragging");
-			springBack();
 
-			// Страховка: если кнопку отпустили за пределами списка, click не сработает.
-			// Сбрасываем moved в следующем тике, чтобы следующий обычный клик не заблокировался.
+			// Страховка: если кнопку отпустили за пределами ленты, событие click не сработает.
+			// Сбрасываем moved в следующем тике (после фазы click), чтобы не заблокировать следующий клик.
 			if (moved) {
 				setTimeout(() => {
 					moved = false;
@@ -232,7 +154,7 @@ export function useHorizontalScroll() {
 		};
 
 		// ====================================================================
-		// 6. Блокировка случайного клика по карточке сразу после перетаскивания
+		// 5. Блокировка ложного клика по карточке сразу после перетаскивания
 		// ====================================================================
 		const onClickCapture = (e) => {
 			if (moved) {
@@ -243,7 +165,7 @@ export function useHorizontalScroll() {
 		};
 
 		// ====================================================================
-		// 7. Инициализация наблюдателей и подписка на события
+		// 6. Инициализация наблюдателей и подписка на события
 		// ====================================================================
 		updateFades();
 
@@ -261,9 +183,9 @@ export function useHorizontalScroll() {
 		window.addEventListener("mouseup", onMouseUp);
 		window.addEventListener("blur", onMouseUp);
 
+		// Полная очистка при размонтировании или смене DOM-узла
 		return () => {
 			clearTimeout(scrollTimeout);
-			clearTimeout(wheelReleaseTimeout);
 			if (rafId !== null) cancelAnimationFrame(rafId);
 			resizeObserver.disconnect();
 			mutationObserver.disconnect();

@@ -34,8 +34,7 @@
 	flex-direction: column;
 	flex: 1 1 0%;
 	width: 100%;
-	/* Экран минус ширина сайдбара (240px) и 3 внешних отступа (--layout-inset) */
-	max-width: calc(100vw - 240px - (var(--layout-inset) * 3));
+	max-width: calc(100vw - 206px - (var(--layout-inset) * 3));
 	min-width: 0;
 	height: calc(100vh - (var(--layout-inset) * 2));
 	height: calc(100dvh - (var(--layout-inset) * 2));
@@ -49,7 +48,6 @@
 	-webkit-backdrop-filter: var(--blur-sidebar);
 	backdrop-filter: var(--blur-sidebar);
 
-	/* Скролл делегирован дочерним спискам (.Playlists и .Library) */
 	overflow: hidden;
 	overscroll-behavior: none;
 }
@@ -86,18 +84,13 @@
    3. Горизонтальная лента плейлистов, маска затухания и скроллбар
    ========================================================================== */
 .Playlists {
-	/* Фолбэк-значения на случай браузеров без поддержки @property */
 	--fade-left: 0px;
 	--fade-right: 0px;
-	/* Смещение при резиновом оттягивании на границах (хук useHorizontalScroll) */
-	--bounce-x: 0px;
 
 	display: flex;
 	flex-direction: row;
 	flex-shrink: 0;
 	gap: 14px;
-	/* Выносим края на 8px для воздуха под hover-увеличение карточек,
-       сохраняя визуальное выравнивание первой карточки по левому краю заголовка */
 	width: calc(100% + 16px);
 	box-sizing: border-box;
 	margin: 16px -8px 0;
@@ -106,13 +99,11 @@
 
 	overflow-x: auto;
 	overflow-y: hidden;
-	overscroll-behavior-x: contain;
 	cursor: default;
 	-webkit-user-select: none;
 	user-select: none;
 	-webkit-overflow-scrolling: touch;
 
-	/* Плавная анимация боковых масок затухания */
 	transition:
 		--fade-left 0.25s cubic-bezier(0.22, 1, 0.36, 1),
 		--fade-right 0.25s cubic-bezier(0.22, 1, 0.36, 1);
@@ -132,11 +123,9 @@
 		transparent 100%
 	);
 
-	/* Изоляция GPU-слоя от backdrop-filter родителя (фикс мигания на macOS) */
 	transform: translateZ(0);
 	will-change: scroll-position;
 
-	/* Состояние активного перетаскивания (навешивается хуком useHorizontalScroll) */
 	&.is-dragging {
 		cursor: grabbing;
 		scroll-behavior: auto;
@@ -147,12 +136,6 @@
 		}
 	}
 
-	/* Пружинный возврат карточек после оттягивания у края */
-	&.is-springing > .Playlist-item {
-		transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-	}
-
-	/* Тонкий горизонтальный скроллбар с боковыми отступами по 8px */
 	&::-webkit-scrollbar {
 		height: 3px;
 	}
@@ -161,7 +144,6 @@
 		background: transparent;
 	}
 
-	/* Невидимые распорки по краям трека, чтобы ползунок не заходил в зону -8px margin */
 	&::-webkit-scrollbar-button:start:decrement,
 	&::-webkit-scrollbar-button:end:increment {
 		display: block;
@@ -197,17 +179,12 @@
 	box-sizing: border-box;
 	cursor: pointer;
 
-	/* Сдвиг при rubber-banding на GPU без влияния на hover-анимацию .Playlist-icon */
-	transform: translate3d(var(--bounce-x, 0px), 0, 0);
-	will-change: transform;
-
 	> .Playlist-icon {
 		position: relative;
 		width: 297px;
 		height: 297px;
 		border-radius: var(--radius-item);
 		background-color: var(--surface-active);
-		/* Верхний внутренний блик в стиле macOS + тень глубины */
 		box-shadow:
 			inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
 			var(--shadow-player);
@@ -218,12 +195,10 @@
 			box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 	}
 
-	/* Плавное поднятие обложки при наведении */
 	&:hover > .Playlist-icon {
 		transform: translate3d(0, -5px, 0) scale(1.02);
 	}
 
-	/* Лёгкое тактильное нажатие при клике */
 	&:active > .Playlist-icon {
 		transform: translate3d(0, -2px, 0) scale(0.99);
 		transition-duration: 0.1s;
@@ -250,8 +225,6 @@
 .Library {
 	--fade-top: 0px;
 	--fade-bottom: 0px;
-	/* Смещение при резиновом оттягивании сверху/снизу (хук useVerticalScroll) */
-	--bounce-y: 0px;
 
 	display: flex;
 	flex-direction: column;
@@ -259,8 +232,6 @@
 	min-height: 0;
 	gap: 2px;
 
-	/* Выносим скроллбар на 8px вправо, чтобы не сдвигать выравнивание строк;
-       нижний паддинг 88px оставляет воздух под плавающий нижний плеер */
 	width: calc(100% + 8px);
 	box-sizing: border-box;
 	margin: 12px -8px 0 0;
@@ -269,10 +240,8 @@
 
 	overflow-y: auto;
 	overflow-x: hidden;
-	overscroll-behavior-y: contain;
 	-webkit-overflow-scrolling: touch;
 
-	/* Плавная анимация верхнего и нижнего затухания списка */
 	transition:
 		--fade-top 0.25s cubic-bezier(0.22, 1, 0.36, 1),
 		--fade-bottom 0.25s cubic-bezier(0.22, 1, 0.36, 1);
@@ -295,14 +264,6 @@
 	transform: translateZ(0);
 	will-change: scroll-position;
 
-	/* Мягкий пружинный возврат строк после оттягивания у верхней или нижней границы */
-	&.is-springing > .Library-item {
-		transition:
-			background-color 0.18s ease,
-			transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
-	}
-
-	/* Вертикальный скроллбар с нижней распоркой 88px над плавающим плеером */
 	&::-webkit-scrollbar {
 		width: 3px;
 	}
@@ -330,9 +291,6 @@
 		background: rgba(230, 227, 221, 0.4);
 	}
 
-	/* ----------------------------------------------------------------------
-       Строка отдельного трека
-       ---------------------------------------------------------------------- */
 	> .Library-item {
 		display: flex;
 		align-items: center;
@@ -350,11 +308,9 @@
 		cursor: pointer;
 		-webkit-user-select: none;
 		user-select: none;
-		transform: translate3d(0, var(--bounce-y, 0px), 0);
-		will-change: transform;
 		transition:
 			background-color 0.18s ease,
-			transform 0.08s ease-out;
+			transform 0.1s ease;
 
 		&:last-child {
 			border-bottom: none;
@@ -365,10 +321,9 @@
 		}
 
 		&:active {
-			transform: translate3d(0, var(--bounce-y, 0px), 0) scale(0.997);
+			transform: scale(0.997);
 		}
 
-		/* Активный (играющий сейчас) трек */
 		&.is-current {
 			background-color: var(--surface-active);
 			border-bottom-color: transparent;
@@ -378,22 +333,18 @@
 			}
 		}
 
-		/* ------------------------------------------------------------------
-           Левая группа: номер/индикатор + метаданные трека
-           ------------------------------------------------------------------ */
 		> .Library-left {
 			display: flex;
 			align-items: center;
 			gap: 12px;
 			min-width: 0;
 
-			/* Порядковый номер трека и акцентная точка воспроизведения */
 			> .Library-index {
 				display: flex;
 				align-items: center;
 				justify-content: flex-start;
 				gap: 6px;
-				width: 28px;
+				width: 22px;
 				flex-shrink: 0;
 				font-family: var(--font-mono);
 				font-variant-numeric: tabular-nums;
@@ -410,7 +361,6 @@
 				}
 			}
 
-			/* Блок названия трека и имени исполнителя */
 			> .Library-meta {
 				display: flex;
 				flex-direction: column;
@@ -439,9 +389,6 @@
 			}
 		}
 
-		/* ------------------------------------------------------------------
-           Правая часть: длительность трека
-           ------------------------------------------------------------------ */
 		> .Library-duration {
 			flex-shrink: 0;
 			font-family: var(--font-mono);
