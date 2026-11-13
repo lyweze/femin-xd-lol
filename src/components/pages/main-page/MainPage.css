@@ -1,0 +1,400 @@
+/* ==========================================================================
+   0. Регистрация типизированных CSS-переменных (@property)
+      Позволяет браузеру плавно анимировать края mask-image при прокрутке
+   ========================================================================== */
+@property --fade-left {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --fade-right {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --fade-top {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --fade-bottom {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+/* ==========================================================================
+   1. Основной контейнер страницы (фиксированный flex-каркас правой панели)
+   ========================================================================== */
+.main {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	width: 100%;
+	max-width: calc(100vw - 206px - (var(--layout-inset) * 3));
+	min-width: 0;
+	height: calc(100vh - (var(--layout-inset) * 2));
+	height: calc(100dvh - (var(--layout-inset) * 2));
+	box-sizing: border-box;
+	padding: calc(var(--layout-inset) * 2);
+	margin: 0;
+
+	background-color: var(--surface-sidebar);
+	border-radius: var(--radius-window);
+	box-shadow: var(--shadow-player);
+	-webkit-backdrop-filter: var(--blur-sidebar);
+	backdrop-filter: var(--blur-sidebar);
+
+	overflow: hidden;
+	overscroll-behavior: none;
+}
+
+/* ==========================================================================
+   2. Шапка раздела и типографика
+   ========================================================================== */
+.main-header {
+	flex-shrink: 0;
+	margin: 0;
+	padding: 0;
+
+	> .main-title {
+		margin: 0;
+		padding: 0;
+		font-family: var(--font-editorial);
+		font-size: 44px;
+		line-height: 1.1;
+		color: var(--text-primary);
+	}
+
+	> .main-subtitle {
+		margin: 8px 0 0;
+		padding: 0;
+		font-family: var(--font-editorial);
+		font-size: 20px;
+		font-weight: 400;
+		line-height: 1.4;
+		color: var(--text-secondary);
+	}
+}
+
+/* ==========================================================================
+   3. Горизонтальная лента плейлистов, маска затухания и скроллбар
+   ========================================================================== */
+.Playlists {
+	--fade-left: 0px;
+	--fade-right: 0px;
+
+	display: flex;
+	flex-direction: row;
+	flex-shrink: 0;
+	gap: 14px;
+	width: calc(100% + 16px);
+	box-sizing: border-box;
+	margin: 16px -8px 0;
+	padding: 14px 8px 16px 8px;
+	list-style: none;
+
+	overflow-x: auto;
+	overflow-y: hidden;
+	cursor: default;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-overflow-scrolling: touch;
+
+	transition:
+		--fade-left 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+		--fade-right 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+
+	-webkit-mask-image: linear-gradient(
+		to right,
+		transparent 0px,
+		#000 var(--fade-left),
+		#000 calc(100% - var(--fade-right)),
+		transparent 100%
+	);
+	mask-image: linear-gradient(
+		to right,
+		transparent 0px,
+		#000 var(--fade-left),
+		#000 calc(100% - var(--fade-right)),
+		transparent 100%
+	);
+
+	transform: translateZ(0);
+	will-change: scroll-position;
+
+	&.is-dragging {
+		cursor: grabbing;
+		scroll-behavior: auto;
+
+		> .Playlist-item {
+			cursor: grabbing;
+			pointer-events: none;
+		}
+	}
+
+	&::-webkit-scrollbar {
+		height: 3px;
+	}
+
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	&::-webkit-scrollbar-button:start:decrement,
+	&::-webkit-scrollbar-button:end:increment {
+		display: block;
+		width: 8px;
+		background: transparent;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background: rgba(230, 227, 221, 0.01);
+		border-radius: 999px;
+	}
+
+	&.is-scrolling::-webkit-scrollbar-thumb,
+	&.is-dragging::-webkit-scrollbar-thumb {
+		background: rgba(230, 227, 221, 0.22);
+	}
+
+	&.is-scrolling::-webkit-scrollbar-thumb:hover,
+	&.is-dragging::-webkit-scrollbar-thumb:hover {
+		background: rgba(230, 227, 221, 0.4);
+	}
+}
+
+/* ==========================================================================
+   4. Карточка плейлиста
+   ========================================================================== */
+.Playlist-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 297px;
+	flex-shrink: 0;
+	box-sizing: border-box;
+	cursor: pointer;
+
+	> .Playlist-icon {
+		position: relative;
+		width: 297px;
+		height: 297px;
+		border-radius: var(--radius-item);
+		background-color: var(--surface-active);
+		box-shadow:
+			inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+			var(--shadow-player);
+		backface-visibility: hidden;
+		transform: translateZ(0);
+		transition:
+			transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+			box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	&:hover > .Playlist-icon {
+		transform: translate3d(0, -5px, 0) scale(1.02);
+	}
+
+	&:active > .Playlist-icon {
+		transform: translate3d(0, -2px, 0) scale(0.99);
+		transition-duration: 0.1s;
+	}
+
+	> .Playlist-name {
+		width: 100%;
+		margin-top: 10px;
+		font-family: var(--font-editorial);
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 24px;
+		color: var(--text-primary);
+		text-align: center;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+}
+
+/* ==========================================================================
+   5. Секция библиотеки (вертикальный список треков с фейдом)
+   ========================================================================== */
+.Library {
+	--fade-top: 0px;
+	--fade-bottom: 0px;
+
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	gap: 2px;
+
+	width: calc(100% + 8px);
+	box-sizing: border-box;
+	margin: 12px -8px 0 0;
+	padding: 4px 8px 88px 0;
+	list-style: none;
+
+	overflow-y: auto;
+	overflow-x: hidden;
+	-webkit-overflow-scrolling: touch;
+
+	transition:
+		--fade-top 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+		--fade-bottom 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+
+	-webkit-mask-image: linear-gradient(
+		to bottom,
+		transparent 0px,
+		#000 var(--fade-top),
+		#000 calc(100% - var(--fade-bottom)),
+		transparent 100%
+	);
+	mask-image: linear-gradient(
+		to bottom,
+		transparent 0px,
+		#000 var(--fade-top),
+		#000 calc(100% - var(--fade-bottom)),
+		transparent 100%
+	);
+
+	transform: translateZ(0);
+	will-change: scroll-position;
+
+	&::-webkit-scrollbar {
+		width: 3px;
+	}
+
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	&::-webkit-scrollbar-button:end:increment {
+		display: block;
+		height: 88px;
+		background: transparent;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background: rgba(230, 227, 221, 0.01);
+		border-radius: 999px;
+	}
+
+	&.is-scrolling::-webkit-scrollbar-thumb {
+		background: rgba(230, 227, 221, 0.22);
+	}
+
+	&.is-scrolling::-webkit-scrollbar-thumb:hover {
+		background: rgba(230, 227, 221, 0.4);
+	}
+
+	> .Library-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-shrink: 0;
+		gap: 16px;
+		width: 100%;
+		height: 54px;
+		padding: 0 14px;
+		margin: 0;
+		box-sizing: border-box;
+
+		border-radius: var(--radius-item);
+		border-bottom: 1px solid var(--border-hairline);
+		cursor: pointer;
+		-webkit-user-select: none;
+		user-select: none;
+		transition:
+			background-color 0.18s ease,
+			transform 0.1s ease;
+
+		&:last-child {
+			border-bottom: none;
+		}
+
+		&:hover {
+			background-color: var(--surface-hover);
+		}
+
+		&:active {
+			transform: scale(0.997);
+		}
+
+		&.is-current {
+			background-color: var(--surface-active);
+			border-bottom-color: transparent;
+
+			> .Library-left > .Library-index {
+				color: var(--text-primary);
+			}
+		}
+
+		> .Library-left {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			min-width: 0;
+
+			> .Library-index {
+				display: flex;
+				align-items: center;
+				justify-content: flex-start;
+				gap: 6px;
+				width: 22px;
+				flex-shrink: 0;
+				font-family: var(--font-mono);
+				font-variant-numeric: tabular-nums;
+				font-size: 12px;
+				color: var(--text-tertiary);
+				transition: color 0.18s ease;
+
+				> .Library-dot {
+					width: 6px;
+					height: 6px;
+					border-radius: 50%;
+					background-color: var(--accent-cover);
+					flex-shrink: 0;
+				}
+			}
+
+			> .Library-meta {
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+				min-width: 0;
+
+				> .Library-title {
+					font-size: 13px;
+					font-weight: 500;
+					line-height: 1.3;
+					color: var(--text-primary);
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
+
+				> .Library-artist {
+					font-family: var(--font-mono);
+					font-size: 11px;
+					line-height: 1.3;
+					color: var(--text-secondary);
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
+			}
+		}
+
+		> .Library-duration {
+			flex-shrink: 0;
+			font-family: var(--font-mono);
+			font-variant-numeric: tabular-nums;
+			font-size: 11px;
+			color: var(--text-secondary);
+		}
+	}
+}

@@ -1,57 +1,36 @@
-/* Работа гемини */
-@import url("[https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500&family=JetBrains+Mono&display=swap](https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500&family=JetBrains+Mono&display=swap)");
-
-:root {
-	/* Фоновые слои и материалы (Matte Obsidian & Smoked Glass) */
-	--bg-canvas: #161615;
-	--surface-sidebar: rgba(27, 27, 25, 0.75);
-	--surface-player: rgba(34, 34, 32, 0.8);
-	--surface-hover: rgba(230, 227, 221, 0.04);
-	--surface-active: rgba(230, 227, 221, 0.08);
-	--ambient-mask: rgba(22, 22, 21, 0.88);
-
-	/* Эффекты размытия и теней */
-	--blur-sidebar: blur(32px);
-	--blur-player: blur(48px);
-	--blur-ambient: blur(140px);
-	--shadow-player: 0 0 8px 4px rgba(0, 0, 0, 0.22);
-
-	/* Границы и блики (1px) */
-	--border-hairline: rgba(230, 227, 221, 0.05);
-	--border-specular: rgba(255, 255, 255, 0.07);
-
-	/* Типографика */
-	--text-primary: #e6e3dd;
-	--text-secondary: #8a867e;
-	--text-tertiary: #52504b;
-
-	/* Динамический акцент обложки (перезаписывается из JS) */
-	--accent-cover: #c56b4e;
-
-	/* Семейства шрифтов */
-	--font-editorial: "Instrument Serif", Georgia, serif;
-	--font-ui: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
-	--font-mono: "JetBrains Mono", "SF Mono", monospace;
-
-	/* Скругления и отступы */
-	--radius-window: 16px;
-	--radius-player: 20px;
-	--radius-cover: 12px;
-	--radius-item: 8px;
-	--layout-inset: 12px;
-}
-
+/* ==========================================================================
+   1. Корневой контейнер документа (внешняя рамка и динамический фон)
+   ========================================================================== */
 body {
 	margin: 0;
-	padding: 12px;
-	/* background-color: var(--bg-canvas); */
+	padding: var(--layout-inset); /* 12px — единый внешний отступ каркаса */
+	height: calc(100vh - (var(--layout-inset) * 2));
+	height: calc(100dvh - (var(--layout-inset) * 2));
+
+	/* Фон подстраивается под текущий трек через --accent-cover */
 	background-color: var(--accent-cover);
-	height: calc(100dvh - 24px);
+	color: var(--text-primary);
+	font-family: var(--font-ui);
+
+	/* Плавный переход цвета фона при смене обложки трека */
+	transition: background-color 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+
+	/* Запрещаем прокрутку всего окна (скроллятся только внутренние панели) */
+	overflow: hidden;
+
+	/* Чёткое ретина-сглаживание шрифтов на macOS и Windows */
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
+/* ==========================================================================
+   2. Главный каркас приложения (сайдбар + рабочая область)
+   ========================================================================== */
 .app {
 	display: flex;
 	flex-direction: row;
-	gap: 12px;
+	gap: var(--layout-inset); /* 12px — зазор между панелями */
+	width: 100%;
 	height: 100%;
+	min-width: 0;
 }
