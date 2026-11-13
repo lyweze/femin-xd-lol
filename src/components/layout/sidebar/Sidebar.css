@@ -1,17 +1,29 @@
+/* ==========================================================================
+   1. Основной контейнер сайдбара (левая панель навигации)
+   ========================================================================== */
 .sidebar {
 	width: 240px;
+	flex-shrink: 0; /* Запрещаем сайдбару сжиматься при узком окне или широком контенте */
 	height: calc(100vh - (var(--layout-inset) * 2));
 	height: calc(100dvh - (var(--layout-inset) * 2));
 	box-sizing: border-box;
 	padding: var(--layout-inset);
 	margin: 0;
+
 	background-color: var(--surface-sidebar);
 	border-radius: var(--radius-window);
 	box-shadow: var(--shadow-player);
 	-webkit-backdrop-filter: var(--blur-sidebar);
 	backdrop-filter: var(--blur-sidebar);
+
+	overflow-y: auto;
+	overflow-x: hidden;
+	overscroll-behavior: contain;
 }
 
+/* ==========================================================================
+   2. Корневой список секций навигации
+   ========================================================================== */
 .sidebar-navigation {
 	display: flex;
 	flex-direction: column;
@@ -21,38 +33,61 @@
 	list-style: none;
 }
 
+/* ==========================================================================
+   3. Группы меню и интерактивные пункты (увеличенные кнопки вкладок)
+   ========================================================================== */
 .main-li,
 .library-li {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 
+	/* Вложенный список пунктов секции */
 	> ul {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		gap: 6px; /* Чуть увеличили зазор между кнопками под новый размер */
 		margin: 0;
 		padding: 0;
 		list-style: none;
 
+		/* Отдельная кнопка вкладки / плейлиста */
 		> li {
 			display: flex;
 			align-items: center;
 			box-sizing: border-box;
 			width: 100%;
-			min-height: 26px;
-			padding: 4px 8px;
+			min-height: 36px; /* Увеличено с 26px для более удобного клика и визуального веса */
+			padding: 8px 12px; /* Увеличены внутренние отступы (было 4px 8px) */
 			margin: 0;
 
 			border-radius: var(--radius-item);
 			background-color: var(--surface-active);
 			color: var(--text-primary);
 			font-family: var(--font-editorial);
+			font-size: 15px;
+			line-height: 1.2;
 			cursor: pointer;
 			user-select: none;
+
+			/* Защита от переноса и поломки сетки при длинных названиях */
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+
 			transition:
-				background-color 0.15s ease,
-				color 0.15s ease;
+				background-color 0.18s ease,
+				color 0.18s ease,
+				transform 0.12s ease;
+
+			/* Лёгкий визуальный отклик при наведении и клике */
+			&:hover {
+				filter: brightness(1.08);
+			}
+
+			&:active {
+				transform: scale(0.985);
+			}
 		}
 	}
 }

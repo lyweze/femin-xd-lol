@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./App.css";
+import "./styles/tokens.css"
 import Sidebar from "./components/layout/sidebar/Sidebar.jsx";
 import MainPage from "./components/pages/main-page/MainPage.jsx";
 

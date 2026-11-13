@@ -1,149 +1,100 @@
-import React, { useRef, useEffect } from "react";
+// ============================================================================
+// Импорты: хуки и стили страницы
+// ============================================================================
+import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll";
 import "./MainPage.css";
 
+/**
+ * Главная страница приложения (`MainPage`).
+ * Отображает заголовок раздела, горизонтальную ленту плейлистов
+ * с поддержкой Drag-to-Scroll и секцию библиотеки.
+ */
 function MainPage() {
-    const playlistsRef = useRef(null);
-    const dragState = useRef({
-        isDown: false,
-        startX: 0,
-        scrollLeft: 0,
-        moved: false,
-    });
+	// Реф для горизонтальной прокрутки ленты плейлистов колесиком и перетаскиванием
+	const playlistsRef = useHorizontalScroll();
 
-    // Фикс мигания при скролле колесиком на macOS
-    useEffect(() => {
-        const slider = playlistsRef.current;
-        if (!slider) return;
+	return (
+		<main className="main">
+			{/* ================================================================
+                1. Шапка раздела
+               ================================================================ */}
+			<header className="main-header">
+				<h1 className="main-title">Now Playing</h1>
+				<p className="main-subtitle">Your favorite tracks</p>
+			</header>
 
-        const onWheel = (e) => {
-            if (e.deltaY === 0) return;
+			{/* ================================================================
+                2. Горизонтальная лента плейлистов (временная разметка без стора)
+               ================================================================ */}
+			<ul className="Playlists" ref={playlistsRef} aria-label="Playlists">
+				<li className="Playlist-item">
+					{/* Обложка плейлиста (декоративный контейнер под изображение/градиент) */}
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">My Playlist 1</span>
+				</li>
 
-            // Если крутим вертикальное колесо — полностью блокируем нативный дерг окна
-            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-                e.preventDefault();
-                slider.scrollLeft += e.deltaY;
-            }
-        };
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">My Playlist 2</span>
+				</li>
 
-        slider.addEventListener("wheel", onWheel, { passive: false });
-        return () => slider.removeEventListener("wheel", onWheel);
-    }, []);
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">My Playlist 3</span>
+				</li>
 
-    const handleMouseDown = (e) => {
-        const slider = playlistsRef.current;
-        if (!slider) return;
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Late Night Mix</span>
+				</li>
 
-        dragState.current = {
-            isDown: true,
-            startX: e.pageX - slider.offsetLeft,
-            scrollLeft: slider.scrollLeft,
-            moved: false,
-        };
-    };
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Synthwave 2026</span>
+				</li>
 
-    const handleMouseLeaveOrUp = () => {
-        dragState.current.isDown = false;
-        playlistsRef.current?.classList.remove("is-dragging");
-    };
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Ambient Focus</span>
+				</li>
 
-    const handleMouseMove = (e) => {
-        const state = dragState.current;
-        const slider = playlistsRef.current;
-        if (!state.isDown || !slider) return;
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Mastering Reference</span>
+				</li>
 
-        const x = e.pageX - slider.offsetLeft;
-        const delta = x - state.startX;
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Lo-Fi Beats</span>
+				</li>
 
-        if (!state.moved && Math.abs(delta) > 5) {
-            state.moved = true;
-            slider.classList.add("is-dragging");
-        }
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Dark Techno</span>
+				</li>
 
-        if (state.moved) {
-            e.preventDefault();
-            slider.scrollLeft = state.scrollLeft - delta * 1.4;
-        }
-    };
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Chillhop Essentials</span>
+				</li>
 
-    return (
-        <main className="main">
-            <header className="main-header">
-                <h1 className="main-title">Now Playing</h1>
-                <p className="main-subtitle">Your favorite tracks</p>
-            </header>
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Gym Phonk</span>
+				</li>
 
-            <ul
-                className="Playlists"
-                ref={playlistsRef}
-                onMouseDown={handleMouseDown}
-                onMouseLeave={handleMouseLeaveOrUp}
-                onMouseUp={handleMouseLeaveOrUp}
-                onMouseMove={handleMouseMove}
-            >
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">My Playlist 1</span>
-                </li>
+				<li className="Playlist-item">
+					<div className="Playlist-icon" aria-hidden="true" />
+					<span className="Playlist-name">Coding Session</span>
+				</li>
+			</ul>
 
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">My Playlist 2</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">My Playlist 3</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Late Night Mix</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Synthwave 2026</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Ambient Focus</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Mastering Reference</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Lo-Fi Beats</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Dark Techno</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Chillhop Essentials</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Gym Phonk</span>
-                </li>
-
-                <li className="Playlist-item">
-                    <div className="Playlist-icon" />
-                    <span className="Playlist-name">Coding Session</span>
-                </li>
-            </ul>
-
-            <ul className="Library" />
-        </main>
-    );
+			{/* ================================================================
+                3. Секция библиотеки треков (заготовка под будущий список)
+               ================================================================ */}
+			<ul className="Library" aria-label="Library" />
+		</main>
+	);
 }
 
 export default MainPage;
