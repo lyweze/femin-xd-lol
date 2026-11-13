@@ -1,22 +1,24 @@
 // ============================================================================
-// Импорты: хуки и стили страницы
+// Импорты: кастомные хуки скролла и стили страницы
 // ============================================================================
 import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll";
+import { useVerticalScroll } from "../../../hooks/useVerticalScroll";
 import "./MainPage.css";
 
 /**
  * Главная страница приложения (`MainPage`).
- * Отображает заголовок раздела, горизонтальную ленту плейлистов
- * с поддержкой Drag-to-Scroll и секцию библиотеки.
+ * Отображает зафиксированную шапку, горизонтальную ленту плейлистов
+ * с поддержкой Drag-to-Scroll и независимо скроллящийся список библиотеки.
  */
 function MainPage() {
-	// Реф для горизонтальной прокрутки ленты плейлистов колесиком и перетаскиванием
+	// Рефы для независимой прокрутки и динамического расчёта краёв затухания (mask-image)
 	const playlistsRef = useHorizontalScroll();
+	const libraryRef = useVerticalScroll();
 
 	return (
 		<main className="main">
 			{/* ================================================================
-                1. Шапка раздела
+                1. Шапка раздела (зафиксирована сверху)
                ================================================================ */}
 			<header className="main-header">
 				<h1 className="main-title">Now Playing</h1>
@@ -90,9 +92,115 @@ function MainPage() {
 			</ul>
 
 			{/* ================================================================
-                3. Секция библиотеки треков (заготовка под будущий список)
+                3. Секция библиотеки (вертикально скроллящийся список треков)
                ================================================================ */}
-			<ul className="Library" aria-label="Library" />
+			<ul className="Library" ref={libraryRef} aria-label="Library">
+				{/* Активный трек: подсвечен фоном и акцентной точкой в цвет обложки */}
+				<li className="Library-item is-current" aria-current="true">
+					<div className="Library-left">
+						<div className="Library-index">
+							<span className="Library-dot" aria-hidden="true" />
+							<span>1</span>
+						</div>
+						<div className="Library-meta">
+							<span className="Library-title">The Rint</span>
+							<span className="Library-artist">Matte Obsidian</span>
+						</div>
+					</div>
+					<span className="Library-duration">03:12</span>
+				</li>
+
+				<li className="Library-item">
+					<div className="Library-left">
+						<div className="Library-index">
+							<span>2</span>
+						</div>
+						<div className="Library-meta">
+							<span className="Library-title">The Skin</span>
+							<span className="Library-artist">Kiasmos &amp; Olafur</span>
+						</div>
+					</div>
+					<span className="Library-duration">04:05</span>
+				</li>
+
+				<li className="Library-item">
+					<div className="Library-left">
+						<div className="Library-index">
+							<span>3</span>
+						</div>
+						<div className="Library-meta">
+							<span className="Library-title">Alabaster Echo</span>
+							<span className="Library-artist">Nils Frahm</span>
+						</div>
+					</div>
+					<span className="Library-duration">03:38</span>
+				</li>
+
+				<li className="Library-item">
+					<div className="Library-left">
+						<div className="Library-index">
+							<span>4</span>
+						</div>
+						<div className="Library-meta">
+							<span className="Library-title">Spatial Drift</span>
+							<span className="Library-artist">Rival Consoles</span>
+						</div>
+					</div>
+					<span className="Library-duration">04:24</span>
+				</li>
+
+				<li className="Library-item">
+					<div className="Library-left">
+						<div className="Library-index">
+							<span>5</span>
+						</div>
+						<div className="Library-meta">
+							<span className="Library-title">Subtle Grain</span>
+							<span className="Library-artist">Christian Löffler</span>
+						</div>
+					</div>
+					<span className="Library-duration">03:51</span>
+				</li>
+
+				<li className="Library-item">
+					<div className="Library-left">
+						<div className="Library-index">
+							<span>6</span>
+						</div>
+						<div className="Library-meta">
+							<span className="Library-title">Monolith II</span>
+							<span className="Library-artist">Ben Böhmer</span>
+						</div>
+					</div>
+					<span className="Library-duration">05:10</span>
+				</li>
+
+				<li className="Library-item">
+					<div className="Library-left">
+						<div className="Library-index">
+							<span>7</span>
+						</div>
+						<div className="Library-meta">
+							<span className="Library-title">Nocturne Tape</span>
+							<span className="Library-artist">Olafur Arnalds</span>
+						</div>
+					</div>
+					<span className="Library-duration">02:58</span>
+				</li>
+
+				<li className="Library-item">
+					<div className="Library-left">
+						<div className="Library-index">
+							<span>8</span>
+						</div>
+						<div className="Library-meta">
+							<span className="Library-title">Velvet Horizon</span>
+							<span className="Library-artist">Moderat</span>
+						</div>
+					</div>
+					<span className="Library-duration">04:47</span>
+				</li>
+			</ul>
 		</main>
 	);
 }
