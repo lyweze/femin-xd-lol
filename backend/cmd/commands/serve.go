@@ -14,6 +14,7 @@ import (
 	"github.com/lyweze/femin-xd-lol/backend/internal/di"
 	"github.com/lyweze/femin-xd-lol/backend/internal/httpserver"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/auth"
+	"github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/example"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users"
 	"github.com/lyweze/femin-xd-lol/backend/internal/valkey"
@@ -37,6 +38,7 @@ func provideServe(container *do.Injector) {
 	db.ProvideServe(container)
 	users.Provide(container)
 	auth.Provide(container)
+	catalog.Provide(container)
 	example.Provide(container)
 	httpserver.Provide(container)
 	debugserver.Provide(container)

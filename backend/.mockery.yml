@@ -25,3 +25,7 @@ packages:
     config:
       recursive: true
       all: true
+  github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog:
+    config:
+      recursive: true
+      all: true

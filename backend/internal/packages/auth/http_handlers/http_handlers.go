@@ -39,28 +39,26 @@ func New(args *NewArgs) *AuthHttpHandlers {
 }
 
 func (h *AuthHttpHandlers) sessionCookie(token string) *string {
-	cookie := h.baseCookie()
-	cookie.Value = token
-	cookie.MaxAge = int(h.sessionTTL.Seconds())
-
-	return new(cookie.String())
+	return h.cookie(token, int(h.sessionTTL.Seconds()))
 }
 
 func (h *AuthHttpHandlers) clearedCookie() *string {
-	cookie := h.baseCookie()
-	cookie.MaxAge = -1
-
-	return new(cookie.String())
+	return h.cookie("", -1)
 }
 
-func (h *AuthHttpHandlers) baseCookie() *http.Cookie {
-	return &http.Cookie{ //nolint:exhaustruct
+func (h *AuthHttpHandlers) cookie(value string, maxAge int) *string {
+	// Secure берётся из конфига: в проде он true, а локально сервис работает по http.
+	cookie := &http.Cookie{ //nolint:exhaustruct,gosec
 		Name:     middleware.SessionCookieName,
+		Value:    value,
 		Path:     "/",
+		MaxAge:   maxAge,
 		HttpOnly: true,
 		Secure:   h.cookieSecure,
 		SameSite: http.SameSiteLaxMode,
 	}
+
+	return new(cookie.String())
 }
 
 func userToHttp(user view_models.User) g.User {

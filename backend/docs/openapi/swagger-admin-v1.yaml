@@ -34,6 +34,8 @@ tags:
     description: Управление альбомами и публикация
   - name: tracks
     description: Управление треками и загрузка аудио
+  - name: uploads
+    description: Загрузка файлов и их обработка, нужно хранилище файлов
   - name: lyrics
     description: Управление текстами песен
   - name: users
@@ -170,7 +172,7 @@ paths:
   /admin/v1/artists/{artist_id}/avatar:
     put:
       tags:
-        - artists
+        - uploads
       operationId: AdminUploadArtistAvatar
       summary: Загрузить аватар артиста
       parameters:
@@ -338,7 +340,7 @@ paths:
   /admin/v1/albums/{album_id}/cover:
     put:
       tags:
-        - albums
+        - uploads
       operationId: AdminUploadAlbumCover
       summary: Загрузить обложку
       description: Сервер сам нарезает размеры 96, 300 и 640 px
@@ -609,7 +611,7 @@ paths:
   /admin/v1/tracks/{track_id}/audio:
     put:
       tags:
-        - tracks
+        - uploads
       operationId: AdminUploadTrackAudio
       summary: Загрузить аудио
       description: >-
@@ -652,7 +654,7 @@ paths:
   /admin/v1/tracks/{track_id}/reprocess:
     post:
       tags:
-        - tracks
+        - uploads
       operationId: AdminReprocessTrack
       summary: Повторить обработку
       description: Запускает обработку заново по исходнику, например после `failed`

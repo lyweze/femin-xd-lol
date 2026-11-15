@@ -10,6 +10,7 @@ import (
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/dto"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/models"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/view_models"
+	"github.com/lyweze/femin-xd-lol/backend/pkg/ozzoext"
 )
 
 const (
@@ -27,22 +28,8 @@ type ListUsersIn struct {
 func (i ListUsersIn) Validate() error {
 	return validation.ValidateStruct(&i, //nolint:wrapcheck
 		validation.Field(&i.Role, validation.In(models.UserRoleUser, models.UserRoleAdmin)),
-		// Min(1) здесь не подходит: ozzo считает ноль пустым значением и пропускает его.
-		validation.Field(&i.Limit, validation.By(limitInRange)),
+		validation.Field(&i.Limit, ozzoext.IntPtrRange(1, usersPageMaxLimit)),
 	)
-}
-
-func limitInRange(value any) error {
-	limit, ok := value.(*int)
-	if !ok {
-		return fmt.Errorf("invalid type: expected *int, got %T", value)
-	}
-
-	if limit != nil && (*limit < 1 || *limit > usersPageMaxLimit) {
-		return fmt.Errorf("must be between 1 and %d", usersPageMaxLimit)
-	}
-
-	return nil
 }
 
 type ListUsersOut struct {
