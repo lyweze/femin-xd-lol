@@ -11,12 +11,37 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for AlbumType.
+const (
+	Album       AlbumType = "album"
+	Compilation AlbumType = "compilation"
+	Ep          AlbumType = "ep"
+	Single      AlbumType = "single"
+)
+
+// Valid indicates whether the value is a known member of the AlbumType enum.
+func (e AlbumType) Valid() bool {
+	switch e {
+	case Album:
+		return true
+	case Compilation:
+		return true
+	case Ep:
+		return true
+	case Single:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for ErrorCode.
 const (
@@ -54,6 +79,66 @@ func (e ErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for TrackArtistRole.
+const (
+	Feat TrackArtistRole = "feat"
+	Main TrackArtistRole = "main"
+)
+
+// Valid indicates whether the value is a known member of the TrackArtistRole enum.
+func (e TrackArtistRole) Valid() bool {
+	switch e {
+	case Feat:
+		return true
+	case Main:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TrackFileKind.
+const (
+	Source TrackFileKind = "source"
+	Stream TrackFileKind = "stream"
+)
+
+// Valid indicates whether the value is a known member of the TrackFileKind enum.
+func (e TrackFileKind) Valid() bool {
+	switch e {
+	case Source:
+		return true
+	case Stream:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TrackStatus.
+const (
+	Draft      TrackStatus = "draft"
+	Failed     TrackStatus = "failed"
+	Processing TrackStatus = "processing"
+	Ready      TrackStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the TrackStatus enum.
+func (e TrackStatus) Valid() bool {
+	switch e {
+	case Draft:
+		return true
+	case Failed:
+		return true
+	case Processing:
+		return true
+	case Ready:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UserRole.
 const (
 	Admin UserRole = "admin"
@@ -72,6 +157,76 @@ func (e UserRole) Valid() bool {
 	}
 }
 
+// AdminAlbum defines model for AdminAlbum.
+type AdminAlbum struct {
+	Artists   []ArtistRef        `json:"artists"`
+	Cover     *Image             `json:"cover,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// PublishedAt Дата публикации, `null` у черновика. В будущем значит отложенный релиз
+	PublishedAt *time.Time          `json:"published_at,omitempty"`
+	ReleaseDate *openapi_types.Date `json:"release_date,omitempty"`
+	Title       string              `json:"title"`
+	TrackCount  int                 `json:"track_count"`
+	Type        AlbumType           `json:"type"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+}
+
+// AdminAlbumReply defines model for AdminAlbumReply.
+type AdminAlbumReply struct {
+	Album AdminAlbum `json:"album"`
+}
+
+// AdminAlbumTrackPosition defines model for AdminAlbumTrackPosition.
+type AdminAlbumTrackPosition struct {
+	DiscNo  int                `json:"disc_no"`
+	TrackId openapi_types.UUID `json:"track_id"`
+	TrackNo int                `json:"track_no"`
+}
+
+// AdminArtist defines model for AdminArtist.
+type AdminArtist struct {
+	Avatar    *Image             `json:"avatar,omitempty"`
+	Bio       string             `json:"bio"`
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+	UpdatedAt time.Time          `json:"updated_at"`
+}
+
+// AdminArtistReply defines model for AdminArtistReply.
+type AdminArtistReply struct {
+	Artist AdminArtist `json:"artist"`
+}
+
+// AdminCreateAlbumRequest defines model for AdminCreateAlbumRequest.
+type AdminCreateAlbumRequest struct {
+	// ArtistIds Артисты в порядке показа
+	ArtistIds   []openapi_types.UUID `json:"artist_ids"`
+	ReleaseDate *openapi_types.Date  `json:"release_date,omitempty"`
+	Title       string               `json:"title"`
+	Type        AlbumType            `json:"type"`
+}
+
+// AdminCreateArtistRequest defines model for AdminCreateArtistRequest.
+type AdminCreateArtistRequest struct {
+	Bio  *string `json:"bio,omitempty"`
+	Name string  `json:"name"`
+}
+
+// AdminCreateTrackRequest defines model for AdminCreateTrackRequest.
+type AdminCreateTrackRequest struct {
+	AlbumId openapi_types.UUID `json:"album_id"`
+
+	// Artists Артисты в порядке показа
+	Artists  []AdminTrackArtistInput `json:"artists"`
+	DiscNo   *int                    `json:"disc_no,omitempty"`
+	Explicit *bool                   `json:"explicit,omitempty"`
+	Title    string                  `json:"title"`
+	TrackNo  int                     `json:"track_no"`
+}
+
 // AdminCreateUserRequest defines model for AdminCreateUserRequest.
 type AdminCreateUserRequest struct {
 	Email    openapi_types.Email `json:"email"`
@@ -80,15 +235,121 @@ type AdminCreateUserRequest struct {
 	Username string              `json:"username"`
 }
 
+// AdminGetAlbum200Reply defines model for AdminGetAlbum200Reply.
+type AdminGetAlbum200Reply struct {
+	Album  AdminAlbum   `json:"album"`
+	Tracks []AdminTrack `json:"tracks"`
+}
+
+// AdminListAlbums200Reply defines model for AdminListAlbums200Reply.
+type AdminListAlbums200Reply struct {
+	Items      []AdminAlbum `json:"items"`
+	NextCursor *string      `json:"next_cursor,omitempty"`
+}
+
+// AdminListArtists200Reply defines model for AdminListArtists200Reply.
+type AdminListArtists200Reply struct {
+	Items      []AdminArtist `json:"items"`
+	NextCursor *string       `json:"next_cursor,omitempty"`
+}
+
+// AdminListTracks200Reply defines model for AdminListTracks200Reply.
+type AdminListTracks200Reply struct {
+	Items      []AdminTrack `json:"items"`
+	NextCursor *string      `json:"next_cursor,omitempty"`
+}
+
 // AdminListUsers200Reply defines model for AdminListUsers200Reply.
 type AdminListUsers200Reply struct {
 	Items      []AdminUser `json:"items"`
 	NextCursor *string     `json:"next_cursor,omitempty"`
 }
 
+// AdminPublishAlbumRequest defines model for AdminPublishAlbumRequest.
+type AdminPublishAlbumRequest struct {
+	// PublishedAt Дата в будущем для отложенного релиза. Без неё публикуется сразу
+	PublishedAt *time.Time `json:"published_at,omitempty"`
+}
+
+// AdminSetAlbumTrackOrderRequest defines model for AdminSetAlbumTrackOrderRequest.
+type AdminSetAlbumTrackOrderRequest struct {
+	Items []AdminAlbumTrackPosition `json:"items"`
+}
+
 // AdminSetUserRoleRequest defines model for AdminSetUserRoleRequest.
 type AdminSetUserRoleRequest struct {
 	Role UserRole `json:"role"`
+}
+
+// AdminTrack defines model for AdminTrack.
+type AdminTrack struct {
+	AlbumId   openapi_types.UUID `json:"album_id"`
+	Artists   []AdminTrackArtist `json:"artists"`
+	CreatedAt time.Time          `json:"created_at"`
+	DiscNo    int                `json:"disc_no"`
+
+	// DurationMs Известна после обработки
+	DurationMs      *int               `json:"duration_ms,omitempty"`
+	Explicit        bool               `json:"explicit"`
+	Files           []AdminTrackFile   `json:"files"`
+	Id              openapi_types.UUID `json:"id"`
+	LyricsLanguages []string           `json:"lyrics_languages"`
+
+	// ProcessingError Почему упала обработка, для статуса `failed`
+	ProcessingError *string `json:"processing_error,omitempty"`
+
+	// Status `draft` без аудио, `processing` обрабатывается, `ready` готов, `failed` обработка упала
+	Status    TrackStatus `json:"status"`
+	Title     string      `json:"title"`
+	TrackNo   int         `json:"track_no"`
+	UpdatedAt time.Time   `json:"updated_at"`
+}
+
+// AdminTrackArtist defines model for AdminTrackArtist.
+type AdminTrackArtist struct {
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
+	Role TrackArtistRole    `json:"role"`
+}
+
+// AdminTrackArtistInput defines model for AdminTrackArtistInput.
+type AdminTrackArtistInput struct {
+	ArtistId openapi_types.UUID `json:"artist_id"`
+	Role     TrackArtistRole    `json:"role"`
+}
+
+// AdminTrackFile defines model for AdminTrackFile.
+type AdminTrackFile struct {
+	BitrateKbps *int          `json:"bitrate_kbps,omitempty"`
+	Format      string        `json:"format"`
+	Kind        TrackFileKind `json:"kind"`
+	SizeBytes   int64         `json:"size_bytes"`
+}
+
+// AdminTrackReply defines model for AdminTrackReply.
+type AdminTrackReply struct {
+	Track AdminTrack `json:"track"`
+}
+
+// AdminUpdateAlbumRequest defines model for AdminUpdateAlbumRequest.
+type AdminUpdateAlbumRequest struct {
+	ArtistIds   *[]openapi_types.UUID `json:"artist_ids,omitempty"`
+	ReleaseDate *openapi_types.Date   `json:"release_date,omitempty"`
+	Title       *string               `json:"title,omitempty"`
+	Type        *AlbumType            `json:"type,omitempty"`
+}
+
+// AdminUpdateArtistRequest defines model for AdminUpdateArtistRequest.
+type AdminUpdateArtistRequest struct {
+	Bio  *string `json:"bio,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
+// AdminUpdateTrackRequest defines model for AdminUpdateTrackRequest.
+type AdminUpdateTrackRequest struct {
+	Artists  *[]AdminTrackArtistInput `json:"artists,omitempty"`
+	Explicit *bool                    `json:"explicit,omitempty"`
+	Title    *string                  `json:"title,omitempty"`
 }
 
 // AdminUser defines model for AdminUser.
@@ -105,6 +366,15 @@ type AdminUserReply struct {
 	User AdminUser `json:"user"`
 }
 
+// AlbumType defines model for AlbumType.
+type AlbumType string
+
+// ArtistRef defines model for ArtistRef.
+type ArtistRef struct {
+	Id   openapi_types.UUID `json:"id"`
+	Name string             `json:"name"`
+}
+
 // ErrorCode defines model for ErrorCode.
 type ErrorCode string
 
@@ -116,14 +386,47 @@ type ErrorReply struct {
 	Message *string `json:"message,omitempty"`
 }
 
+// Image defines model for Image.
+type Image struct {
+	// LargeUrl 640 px
+	LargeUrl string `json:"large_url"`
+
+	// MediumUrl 300 px
+	MediumUrl string `json:"medium_url"`
+
+	// SmallUrl 96 px
+	SmallUrl string `json:"small_url"`
+}
+
+// TrackArtistRole defines model for TrackArtistRole.
+type TrackArtistRole string
+
+// TrackFileKind defines model for TrackFileKind.
+type TrackFileKind string
+
+// TrackStatus `draft` без аудио, `processing` обрабатывается, `ready` готов, `failed` обработка упала
+type TrackStatus string
+
 // UserRole defines model for UserRole.
 type UserRole string
+
+// AlbumId defines model for AlbumId.
+type AlbumId = openapi_types.UUID
+
+// ArtistId defines model for ArtistId.
+type ArtistId = openapi_types.UUID
 
 // Cursor defines model for Cursor.
 type Cursor = string
 
 // Limit defines model for Limit.
 type Limit = int
+
+// Query defines model for Query.
+type Query = string
+
+// TrackId defines model for TrackId.
+type TrackId = openapi_types.UUID
 
 // UserId defines model for UserId.
 type UserId = openapi_types.UUID
@@ -146,6 +449,51 @@ type UnauthorizedError = ErrorReply
 // ValidationError defines model for ValidationError.
 type ValidationError = ErrorReply
 
+// AdminListAlbumsParams defines parameters for AdminListAlbums.
+type AdminListAlbumsParams struct {
+	// Q Поиск по названию
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// ArtistId Только альбомы этого артиста
+	ArtistId *openapi_types.UUID `form:"artist_id,omitempty" json:"artist_id,omitempty"`
+
+	// Limit Максимальное количество записей на странице
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Значение `next_cursor` из предыдущей страницы
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// AdminListArtistsParams defines parameters for AdminListArtists.
+type AdminListArtistsParams struct {
+	// Q Поиск по названию
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// Limit Максимальное количество записей на странице
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Значение `next_cursor` из предыдущей страницы
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// AdminListTracksParams defines parameters for AdminListTracks.
+type AdminListTracksParams struct {
+	// Q Поиск по названию
+	Q *Query `form:"q,omitempty" json:"q,omitempty"`
+
+	// AlbumId Только треки этого альбома
+	AlbumId *openapi_types.UUID `form:"album_id,omitempty" json:"album_id,omitempty"`
+
+	// Status Только треки в этом статусе
+	Status *TrackStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// Limit Максимальное количество записей на странице
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Значение `next_cursor` из предыдущей страницы
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // AdminListUsersParams defines parameters for AdminListUsers.
 type AdminListUsersParams struct {
 	// Q Поиск по email или имени пользователя
@@ -161,6 +509,30 @@ type AdminListUsersParams struct {
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
+// AdminCreateAlbumJSONRequestBody defines body for AdminCreateAlbum for application/json ContentType.
+type AdminCreateAlbumJSONRequestBody = AdminCreateAlbumRequest
+
+// AdminUpdateAlbumJSONRequestBody defines body for AdminUpdateAlbum for application/json ContentType.
+type AdminUpdateAlbumJSONRequestBody = AdminUpdateAlbumRequest
+
+// AdminPublishAlbumJSONRequestBody defines body for AdminPublishAlbum for application/json ContentType.
+type AdminPublishAlbumJSONRequestBody = AdminPublishAlbumRequest
+
+// AdminSetAlbumTrackOrderJSONRequestBody defines body for AdminSetAlbumTrackOrder for application/json ContentType.
+type AdminSetAlbumTrackOrderJSONRequestBody = AdminSetAlbumTrackOrderRequest
+
+// AdminCreateArtistJSONRequestBody defines body for AdminCreateArtist for application/json ContentType.
+type AdminCreateArtistJSONRequestBody = AdminCreateArtistRequest
+
+// AdminUpdateArtistJSONRequestBody defines body for AdminUpdateArtist for application/json ContentType.
+type AdminUpdateArtistJSONRequestBody = AdminUpdateArtistRequest
+
+// AdminCreateTrackJSONRequestBody defines body for AdminCreateTrack for application/json ContentType.
+type AdminCreateTrackJSONRequestBody = AdminCreateTrackRequest
+
+// AdminUpdateTrackJSONRequestBody defines body for AdminUpdateTrack for application/json ContentType.
+type AdminUpdateTrackJSONRequestBody = AdminUpdateTrackRequest
+
 // AdminCreateUserJSONRequestBody defines body for AdminCreateUser for application/json ContentType.
 type AdminCreateUserJSONRequestBody = AdminCreateUserRequest
 
@@ -169,6 +541,60 @@ type AdminSetUserRoleJSONRequestBody = AdminSetUserRoleRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// AdminListAlbums Список альбомов
+	// (GET /admin/v1/albums)
+	AdminListAlbums(w http.ResponseWriter, r *http.Request, params AdminListAlbumsParams)
+	// AdminCreateAlbum Создать альбом
+	// (POST /admin/v1/albums)
+	AdminCreateAlbum(w http.ResponseWriter, r *http.Request)
+	// AdminDeleteAlbum Удалить альбом
+	// (DELETE /admin/v1/albums/{album_id})
+	AdminDeleteAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId)
+	// AdminGetAlbum Получить альбом с треками
+	// (GET /admin/v1/albums/{album_id})
+	AdminGetAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId)
+	// AdminUpdateAlbum Изменить альбом
+	// (PATCH /admin/v1/albums/{album_id})
+	AdminUpdateAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId)
+	// AdminPublishAlbum Опубликовать альбом
+	// (POST /admin/v1/albums/{album_id}/publish)
+	AdminPublishAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId)
+	// AdminSetAlbumTrackOrder Задать порядок треков
+	// (PUT /admin/v1/albums/{album_id}/track-order)
+	AdminSetAlbumTrackOrder(w http.ResponseWriter, r *http.Request, albumId AlbumId)
+	// AdminUnpublishAlbum Снять альбом с публикации
+	// (POST /admin/v1/albums/{album_id}/unpublish)
+	AdminUnpublishAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId)
+	// AdminListArtists Список артистов
+	// (GET /admin/v1/artists)
+	AdminListArtists(w http.ResponseWriter, r *http.Request, params AdminListArtistsParams)
+	// AdminCreateArtist Создать артиста
+	// (POST /admin/v1/artists)
+	AdminCreateArtist(w http.ResponseWriter, r *http.Request)
+	// AdminDeleteArtist Удалить артиста
+	// (DELETE /admin/v1/artists/{artist_id})
+	AdminDeleteArtist(w http.ResponseWriter, r *http.Request, artistId ArtistId)
+	// AdminGetArtist Получить артиста
+	// (GET /admin/v1/artists/{artist_id})
+	AdminGetArtist(w http.ResponseWriter, r *http.Request, artistId ArtistId)
+	// AdminUpdateArtist Изменить артиста
+	// (PATCH /admin/v1/artists/{artist_id})
+	AdminUpdateArtist(w http.ResponseWriter, r *http.Request, artistId ArtistId)
+	// AdminListTracks Список треков
+	// (GET /admin/v1/tracks)
+	AdminListTracks(w http.ResponseWriter, r *http.Request, params AdminListTracksParams)
+	// AdminCreateTrack Создать трек
+	// (POST /admin/v1/tracks)
+	AdminCreateTrack(w http.ResponseWriter, r *http.Request)
+	// AdminDeleteTrack Удалить трек
+	// (DELETE /admin/v1/tracks/{track_id})
+	AdminDeleteTrack(w http.ResponseWriter, r *http.Request, trackId TrackId)
+	// AdminGetTrack Получить трек
+	// (GET /admin/v1/tracks/{track_id})
+	AdminGetTrack(w http.ResponseWriter, r *http.Request, trackId TrackId)
+	// AdminUpdateTrack Изменить трек
+	// (PATCH /admin/v1/tracks/{track_id})
+	AdminUpdateTrack(w http.ResponseWriter, r *http.Request, trackId TrackId)
 	// AdminListUsers Список пользователей
 	// (GET /admin/v1/users)
 	AdminListUsers(w http.ResponseWriter, r *http.Request, params AdminListUsersParams)
@@ -188,6 +614,576 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// AdminListAlbums operation middleware
+func (siw *ServerInterfaceWrapper) AdminListAlbums(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListAlbumsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "artist_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "artist_id", r.URL.Query(), &params.ArtistId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "artist_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artist_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListAlbums(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminCreateAlbum operation middleware
+func (siw *ServerInterfaceWrapper) AdminCreateAlbum(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCreateAlbum(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminDeleteAlbum operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteAlbum(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "album_id" -------------
+	var albumId AlbumId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "album_id", r.PathValue("album_id"), &albumId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "album_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteAlbum(w, r, albumId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetAlbum operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetAlbum(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "album_id" -------------
+	var albumId AlbumId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "album_id", r.PathValue("album_id"), &albumId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "album_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetAlbum(w, r, albumId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdateAlbum operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdateAlbum(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "album_id" -------------
+	var albumId AlbumId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "album_id", r.PathValue("album_id"), &albumId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "album_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdateAlbum(w, r, albumId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminPublishAlbum operation middleware
+func (siw *ServerInterfaceWrapper) AdminPublishAlbum(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "album_id" -------------
+	var albumId AlbumId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "album_id", r.PathValue("album_id"), &albumId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "album_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminPublishAlbum(w, r, albumId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminSetAlbumTrackOrder operation middleware
+func (siw *ServerInterfaceWrapper) AdminSetAlbumTrackOrder(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "album_id" -------------
+	var albumId AlbumId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "album_id", r.PathValue("album_id"), &albumId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "album_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminSetAlbumTrackOrder(w, r, albumId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUnpublishAlbum operation middleware
+func (siw *ServerInterfaceWrapper) AdminUnpublishAlbum(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "album_id" -------------
+	var albumId AlbumId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "album_id", r.PathValue("album_id"), &albumId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "album_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUnpublishAlbum(w, r, albumId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminListArtists operation middleware
+func (siw *ServerInterfaceWrapper) AdminListArtists(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListArtistsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListArtists(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminCreateArtist operation middleware
+func (siw *ServerInterfaceWrapper) AdminCreateArtist(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCreateArtist(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminDeleteArtist operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteArtist(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "artist_id" -------------
+	var artistId ArtistId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artist_id", r.PathValue("artist_id"), &artistId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artist_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteArtist(w, r, artistId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetArtist operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetArtist(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "artist_id" -------------
+	var artistId ArtistId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artist_id", r.PathValue("artist_id"), &artistId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artist_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetArtist(w, r, artistId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdateArtist operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdateArtist(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "artist_id" -------------
+	var artistId ArtistId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artist_id", r.PathValue("artist_id"), &artistId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artist_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdateArtist(w, r, artistId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminListTracks operation middleware
+func (siw *ServerInterfaceWrapper) AdminListTracks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListTracksParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "album_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "album_id", r.URL.Query(), &params.AlbumId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "album_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "album_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListTracks(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminCreateTrack operation middleware
+func (siw *ServerInterfaceWrapper) AdminCreateTrack(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCreateTrack(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminDeleteTrack operation middleware
+func (siw *ServerInterfaceWrapper) AdminDeleteTrack(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "track_id" -------------
+	var trackId TrackId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "track_id", r.PathValue("track_id"), &trackId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "track_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminDeleteTrack(w, r, trackId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminGetTrack operation middleware
+func (siw *ServerInterfaceWrapper) AdminGetTrack(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "track_id" -------------
+	var trackId TrackId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "track_id", r.PathValue("track_id"), &trackId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "track_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminGetTrack(w, r, trackId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdateTrack operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdateTrack(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "track_id" -------------
+	var trackId TrackId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "track_id", r.PathValue("track_id"), &trackId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "track_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdateTrack(w, r, trackId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // AdminListUsers operation middleware
 func (siw *ServerInterfaceWrapper) AdminListUsers(w http.ResponseWriter, r *http.Request) {
@@ -421,6 +1417,24 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/v1/artists", wrapper.AdminListArtists)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/v1/artists", wrapper.AdminCreateArtist)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/v1/artists/{artist_id}", wrapper.AdminDeleteArtist)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/v1/artists/{artist_id}", wrapper.AdminGetArtist)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/v1/artists/{artist_id}", wrapper.AdminUpdateArtist)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/v1/albums", wrapper.AdminListAlbums)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/v1/albums", wrapper.AdminCreateAlbum)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/v1/albums/{album_id}", wrapper.AdminDeleteAlbum)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/v1/albums/{album_id}", wrapper.AdminGetAlbum)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/v1/albums/{album_id}", wrapper.AdminUpdateAlbum)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/v1/albums/{album_id}/track-order", wrapper.AdminSetAlbumTrackOrder)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/v1/albums/{album_id}/publish", wrapper.AdminPublishAlbum)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/v1/albums/{album_id}/unpublish", wrapper.AdminUnpublishAlbum)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/v1/tracks", wrapper.AdminListTracks)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/v1/tracks", wrapper.AdminCreateTrack)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/v1/tracks/{track_id}", wrapper.AdminDeleteTrack)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/v1/tracks/{track_id}", wrapper.AdminGetTrack)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/v1/tracks/{track_id}", wrapper.AdminUpdateTrack)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/v1/users", wrapper.AdminListUsers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/v1/users", wrapper.AdminCreateUser)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/v1/users/{user_id}/role", wrapper.AdminSetUserRole)
@@ -439,6 +1453,1531 @@ type NotFoundErrorJSONResponse ErrorReply
 type UnauthorizedErrorJSONResponse ErrorReply
 
 type ValidationErrorJSONResponse ErrorReply
+
+type AdminListAlbumsRequestObject struct {
+	Params AdminListAlbumsParams
+}
+
+type AdminListAlbumsResponseObject interface {
+	VisitAdminListAlbumsResponse(w http.ResponseWriter) error
+}
+
+type AdminListAlbums200JSONResponse AdminListAlbums200Reply
+
+func (response AdminListAlbums200JSONResponse) VisitAdminListAlbumsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListAlbums401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminListAlbums401JSONResponse) VisitAdminListAlbumsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListAlbums403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminListAlbums403JSONResponse) VisitAdminListAlbumsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListAlbums422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminListAlbums422JSONResponse) VisitAdminListAlbumsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListAlbums500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminListAlbums500JSONResponse) VisitAdminListAlbumsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateAlbumRequestObject struct {
+	Body *AdminCreateAlbumJSONRequestBody
+}
+
+type AdminCreateAlbumResponseObject interface {
+	VisitAdminCreateAlbumResponse(w http.ResponseWriter) error
+}
+
+type AdminCreateAlbum201JSONResponse AdminAlbumReply
+
+func (response AdminCreateAlbum201JSONResponse) VisitAdminCreateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateAlbum401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminCreateAlbum401JSONResponse) VisitAdminCreateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateAlbum403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminCreateAlbum403JSONResponse) VisitAdminCreateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateAlbum422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminCreateAlbum422JSONResponse) VisitAdminCreateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateAlbum500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminCreateAlbum500JSONResponse) VisitAdminCreateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteAlbumRequestObject struct {
+	AlbumId AlbumId `json:"album_id"`
+}
+
+type AdminDeleteAlbumResponseObject interface {
+	VisitAdminDeleteAlbumResponse(w http.ResponseWriter) error
+}
+
+type AdminDeleteAlbum204Response struct {
+}
+
+func (response AdminDeleteAlbum204Response) VisitAdminDeleteAlbumResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AdminDeleteAlbum401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminDeleteAlbum401JSONResponse) VisitAdminDeleteAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteAlbum403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminDeleteAlbum403JSONResponse) VisitAdminDeleteAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteAlbum404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminDeleteAlbum404JSONResponse) VisitAdminDeleteAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteAlbum500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminDeleteAlbum500JSONResponse) VisitAdminDeleteAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetAlbumRequestObject struct {
+	AlbumId AlbumId `json:"album_id"`
+}
+
+type AdminGetAlbumResponseObject interface {
+	VisitAdminGetAlbumResponse(w http.ResponseWriter) error
+}
+
+type AdminGetAlbum200JSONResponse AdminGetAlbum200Reply
+
+func (response AdminGetAlbum200JSONResponse) VisitAdminGetAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetAlbum401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminGetAlbum401JSONResponse) VisitAdminGetAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetAlbum403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminGetAlbum403JSONResponse) VisitAdminGetAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetAlbum404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminGetAlbum404JSONResponse) VisitAdminGetAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetAlbum500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminGetAlbum500JSONResponse) VisitAdminGetAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateAlbumRequestObject struct {
+	AlbumId AlbumId `json:"album_id"`
+	Body    *AdminUpdateAlbumJSONRequestBody
+}
+
+type AdminUpdateAlbumResponseObject interface {
+	VisitAdminUpdateAlbumResponse(w http.ResponseWriter) error
+}
+
+type AdminUpdateAlbum200JSONResponse AdminAlbumReply
+
+func (response AdminUpdateAlbum200JSONResponse) VisitAdminUpdateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateAlbum401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminUpdateAlbum401JSONResponse) VisitAdminUpdateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateAlbum403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminUpdateAlbum403JSONResponse) VisitAdminUpdateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateAlbum404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminUpdateAlbum404JSONResponse) VisitAdminUpdateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateAlbum422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminUpdateAlbum422JSONResponse) VisitAdminUpdateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateAlbum500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminUpdateAlbum500JSONResponse) VisitAdminUpdateAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPublishAlbumRequestObject struct {
+	AlbumId AlbumId `json:"album_id"`
+	Body    *AdminPublishAlbumJSONRequestBody
+}
+
+type AdminPublishAlbumResponseObject interface {
+	VisitAdminPublishAlbumResponse(w http.ResponseWriter) error
+}
+
+type AdminPublishAlbum200JSONResponse AdminAlbumReply
+
+func (response AdminPublishAlbum200JSONResponse) VisitAdminPublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPublishAlbum401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminPublishAlbum401JSONResponse) VisitAdminPublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPublishAlbum403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminPublishAlbum403JSONResponse) VisitAdminPublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPublishAlbum404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminPublishAlbum404JSONResponse) VisitAdminPublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPublishAlbum409JSONResponse struct{ ConflictErrorJSONResponse }
+
+func (response AdminPublishAlbum409JSONResponse) VisitAdminPublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPublishAlbum422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminPublishAlbum422JSONResponse) VisitAdminPublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPublishAlbum500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminPublishAlbum500JSONResponse) VisitAdminPublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetAlbumTrackOrderRequestObject struct {
+	AlbumId AlbumId `json:"album_id"`
+	Body    *AdminSetAlbumTrackOrderJSONRequestBody
+}
+
+type AdminSetAlbumTrackOrderResponseObject interface {
+	VisitAdminSetAlbumTrackOrderResponse(w http.ResponseWriter) error
+}
+
+type AdminSetAlbumTrackOrder200JSONResponse AdminGetAlbum200Reply
+
+func (response AdminSetAlbumTrackOrder200JSONResponse) VisitAdminSetAlbumTrackOrderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetAlbumTrackOrder401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminSetAlbumTrackOrder401JSONResponse) VisitAdminSetAlbumTrackOrderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetAlbumTrackOrder403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminSetAlbumTrackOrder403JSONResponse) VisitAdminSetAlbumTrackOrderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetAlbumTrackOrder404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminSetAlbumTrackOrder404JSONResponse) VisitAdminSetAlbumTrackOrderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetAlbumTrackOrder422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminSetAlbumTrackOrder422JSONResponse) VisitAdminSetAlbumTrackOrderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetAlbumTrackOrder500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminSetAlbumTrackOrder500JSONResponse) VisitAdminSetAlbumTrackOrderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUnpublishAlbumRequestObject struct {
+	AlbumId AlbumId `json:"album_id"`
+}
+
+type AdminUnpublishAlbumResponseObject interface {
+	VisitAdminUnpublishAlbumResponse(w http.ResponseWriter) error
+}
+
+type AdminUnpublishAlbum200JSONResponse AdminAlbumReply
+
+func (response AdminUnpublishAlbum200JSONResponse) VisitAdminUnpublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUnpublishAlbum401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminUnpublishAlbum401JSONResponse) VisitAdminUnpublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUnpublishAlbum403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminUnpublishAlbum403JSONResponse) VisitAdminUnpublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUnpublishAlbum404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminUnpublishAlbum404JSONResponse) VisitAdminUnpublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUnpublishAlbum500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminUnpublishAlbum500JSONResponse) VisitAdminUnpublishAlbumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListArtistsRequestObject struct {
+	Params AdminListArtistsParams
+}
+
+type AdminListArtistsResponseObject interface {
+	VisitAdminListArtistsResponse(w http.ResponseWriter) error
+}
+
+type AdminListArtists200JSONResponse AdminListArtists200Reply
+
+func (response AdminListArtists200JSONResponse) VisitAdminListArtistsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListArtists401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminListArtists401JSONResponse) VisitAdminListArtistsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListArtists403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminListArtists403JSONResponse) VisitAdminListArtistsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListArtists422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminListArtists422JSONResponse) VisitAdminListArtistsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListArtists500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminListArtists500JSONResponse) VisitAdminListArtistsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateArtistRequestObject struct {
+	Body *AdminCreateArtistJSONRequestBody
+}
+
+type AdminCreateArtistResponseObject interface {
+	VisitAdminCreateArtistResponse(w http.ResponseWriter) error
+}
+
+type AdminCreateArtist201JSONResponse AdminArtistReply
+
+func (response AdminCreateArtist201JSONResponse) VisitAdminCreateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateArtist401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminCreateArtist401JSONResponse) VisitAdminCreateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateArtist403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminCreateArtist403JSONResponse) VisitAdminCreateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateArtist422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminCreateArtist422JSONResponse) VisitAdminCreateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateArtist500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminCreateArtist500JSONResponse) VisitAdminCreateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteArtistRequestObject struct {
+	ArtistId ArtistId `json:"artist_id"`
+}
+
+type AdminDeleteArtistResponseObject interface {
+	VisitAdminDeleteArtistResponse(w http.ResponseWriter) error
+}
+
+type AdminDeleteArtist204Response struct {
+}
+
+func (response AdminDeleteArtist204Response) VisitAdminDeleteArtistResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AdminDeleteArtist401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminDeleteArtist401JSONResponse) VisitAdminDeleteArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteArtist403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminDeleteArtist403JSONResponse) VisitAdminDeleteArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteArtist404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminDeleteArtist404JSONResponse) VisitAdminDeleteArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteArtist409JSONResponse struct{ ConflictErrorJSONResponse }
+
+func (response AdminDeleteArtist409JSONResponse) VisitAdminDeleteArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteArtist500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminDeleteArtist500JSONResponse) VisitAdminDeleteArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetArtistRequestObject struct {
+	ArtistId ArtistId `json:"artist_id"`
+}
+
+type AdminGetArtistResponseObject interface {
+	VisitAdminGetArtistResponse(w http.ResponseWriter) error
+}
+
+type AdminGetArtist200JSONResponse AdminArtistReply
+
+func (response AdminGetArtist200JSONResponse) VisitAdminGetArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetArtist401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminGetArtist401JSONResponse) VisitAdminGetArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetArtist403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminGetArtist403JSONResponse) VisitAdminGetArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetArtist404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminGetArtist404JSONResponse) VisitAdminGetArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetArtist500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminGetArtist500JSONResponse) VisitAdminGetArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateArtistRequestObject struct {
+	ArtistId ArtistId `json:"artist_id"`
+	Body     *AdminUpdateArtistJSONRequestBody
+}
+
+type AdminUpdateArtistResponseObject interface {
+	VisitAdminUpdateArtistResponse(w http.ResponseWriter) error
+}
+
+type AdminUpdateArtist200JSONResponse AdminArtistReply
+
+func (response AdminUpdateArtist200JSONResponse) VisitAdminUpdateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateArtist401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminUpdateArtist401JSONResponse) VisitAdminUpdateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateArtist403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminUpdateArtist403JSONResponse) VisitAdminUpdateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateArtist404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminUpdateArtist404JSONResponse) VisitAdminUpdateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateArtist422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminUpdateArtist422JSONResponse) VisitAdminUpdateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateArtist500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminUpdateArtist500JSONResponse) VisitAdminUpdateArtistResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListTracksRequestObject struct {
+	Params AdminListTracksParams
+}
+
+type AdminListTracksResponseObject interface {
+	VisitAdminListTracksResponse(w http.ResponseWriter) error
+}
+
+type AdminListTracks200JSONResponse AdminListTracks200Reply
+
+func (response AdminListTracks200JSONResponse) VisitAdminListTracksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListTracks401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminListTracks401JSONResponse) VisitAdminListTracksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListTracks403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminListTracks403JSONResponse) VisitAdminListTracksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListTracks422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminListTracks422JSONResponse) VisitAdminListTracksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListTracks500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminListTracks500JSONResponse) VisitAdminListTracksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateTrackRequestObject struct {
+	Body *AdminCreateTrackJSONRequestBody
+}
+
+type AdminCreateTrackResponseObject interface {
+	VisitAdminCreateTrackResponse(w http.ResponseWriter) error
+}
+
+type AdminCreateTrack201JSONResponse AdminTrackReply
+
+func (response AdminCreateTrack201JSONResponse) VisitAdminCreateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateTrack401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminCreateTrack401JSONResponse) VisitAdminCreateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateTrack403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminCreateTrack403JSONResponse) VisitAdminCreateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateTrack422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminCreateTrack422JSONResponse) VisitAdminCreateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateTrack500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminCreateTrack500JSONResponse) VisitAdminCreateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteTrackRequestObject struct {
+	TrackId TrackId `json:"track_id"`
+}
+
+type AdminDeleteTrackResponseObject interface {
+	VisitAdminDeleteTrackResponse(w http.ResponseWriter) error
+}
+
+type AdminDeleteTrack204Response struct {
+}
+
+func (response AdminDeleteTrack204Response) VisitAdminDeleteTrackResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AdminDeleteTrack401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminDeleteTrack401JSONResponse) VisitAdminDeleteTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteTrack403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminDeleteTrack403JSONResponse) VisitAdminDeleteTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteTrack404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminDeleteTrack404JSONResponse) VisitAdminDeleteTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteTrack500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminDeleteTrack500JSONResponse) VisitAdminDeleteTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetTrackRequestObject struct {
+	TrackId TrackId `json:"track_id"`
+}
+
+type AdminGetTrackResponseObject interface {
+	VisitAdminGetTrackResponse(w http.ResponseWriter) error
+}
+
+type AdminGetTrack200JSONResponse AdminTrackReply
+
+func (response AdminGetTrack200JSONResponse) VisitAdminGetTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetTrack401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminGetTrack401JSONResponse) VisitAdminGetTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetTrack403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminGetTrack403JSONResponse) VisitAdminGetTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetTrack404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminGetTrack404JSONResponse) VisitAdminGetTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetTrack500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminGetTrack500JSONResponse) VisitAdminGetTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateTrackRequestObject struct {
+	TrackId TrackId `json:"track_id"`
+	Body    *AdminUpdateTrackJSONRequestBody
+}
+
+type AdminUpdateTrackResponseObject interface {
+	VisitAdminUpdateTrackResponse(w http.ResponseWriter) error
+}
+
+type AdminUpdateTrack200JSONResponse AdminTrackReply
+
+func (response AdminUpdateTrack200JSONResponse) VisitAdminUpdateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateTrack401JSONResponse struct{ UnauthorizedErrorJSONResponse }
+
+func (response AdminUpdateTrack401JSONResponse) VisitAdminUpdateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateTrack403JSONResponse struct{ ForbiddenErrorJSONResponse }
+
+func (response AdminUpdateTrack403JSONResponse) VisitAdminUpdateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateTrack404JSONResponse struct{ NotFoundErrorJSONResponse }
+
+func (response AdminUpdateTrack404JSONResponse) VisitAdminUpdateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateTrack422JSONResponse struct{ ValidationErrorJSONResponse }
+
+func (response AdminUpdateTrack422JSONResponse) VisitAdminUpdateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateTrack500JSONResponse struct {
+	InternalServerErrorJSONResponse
+}
+
+func (response AdminUpdateTrack500JSONResponse) VisitAdminUpdateTrackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type AdminListUsersRequestObject struct {
 	Params AdminListUsersParams
@@ -725,6 +3264,60 @@ func (response AdminSetUserRole500JSONResponse) VisitAdminSetUserRoleResponse(w 
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// AdminListAlbums Список альбомов
+	// (GET /admin/v1/albums)
+	AdminListAlbums(ctx context.Context, request AdminListAlbumsRequestObject) (AdminListAlbumsResponseObject, error)
+	// AdminCreateAlbum Создать альбом
+	// (POST /admin/v1/albums)
+	AdminCreateAlbum(ctx context.Context, request AdminCreateAlbumRequestObject) (AdminCreateAlbumResponseObject, error)
+	// AdminDeleteAlbum Удалить альбом
+	// (DELETE /admin/v1/albums/{album_id})
+	AdminDeleteAlbum(ctx context.Context, request AdminDeleteAlbumRequestObject) (AdminDeleteAlbumResponseObject, error)
+	// AdminGetAlbum Получить альбом с треками
+	// (GET /admin/v1/albums/{album_id})
+	AdminGetAlbum(ctx context.Context, request AdminGetAlbumRequestObject) (AdminGetAlbumResponseObject, error)
+	// AdminUpdateAlbum Изменить альбом
+	// (PATCH /admin/v1/albums/{album_id})
+	AdminUpdateAlbum(ctx context.Context, request AdminUpdateAlbumRequestObject) (AdminUpdateAlbumResponseObject, error)
+	// AdminPublishAlbum Опубликовать альбом
+	// (POST /admin/v1/albums/{album_id}/publish)
+	AdminPublishAlbum(ctx context.Context, request AdminPublishAlbumRequestObject) (AdminPublishAlbumResponseObject, error)
+	// AdminSetAlbumTrackOrder Задать порядок треков
+	// (PUT /admin/v1/albums/{album_id}/track-order)
+	AdminSetAlbumTrackOrder(ctx context.Context, request AdminSetAlbumTrackOrderRequestObject) (AdminSetAlbumTrackOrderResponseObject, error)
+	// AdminUnpublishAlbum Снять альбом с публикации
+	// (POST /admin/v1/albums/{album_id}/unpublish)
+	AdminUnpublishAlbum(ctx context.Context, request AdminUnpublishAlbumRequestObject) (AdminUnpublishAlbumResponseObject, error)
+	// AdminListArtists Список артистов
+	// (GET /admin/v1/artists)
+	AdminListArtists(ctx context.Context, request AdminListArtistsRequestObject) (AdminListArtistsResponseObject, error)
+	// AdminCreateArtist Создать артиста
+	// (POST /admin/v1/artists)
+	AdminCreateArtist(ctx context.Context, request AdminCreateArtistRequestObject) (AdminCreateArtistResponseObject, error)
+	// AdminDeleteArtist Удалить артиста
+	// (DELETE /admin/v1/artists/{artist_id})
+	AdminDeleteArtist(ctx context.Context, request AdminDeleteArtistRequestObject) (AdminDeleteArtistResponseObject, error)
+	// AdminGetArtist Получить артиста
+	// (GET /admin/v1/artists/{artist_id})
+	AdminGetArtist(ctx context.Context, request AdminGetArtistRequestObject) (AdminGetArtistResponseObject, error)
+	// AdminUpdateArtist Изменить артиста
+	// (PATCH /admin/v1/artists/{artist_id})
+	AdminUpdateArtist(ctx context.Context, request AdminUpdateArtistRequestObject) (AdminUpdateArtistResponseObject, error)
+	// AdminListTracks Список треков
+	// (GET /admin/v1/tracks)
+	AdminListTracks(ctx context.Context, request AdminListTracksRequestObject) (AdminListTracksResponseObject, error)
+	// AdminCreateTrack Создать трек
+	// (POST /admin/v1/tracks)
+	AdminCreateTrack(ctx context.Context, request AdminCreateTrackRequestObject) (AdminCreateTrackResponseObject, error)
+	// AdminDeleteTrack Удалить трек
+	// (DELETE /admin/v1/tracks/{track_id})
+	AdminDeleteTrack(ctx context.Context, request AdminDeleteTrackRequestObject) (AdminDeleteTrackResponseObject, error)
+	// AdminGetTrack Получить трек
+	// (GET /admin/v1/tracks/{track_id})
+	AdminGetTrack(ctx context.Context, request AdminGetTrackRequestObject) (AdminGetTrackResponseObject, error)
+	// AdminUpdateTrack Изменить трек
+	// (PATCH /admin/v1/tracks/{track_id})
+	AdminUpdateTrack(ctx context.Context, request AdminUpdateTrackRequestObject) (AdminUpdateTrackResponseObject, error)
 	// AdminListUsers Список пользователей
 	// (GET /admin/v1/users)
 	AdminListUsers(ctx context.Context, request AdminListUsersRequestObject) (AdminListUsersResponseObject, error)
@@ -773,6 +3366,527 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// AdminListAlbums operation middleware
+func (sh *strictHandler) AdminListAlbums(w http.ResponseWriter, r *http.Request, params AdminListAlbumsParams) {
+	var request AdminListAlbumsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListAlbums(ctx, request.(AdminListAlbumsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListAlbums")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminListAlbumsResponseObject); ok {
+		if err := validResponse.VisitAdminListAlbumsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminCreateAlbum operation middleware
+func (sh *strictHandler) AdminCreateAlbum(w http.ResponseWriter, r *http.Request) {
+	var request AdminCreateAlbumRequestObject
+
+	var body AdminCreateAlbumJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminCreateAlbum(ctx, request.(AdminCreateAlbumRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminCreateAlbum")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminCreateAlbumResponseObject); ok {
+		if err := validResponse.VisitAdminCreateAlbumResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminDeleteAlbum operation middleware
+func (sh *strictHandler) AdminDeleteAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId) {
+	var request AdminDeleteAlbumRequestObject
+
+	request.AlbumId = albumId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminDeleteAlbum(ctx, request.(AdminDeleteAlbumRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminDeleteAlbum")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminDeleteAlbumResponseObject); ok {
+		if err := validResponse.VisitAdminDeleteAlbumResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminGetAlbum operation middleware
+func (sh *strictHandler) AdminGetAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId) {
+	var request AdminGetAlbumRequestObject
+
+	request.AlbumId = albumId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminGetAlbum(ctx, request.(AdminGetAlbumRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminGetAlbum")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminGetAlbumResponseObject); ok {
+		if err := validResponse.VisitAdminGetAlbumResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminUpdateAlbum operation middleware
+func (sh *strictHandler) AdminUpdateAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId) {
+	var request AdminUpdateAlbumRequestObject
+
+	request.AlbumId = albumId
+
+	var body AdminUpdateAlbumJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUpdateAlbum(ctx, request.(AdminUpdateAlbumRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUpdateAlbum")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminUpdateAlbumResponseObject); ok {
+		if err := validResponse.VisitAdminUpdateAlbumResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminPublishAlbum operation middleware
+func (sh *strictHandler) AdminPublishAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId) {
+	var request AdminPublishAlbumRequestObject
+
+	request.AlbumId = albumId
+
+	var body AdminPublishAlbumJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminPublishAlbum(ctx, request.(AdminPublishAlbumRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminPublishAlbum")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminPublishAlbumResponseObject); ok {
+		if err := validResponse.VisitAdminPublishAlbumResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminSetAlbumTrackOrder operation middleware
+func (sh *strictHandler) AdminSetAlbumTrackOrder(w http.ResponseWriter, r *http.Request, albumId AlbumId) {
+	var request AdminSetAlbumTrackOrderRequestObject
+
+	request.AlbumId = albumId
+
+	var body AdminSetAlbumTrackOrderJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminSetAlbumTrackOrder(ctx, request.(AdminSetAlbumTrackOrderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminSetAlbumTrackOrder")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminSetAlbumTrackOrderResponseObject); ok {
+		if err := validResponse.VisitAdminSetAlbumTrackOrderResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminUnpublishAlbum operation middleware
+func (sh *strictHandler) AdminUnpublishAlbum(w http.ResponseWriter, r *http.Request, albumId AlbumId) {
+	var request AdminUnpublishAlbumRequestObject
+
+	request.AlbumId = albumId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUnpublishAlbum(ctx, request.(AdminUnpublishAlbumRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUnpublishAlbum")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminUnpublishAlbumResponseObject); ok {
+		if err := validResponse.VisitAdminUnpublishAlbumResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminListArtists operation middleware
+func (sh *strictHandler) AdminListArtists(w http.ResponseWriter, r *http.Request, params AdminListArtistsParams) {
+	var request AdminListArtistsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListArtists(ctx, request.(AdminListArtistsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListArtists")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminListArtistsResponseObject); ok {
+		if err := validResponse.VisitAdminListArtistsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminCreateArtist operation middleware
+func (sh *strictHandler) AdminCreateArtist(w http.ResponseWriter, r *http.Request) {
+	var request AdminCreateArtistRequestObject
+
+	var body AdminCreateArtistJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminCreateArtist(ctx, request.(AdminCreateArtistRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminCreateArtist")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminCreateArtistResponseObject); ok {
+		if err := validResponse.VisitAdminCreateArtistResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminDeleteArtist operation middleware
+func (sh *strictHandler) AdminDeleteArtist(w http.ResponseWriter, r *http.Request, artistId ArtistId) {
+	var request AdminDeleteArtistRequestObject
+
+	request.ArtistId = artistId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminDeleteArtist(ctx, request.(AdminDeleteArtistRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminDeleteArtist")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminDeleteArtistResponseObject); ok {
+		if err := validResponse.VisitAdminDeleteArtistResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminGetArtist operation middleware
+func (sh *strictHandler) AdminGetArtist(w http.ResponseWriter, r *http.Request, artistId ArtistId) {
+	var request AdminGetArtistRequestObject
+
+	request.ArtistId = artistId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminGetArtist(ctx, request.(AdminGetArtistRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminGetArtist")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminGetArtistResponseObject); ok {
+		if err := validResponse.VisitAdminGetArtistResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminUpdateArtist operation middleware
+func (sh *strictHandler) AdminUpdateArtist(w http.ResponseWriter, r *http.Request, artistId ArtistId) {
+	var request AdminUpdateArtistRequestObject
+
+	request.ArtistId = artistId
+
+	var body AdminUpdateArtistJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUpdateArtist(ctx, request.(AdminUpdateArtistRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUpdateArtist")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminUpdateArtistResponseObject); ok {
+		if err := validResponse.VisitAdminUpdateArtistResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminListTracks operation middleware
+func (sh *strictHandler) AdminListTracks(w http.ResponseWriter, r *http.Request, params AdminListTracksParams) {
+	var request AdminListTracksRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListTracks(ctx, request.(AdminListTracksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListTracks")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminListTracksResponseObject); ok {
+		if err := validResponse.VisitAdminListTracksResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminCreateTrack operation middleware
+func (sh *strictHandler) AdminCreateTrack(w http.ResponseWriter, r *http.Request) {
+	var request AdminCreateTrackRequestObject
+
+	var body AdminCreateTrackJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminCreateTrack(ctx, request.(AdminCreateTrackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminCreateTrack")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminCreateTrackResponseObject); ok {
+		if err := validResponse.VisitAdminCreateTrackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminDeleteTrack operation middleware
+func (sh *strictHandler) AdminDeleteTrack(w http.ResponseWriter, r *http.Request, trackId TrackId) {
+	var request AdminDeleteTrackRequestObject
+
+	request.TrackId = trackId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminDeleteTrack(ctx, request.(AdminDeleteTrackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminDeleteTrack")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminDeleteTrackResponseObject); ok {
+		if err := validResponse.VisitAdminDeleteTrackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminGetTrack operation middleware
+func (sh *strictHandler) AdminGetTrack(w http.ResponseWriter, r *http.Request, trackId TrackId) {
+	var request AdminGetTrackRequestObject
+
+	request.TrackId = trackId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminGetTrack(ctx, request.(AdminGetTrackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminGetTrack")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminGetTrackResponseObject); ok {
+		if err := validResponse.VisitAdminGetTrackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminUpdateTrack operation middleware
+func (sh *strictHandler) AdminUpdateTrack(w http.ResponseWriter, r *http.Request, trackId TrackId) {
+	var request AdminUpdateTrackRequestObject
+
+	request.TrackId = trackId
+
+	var body AdminUpdateTrackJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUpdateTrack(ctx, request.(AdminUpdateTrackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUpdateTrack")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminUpdateTrackResponseObject); ok {
+		if err := validResponse.VisitAdminUpdateTrackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // AdminListUsers operation middleware

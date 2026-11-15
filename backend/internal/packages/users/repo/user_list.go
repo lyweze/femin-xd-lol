@@ -3,16 +3,13 @@ package repo
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/lyweze/femin-xd-lol/backend/internal/entities"
+	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/repositories"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/dto"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/models"
 )
-
-//nolint:gochecknoglobals
-var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 func (r *PgxRepo) ListUsers(ctx context.Context, q dto.ListUsersQuery) (dto.ListUsersResult, error) {
 	query := builder().NewSelectBuilder()
@@ -22,7 +19,7 @@ func (r *PgxRepo) ListUsers(ctx context.Context, q dto.ListUsersQuery) (dto.List
 	query.Where(query.IsNull(entities.UserDeletedAtCol))
 
 	if q.Search != nil {
-		pattern := "%" + likeEscaper.Replace(*q.Search) + "%"
+		pattern := repositories.ContainsPattern(*q.Search)
 
 		query.Where(query.Or(
 			query.ILike(entities.UserEmailCol, pattern),
@@ -38,7 +35,7 @@ func (r *PgxRepo) ListUsers(ctx context.Context, q dto.ListUsersQuery) (dto.List
 		query.Where(query.LessThan(entities.UserIDCol, *q.AfterID))
 	}
 
-	query.OrderBy(entities.UserIDCol).Desc()
+	query.OrderByDesc(entities.UserIDCol)
 	query.Limit(q.Limit)
 
 	sql, args := query.Build()

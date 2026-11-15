@@ -1,0 +1,63 @@
+version: "2"
+
+run:
+  # Тесты под тегом tests, без него линтер их не увидит.
+  build-tags:
+    - tests
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gochecknoglobals
+    - gochecknoinits
+    - gosec
+    - lll
+    - misspell
+    - mnd
+    - nilerr
+    - unconvert
+    - wrapcheck
+  settings:
+    lll:
+      line-length: 150
+    wrapcheck:
+      # Ошибки из своих пакетов уже обёрнуты с контекстом, обёртка на каждом слое только шумит.
+      ignore-package-globs:
+        - github.com/lyweze/femin-xd-lol/backend/*
+      # Свои sentinel-ошибки валидации отдаются как есть, ozzo ждёт их без обёртки.
+      # Остальное это значения по умолчанию, при переопределении они не сохраняются.
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+        - errors.Join(
+        - .Wrap(
+        - .Wrapf(
+        - .WithMessage(
+        - .WithMessagef(
+        - .WithStack(
+        - ozzo-validation/v4.NewError(
+  exclusions:
+    generated: lax
+    paths:
+      - gen/
+      - tests/mocks/
+    rules:
+      # В тестах магические числа, глобальные таблицы кейсов и необёрнутые ошибки норма.
+      - path: _test\.go
+        linters:
+          - gochecknoglobals
+          - gosec
+          - lll
+          - mnd
+          - wrapcheck
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    paths:
+      - gen/
+      - tests/mocks/

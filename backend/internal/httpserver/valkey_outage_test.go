@@ -48,7 +48,7 @@ func (p *tcpProxy) accept() {
 
 		server, err := net.Dial("tcp", p.target)
 		if err != nil {
-			client.Close()
+			_ = client.Close()
 
 			continue
 		}
@@ -63,13 +63,13 @@ func (p *tcpProxy) accept() {
 }
 
 func (p *tcpProxy) close() {
-	p.listener.Close()
+	_ = p.listener.Close()
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for _, conn := range p.conns {
-		conn.Close()
+		_ = conn.Close()
 	}
 }
 

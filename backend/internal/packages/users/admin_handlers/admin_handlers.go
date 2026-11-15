@@ -9,11 +9,8 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
-var (
-	_ g.StrictServerInterface = (*AdminHandlers)(nil)
-
-	errNoSession = errors.New("no session in context")
-)
+// Полный StrictServerInterface проверяет фасад в internal/httpserver: здесь только методы пользователей.
+var errNoSession = errors.New("no session in context")
 
 type AdminHandlers struct {
 	usecases *usecases.UsersUsecases

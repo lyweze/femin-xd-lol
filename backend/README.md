@@ -25,6 +25,7 @@ internal/
       requestctx/                сессия и IP клиента в контексте запроса
     users/                       пользователи и роли, тот же набор слоёв + password_hasher (argon2id), admin_handlers
     auth/                        вход, сессии в Valkey (sessions), лимит попыток (rate_limiter), middleware
+    catalog/                     артисты, альбомы, треки; admin_handlers для админки
     example/                     доменный пакет (заглушка, переименовать под себя)
       example.go                 Provide/Invoke — wiring пакета в DI
       http_handlers/             транспорт: HTTP <-> usecases.*In/*Out
@@ -100,6 +101,8 @@ make test
 ## Контракт и генерация
 
 `make gen` пересобирает `gen/` из `docs/openapi`. Новый тег подключается в `docs/openapi/codegen/*.yaml`, его методы становятся обязательными: хендлеры встраиваются в `publicHandlers` или `adminHandlers` в `internal/httpserver/handlers.go`.
+
+Тег `uploads` (аватары, обложки, аудио и переобработка) пока не подключён: он ждёт хранилища файлов. Поэтому обложки и аватары в ответах пока `null`, а опубликовать альбом без обложки нельзя.
 
 ## Новый домен
 

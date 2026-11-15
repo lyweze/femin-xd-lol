@@ -2,6 +2,7 @@
 
 OAPI_CODEGEN = go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.1
 MOCKERY = go run github.com/vektra/mockery/v3@v3.9.0
+GOLANGCI_LINT = go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
 TEST_DATABASE_HTTP_DSN ?= postgres://femin:femin@localhost:55432/femin_test?sslmode=disable
 TEST_VALKEY_ADDRESS ?= localhost:56379
@@ -26,7 +27,7 @@ down-test:
 	docker compose -f build/local/docker-compose.test.yml down
 
 lint:
-	golangci-lint run ./...
+	$(GOLANGCI_LINT) run ./...
 
 up:
 	docker compose -f build/local/docker-compose.yml up -d
