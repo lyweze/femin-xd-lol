@@ -4,6 +4,7 @@
 import { useState } from "react";
 import "./App.css";
 
+import { useSidebar } from "./hooks/useSidebar.js";
 import Sidebar from "./components/layout/sidebar/Sidebar.jsx";
 import MainPage from "./components/pages/main-page/MainPage.jsx";
 // В будущем сюда подключаются остальные экраны и постоянный плеер:
@@ -17,22 +18,26 @@ import MainPage from "./components/pages/main-page/MainPage.jsx";
  * (боковую панель и парящий плеер) поверх сменяемых страниц.
  */
 function App() {
-	// Активный раздел интерфейса: "home" | "library" | { type: "playlist", id: string }
 	const [activeView, setActiveView] = useState("home");
+	const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar(true);
 
 	return (
 		<div className="app">
-			{/* Постоянная боковая навигация */}
-			<Sidebar activeView={activeView} onNavigate={setActiveView} />
+			{/* Постоянная боковая панель навигации */}
+			<Sidebar
+				isOpen={isSidebarOpen}
+				onToggle={toggleSidebar}
+				activeView={activeView}
+				onNavigate={setActiveView}
+			/>
 
-			{/* Сменяемая правая рабочая область */}
-			{activeView === "home" && <MainPage />}
-			{/* {activeView === "library" && <LibraryPage />} */}
-			{/* {typeof activeView === "object" && <PlaylistPage playlistId={activeView.id} />} */}
-
-			{/* Парящая капсула плеера — живёт на уровне App,
-                чтобы не размонтироваться при переключении страниц */}
-			{/* <Player /> */}
+			{/* Активный экран рабочей области */}
+			{activeView === "home" && (
+				<MainPage
+					isSidebarOpen={isSidebarOpen}
+					onToggleSidebar={toggleSidebar}
+				/>
+			)}
 		</div>
 	);
 }
