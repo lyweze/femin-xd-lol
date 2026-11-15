@@ -8,7 +8,7 @@ body {
 	height: calc(100dvh - (var(--layout-inset) * 2));
 
 	/* Фон подстраивается под текущий трек через --accent-cover */
-	background-color: var(--accent-cover);
+	/* background-color: var(--accent-cover); */
 	color: var(--text-primary);
 	font-family: var(--font-ui);
 

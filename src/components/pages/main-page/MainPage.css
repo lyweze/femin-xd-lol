@@ -27,14 +27,15 @@
 }
 
 /* ==========================================================================
-   1. Основной контейнер страницы (фиксированный flex-каркас правой панели)
+   1. Основной контейнер страницы (гибкий flex-каркас правой панели)
+      Убрали жёсткий max-width, чтобы при скрытии сайдбара окно плавно
+      растягивалось на всю доступную ширину экрана
    ========================================================================== */
 .main {
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 0%;
 	width: 100%;
-	max-width: calc(100vw - 206px - (var(--layout-inset) * 3));
 	min-width: 0;
 	height: calc(100vh - (var(--layout-inset) * 2));
 	height: calc(100dvh - (var(--layout-inset) * 2));
@@ -53,12 +54,45 @@
 }
 
 /* ==========================================================================
-   2. Шапка раздела и типографика
+   2. Шапка раздела, кнопка возврата сайдбара и типографика
    ========================================================================== */
 .main-header {
 	flex-shrink: 0;
 	margin: 0;
 	padding: 0;
+
+	/* Контекстная кнопка открытия сайдбара (появляется только при скрытой панели) */
+	> .main-sidebar-open-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 30px;
+		height: 30px;
+		padding: 0;
+		margin: 0 0 12px;
+
+		border: 1px solid var(--border-hairline);
+		border-radius: 8px;
+		background-color: var(--surface-active);
+		color: var(--text-secondary);
+		cursor: pointer;
+		-webkit-user-select: none;
+		user-select: none;
+
+		transition:
+			background-color 0.16s ease,
+			color 0.16s ease,
+			transform 0.12s ease;
+
+		&:hover {
+			background-color: var(--surface-hover);
+			color: var(--text-primary);
+		}
+
+		&:active {
+			transform: scale(0.95);
+		}
+	}
 
 	> .main-title {
 		margin: 0;
@@ -344,7 +378,7 @@
 				align-items: center;
 				justify-content: flex-start;
 				gap: 6px;
-				width: 22px;
+				width: 28px;
 				flex-shrink: 0;
 				font-family: var(--font-mono);
 				font-variant-numeric: tabular-nums;

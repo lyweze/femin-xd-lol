@@ -7,10 +7,10 @@ import "./MainPage.css";
 
 /**
  * Главная страница приложения (`MainPage`).
- * Отображает зафиксированную шапку, горизонтальную ленту плейлистов
- * с поддержкой Drag-to-Scroll и независимо скроллящийся список библиотеки.
+ * Отображает зафиксированную шапку с кнопкой возврата сайдбара,
+ * горизонтальную ленту плейлистов и независимо скроллящийся список библиотеки.
  */
-function MainPage() {
+function MainPage({ isSidebarOpen = true, onToggleSidebar }) {
 	// Рефы для независимой прокрутки и динамического расчёта краёв затухания (mask-image)
 	const playlistsRef = useHorizontalScroll();
 	const libraryRef = useVerticalScroll();
@@ -21,6 +21,35 @@ function MainPage() {
                 1. Шапка раздела (зафиксирована сверху)
                ================================================================ */}
 			<header className="main-header">
+				{!isSidebarOpen && (
+					<button
+						type="button"
+						className="main-sidebar-open-btn"
+						onClick={onToggleSidebar}
+						title="Show sidebar (⌘\)"
+						aria-label="Show sidebar"
+					>
+						<svg
+							width="16"
+							height="16"
+							viewBox="0 0 16 16"
+							fill="none"
+							aria-hidden="true"
+						>
+							<rect
+								x="2"
+								y="2.5"
+								width="12"
+								height="11"
+								rx="2.5"
+								stroke="currentColor"
+								strokeWidth="1.4"
+							/>
+							<path d="M6 2.5V13.5" stroke="currentColor" strokeWidth="1.4" />
+						</svg>
+					</button>
+				)}
+
 				<h1 className="main-title">Now Playing</h1>
 				<p className="main-subtitle">Your favorite tracks</p>
 			</header>
