@@ -1,0 +1,53 @@
+/* ==========================================================================
+   1. Подключение шрифтов Google Fonts (мягкая геометрия без засечек)
+   ========================================================================== */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Outfit:wght@400;500;600&family=Rubik:wght@400;500&display=swap");
+
+/* ==========================================================================
+   2. Дизайн-токены и глобальные переменные (Warm Spatial Minimalism)
+   ========================================================================== */
+:root {
+	color-scheme: dark;
+
+	/* --- Фоновые слои и материалы (Matte Obsidian & Smoked Glass) --- */
+	--bg-canvas: #161615;
+	--surface-sidebar: rgba(27, 27, 25, 0.75);
+	--surface-player: rgba(34, 34, 32, 0.8);
+	--surface-hover: rgba(230, 227, 221, 0.04);
+	--surface-active: rgba(230, 227, 221, 0.08);
+	--ambient-mask: rgba(22, 22, 21, 0.88);
+
+	/* --- Эффекты размытия (Glassmorphism) и тени --- */
+	--blur-sidebar: blur(32px);
+	--blur-player: blur(48px);
+	--blur-ambient: blur(140px);
+	--shadow-player: 0 0 8px 4px rgba(0, 0, 0, 0.22);
+
+	/* --- Тонкие границы и блики поверхностей (1px) --- */
+	--border-hairline: rgba(230, 227, 221, 0.05);
+	--border-specular: rgba(255, 255, 255, 0.07);
+
+	/* --- Цвета типографики --- */
+	--text-primary: #e6e3dd;
+	--text-secondary: #8a867e;
+	--text-tertiary: #52504b;
+
+	/* --- Динамический акцент обложки (обновляется из JS под текущий трек) --- */
+	--accent-cover: #c56b4e;
+
+	/* --- Семейства шрифтов --- */
+	/* Мягкий геометрический гротеск для заголовков (с фолбэком на Rubik для кириллицы) */
+	--font-editorial:
+		"Outfit", "Rubik", -apple-system, BlinkMacSystemFont, sans-serif;
+	/* Округлый гротеск для кнопок, навигации и списков */
+	--font-ui: "Rubik", -apple-system, BlinkMacSystemFont, sans-serif;
+	/* Моноширинный шрифт для таймкодов и технических метаданных */
+	--font-mono: "JetBrains Mono", "SF Mono", monospace;
+
+	/* --- Скругления и базовые отступы сетки --- */
+	--radius-window: 16px;
+	--radius-player: 20px;
+	--radius-cover: 12px;
+	--radius-item: 8px;
+	--layout-inset: 12px;
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/lyweze/femin-xd-lol/backend/gen/serverhttp"
 	auth_handlers "github.com/lyweze/femin-xd-lol/backend/internal/packages/auth/http_handlers"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/auth/middleware"
+	catalog_admin_handlers "github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog/admin_handlers"
 	example_handlers "github.com/lyweze/femin-xd-lol/backend/internal/packages/example/http_handlers"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/admin_handlers"
 	"go.uber.org/zap"
@@ -28,6 +29,7 @@ type publicHandlers struct {
 
 type adminHandlers struct {
 	*admin_handlers.AdminHandlers
+	*catalog_admin_handlers.AdminCatalogHandlers
 }
 
 var (
