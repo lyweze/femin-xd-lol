@@ -26,6 +26,9 @@ import (
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/auth/rate_limiter"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/auth/sessions"
 	auth_usecases "github.com/lyweze/femin-xd-lol/backend/internal/packages/auth/usecases"
+	catalog_admin_handlers "github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog/admin_handlers"
+	catalog_repo "github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog/repo"
+	catalog_usecases "github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog/usecases"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/repositories"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/time_provider"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/uuid_provider"
@@ -54,6 +57,9 @@ const (
 	logoutAllPath = "/api/v1/auth/logout-all"
 	mePath        = "/api/v1/me"
 	adminUsers    = "/admin/v1/users"
+	adminArtists  = "/admin/v1/artists"
+	adminAlbums   = "/admin/v1/albums"
+	adminTracks   = "/admin/v1/tracks"
 )
 
 // HttpHandlersTestSuite гоняет запросы через весь роутер на настоящих Postgres и Valkey.
@@ -125,7 +131,7 @@ func (s *HttpHandlersTestSuite) SetupSubTest() {
 func (s *HttpHandlersTestSuite) reset() {
 	r := s.Require()
 
-	_, err := s.pool.Exec(context.Background(), "TRUNCATE users, items CASCADE")
+	_, err := s.pool.Exec(context.Background(), "TRUNCATE users, items, artists, albums, tracks CASCADE")
 	r.NoError(err)
 	r.NoError(s.valkey.Do(context.Background(), s.valkey.B().Flushall().Build()).Error())
 }
@@ -231,9 +237,20 @@ func (s *HttpHandlersTestSuite) newAPI(opts ...handlerOption) *testAPI {
 			SessionTTL:   sessionTTL,
 			CookieSecure: o.cookieSecure,
 		})},
-		admin: adminHandlers{AdminHandlers: admin_handlers.New(&admin_handlers.NewArgs{
-			Usecases: users,
-		})},
+		admin: adminHandlers{
+			AdminHandlers: admin_handlers.New(&admin_handlers.NewArgs{
+				Usecases: users,
+			}),
+			AdminCatalogHandlers: catalog_admin_handlers.New(&catalog_admin_handlers.NewArgs{
+				Usecases: catalog_usecases.New(&catalog_usecases.NewArgs{
+					TimeProvider: time_provider.NewTimeProvider(),
+					UUIDProvider: uuid_provider.NewUUIDProvider(),
+					RepoHandler: repositories.NewRepoHandler(s.pool, s.pool, func(dbtx repositories.DBTX) catalog_usecases.Repo {
+						return catalog_repo.NewPgxRepo(dbtx)
+					}),
+				}),
+			}),
+		},
 		example: example_handlers.New(&example_handlers.NewArgs{
 			Usecases: example_usecases.New(&example_usecases.NewArgs{
 				TimeProvider: time_provider.NewTimeProvider(),
@@ -401,7 +418,7 @@ func (c *testClient) do(method, path string, body any) testResponse {
 	c.api.handler.ServeHTTP(w, req)
 
 	res := w.Result()
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	out := testResponse{status: res.StatusCode, body: w.Body.Bytes(), cookies: res.Cookies()}
 

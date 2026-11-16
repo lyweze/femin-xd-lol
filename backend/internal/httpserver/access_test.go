@@ -16,21 +16,41 @@ type testRoute struct {
 }
 
 func protectedRoutes() []testRoute {
-	return []testRoute{
+	return append([]testRoute{
 		{http.MethodPost, logoutPath},
 		{http.MethodPost, logoutAllPath},
 		{http.MethodGet, mePath},
-		{http.MethodGet, adminUsers},
-		{http.MethodPost, adminUsers},
-		{http.MethodPut, adminUsers + "/" + uuid.NewString() + "/role"},
-	}
+	}, adminRoutes()...)
 }
 
 func adminRoutes() []testRoute {
+	id := uuid.NewString()
+
 	return []testRoute{
 		{http.MethodGet, adminUsers},
 		{http.MethodPost, adminUsers},
-		{http.MethodPut, adminUsers + "/" + uuid.NewString() + "/role"},
+		{http.MethodPut, adminUsers + "/" + id + "/role"},
+
+		{http.MethodGet, adminArtists},
+		{http.MethodPost, adminArtists},
+		{http.MethodGet, adminArtists + "/" + id},
+		{http.MethodPatch, adminArtists + "/" + id},
+		{http.MethodDelete, adminArtists + "/" + id},
+
+		{http.MethodGet, adminAlbums},
+		{http.MethodPost, adminAlbums},
+		{http.MethodGet, adminAlbums + "/" + id},
+		{http.MethodPatch, adminAlbums + "/" + id},
+		{http.MethodDelete, adminAlbums + "/" + id},
+		{http.MethodPut, adminAlbums + "/" + id + "/track-order"},
+		{http.MethodPost, adminAlbums + "/" + id + "/publish"},
+		{http.MethodPost, adminAlbums + "/" + id + "/unpublish"},
+
+		{http.MethodGet, adminTracks},
+		{http.MethodPost, adminTracks},
+		{http.MethodGet, adminTracks + "/" + id},
+		{http.MethodPatch, adminTracks + "/" + id},
+		{http.MethodDelete, adminTracks + "/" + id},
 	}
 }
 
