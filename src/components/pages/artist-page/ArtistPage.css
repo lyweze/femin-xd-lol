@@ -1,0 +1,76 @@
+/* ==========================================================================
+   1. Страница профиля исполнителя
+   ========================================================================== */
+.artist-page {
+    /* ----------------------------------------------------------------------
+       2. Шапка профиля артиста: круглый аватар, описание и кнопки
+       ---------------------------------------------------------------------- */
+    > .artist-hero {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 16px;
+
+        > .artist-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 132px;
+            height: 132px;
+            flex-shrink: 0;
+
+            border-radius: 50%;
+            background-color: var(--surface-active);
+            outline: 1px solid var(--border-hairline);
+            box-shadow:
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+                var(--shadow-player);
+
+            font-family: var(--font-editorial);
+            font-size: 44px;
+            color: var(--text-secondary);
+        }
+
+        > .artist-meta {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+
+            > .artist-badge {
+                font-family: var(--font-mono);
+                font-size: 11px;
+                letter-spacing: 0.08em;
+                color: var(--text-tertiary);
+            }
+
+            > .artist-name {
+                margin: 4px 0 6px;
+                font-family: var(--font-editorial);
+                font-size: 48px;
+                font-weight: 400;
+                line-height: 1.05;
+                color: var(--text-primary);
+            }
+
+            > .artist-bio {
+                max-width: 560px;
+                margin: 0;
+                font-family: var(--font-ui);
+                font-size: 13px;
+                line-height: 1.45;
+                color: var(--text-secondary);
+            }
+        }
+    }
+
+    /* ----------------------------------------------------------------------
+       3. Секции популярных треков и дискографии
+       ---------------------------------------------------------------------- */
+    > .artist-section {
+        > .Playlists {
+            > .Playlist-item.album-link {
+                text-decoration: none;
+            }
+        }
+    }
+}

@@ -2,275 +2,307 @@
    1. Основной контейнер сайдбара (левая панель навигации)
    ========================================================================== */
 .sidebar {
-	--sidebar-width: 240px;
-	--sidebar-inner-width: calc(var(--sidebar-width) - (var(--layout-inset) * 2));
+    --sidebar-width: 240px;
+    --sidebar-inner-width: calc(var(--sidebar-width) - (var(--layout-inset) * 2));
 
-	display: flex;
-	flex-direction: column;
-	width: var(--sidebar-width);
-	flex-shrink: 0;
-	height: calc(100vh - (var(--layout-inset) * 2));
-	height: calc(100dvh - (var(--layout-inset) * 2));
-	box-sizing: border-box;
-	padding: var(--layout-inset);
-	margin: 0;
+    display: flex;
+    flex-direction: column;
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    height: calc(100vh - (var(--layout-inset) * 2));
+    height: calc(100dvh - (var(--layout-inset) * 2));
+    box-sizing: border-box;
+    padding: var(--layout-inset);
+    margin: 0;
 
-	background-color: var(--surface-sidebar);
-	border-radius: var(--radius-window);
-	box-shadow: var(--shadow-player);
-	-webkit-backdrop-filter: var(--blur-sidebar);
-	backdrop-filter: var(--blur-sidebar);
+    background-color: var(--surface-sidebar);
+    border-radius: var(--radius-window);
+    box-shadow: var(--shadow-player);
+    -webkit-backdrop-filter: var(--blur-sidebar);
+    backdrop-filter: var(--blur-sidebar);
 
-	/* Скролл делегирован .sidebar-navigation, чтобы верхняя кнопка и аккаунт
+    /* Скролл делегирован .sidebar-navigation, чтобы верхняя кнопка и аккаунт
        всегда оставались прибитыми к краям и не дёргались при анимации */
-	overflow: hidden;
-	transform: translateZ(0);
-	will-change: width, padding, margin-right, opacity;
+    overflow: hidden;
+    transform: translateZ(0);
+    will-change: width, padding, margin-right, opacity;
 
-	/* Плавное схлопывание панели в стиле macOS */
-	transition:
-		width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-		padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-		margin-right 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-		opacity 0.22s ease;
+    /* Плавное схлопывание панели в стиле macOS */
+    transition:
+        width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        margin-right 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.22s ease;
 
-	&.is-collapsed {
-		width: 0;
-		padding-left: 0;
-		padding-right: 0;
-		/* Компенсируем gap родительского .app, чтобы .main встал ровно по сетке */
-		margin-right: calc(var(--layout-inset) * -1);
-		opacity: 0;
-		pointer-events: none;
-	}
+    &.is-collapsed {
+        width: 0;
+        padding-left: 0;
+        padding-right: 0;
+        /* Компенсируем gap родительского .app, чтобы .main встал ровно по сетке */
+        margin-right: calc(var(--layout-inset) * -1);
+        opacity: 0;
+        pointer-events: none;
+    }
 
-	/* ======================================================================
+    /* ======================================================================
        2. Верхняя панель сайдбара с кнопкой скрытия
        ====================================================================== */
-	> .sidebar-top {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		flex-shrink: 0;
-		width: var(--sidebar-inner-width);
-		margin: 0 0 12px;
-		padding: 0;
+    > .sidebar-top {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-shrink: 0;
+        width: var(--sidebar-inner-width);
+        margin: 0 0 12px;
+        padding: 0;
 
-		> .sidebar-toggle-btn {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			width: 28px;
-			height: 28px;
-			padding: 0;
+        > .sidebar-toggle-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
 
-			border: none;
-			border-radius: 8px;
-			background: transparent;
-			color: var(--text-secondary);
-			cursor: pointer;
-			-webkit-user-select: none;
-			user-select: none;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
 
-			transition:
-				background-color 0.16s ease,
-				color 0.16s ease,
-				transform 0.12s ease;
+            transition:
+                background-color 0.16s ease,
+                color 0.16s ease,
+                transform 0.12s ease;
 
-			&:hover {
-				background-color: var(--surface-hover);
-				color: var(--text-primary);
-			}
+            &:hover {
+                background-color: var(--surface-hover);
+                color: var(--text-primary);
+            }
 
-			&:active {
-				transform: scale(0.95);
-			}
-		}
-	}
+            &:active {
+                transform: scale(0.95);
+            }
+        }
+    }
 
-	/* ======================================================================
+    /* ======================================================================
        3. Корневой список секций навигации (скроллится только центральная часть)
        ====================================================================== */
-	> .sidebar-navigation {
-		display: flex;
-		flex-direction: column;
-		flex: 1 1 0%;
-		min-height: 0;
-		gap: 28px;
+    > .sidebar-navigation {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-height: 0;
+        gap: 28px;
 
-		/* Фиксируем ширину контента, чтобы при закрытии сайдбара текст не сминался */
-		width: var(--sidebar-inner-width);
-		margin: 0;
-		padding: 2px 0 12px;
-		list-style: none;
+        /* Фиксируем ширину контента, чтобы при закрытии сайдбара текст не сминался */
+        width: var(--sidebar-inner-width);
+        margin: 0;
+        padding: 2px 0 12px;
+        list-style: none;
 
-		overflow-y: auto;
-		overflow-x: hidden;
-		overscroll-behavior: contain;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
 
-		/* Незаметный скроллбар при большом количестве плейлистов */
-		&::-webkit-scrollbar {
-			width: 3px;
-		}
+        /* Незаметный скроллбар при большом количестве плейлистов */
+        &::-webkit-scrollbar {
+            width: 3px;
+        }
 
-		&::-webkit-scrollbar-track {
-			background: transparent;
-		}
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
 
-		&::-webkit-scrollbar-thumb {
-			background: rgba(230, 227, 221, 0.14);
-			border-radius: 999px;
-		}
+        &::-webkit-scrollbar-thumb {
+            background: rgba(230, 227, 221, 0.14);
+            border-radius: 999px;
+        }
 
-		&::-webkit-scrollbar-thumb:hover {
-			background: rgba(230, 227, 221, 0.32);
-		}
+        &::-webkit-scrollbar-thumb:hover {
+            background: rgba(230, 227, 221, 0.32);
+        }
 
-		/* ------------------------------------------------------------------
+        /* ------------------------------------------------------------------
            Группы меню и интерактивные пункты
            ------------------------------------------------------------------ */
-		> .main-li,
-		> .library-li {
-			margin: 0;
-			padding: 0;
-			list-style: none;
+        > .main-li,
+        > .library-li {
+            margin: 0;
+            padding: 0;
+            list-style: none;
 
-			> ul {
-				display: flex;
-				flex-direction: column;
-				gap: 6px;
-				margin: 0;
-				padding: 0;
-				list-style: none;
+            > ul {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                margin: 0;
+                padding: 0;
+                list-style: none;
 
-				/* Отдельная кнопка вкладки / плейлиста */
-				> li {
-					display: flex;
-					align-items: center;
-					box-sizing: border-box;
-					width: 100%;
-					min-height: 36px;
-					padding: 8px 12px;
-					margin: 0;
+                > li {
+                    margin: 0;
+                    padding: 0;
+                    list-style: none;
 
-					border-radius: var(--radius-item);
-					background-color: var(--surface-active);
-					color: var(--text-primary);
-					font-family: var(--font-editorial);
-					font-size: 15px;
-					line-height: 1.2;
-					cursor: pointer;
-					-webkit-user-select: none;
-					user-select: none;
+                    /* Отдельная карточка-ссылка вкладки / плейлиста (<NavLink>) */
+                    > .sidebar-link {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 8px;
+                        box-sizing: border-box;
+                        width: 100%;
+                        min-height: 36px;
+                        padding: 8px 12px;
+                        margin: 0;
 
-					white-space: nowrap;
-					overflow: hidden;
-					text-overflow: ellipsis;
+                        border-radius: var(--radius-item);
+                        background-color: var(--surface-active);
+                        color: var(--text-primary);
+                        font-family: var(--font-editorial);
+                        font-size: 15px;
+                        line-height: 1.2;
+                        text-decoration: none;
+                        cursor: pointer;
+                        -webkit-user-select: none;
+                        user-select: none;
 
-					transition:
-						background-color 0.18s ease,
-						filter 0.18s ease,
-						transform 0.12s ease;
+                        transition:
+                            background-color 0.18s ease,
+                            box-shadow 0.18s ease,
+                            filter 0.18s ease,
+                            transform 0.12s ease;
 
-					/* Без горизонтального scale, чтобы края не обрезались при overflow-x: hidden */
-					&:hover {
-						filter: brightness(1.08);
-						transform: translate3d(0, -1px, 0);
-					}
+                        > span {
+                            min-width: 0;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        }
 
-					&:active {
-						transform: scale(0.985);
-					}
-				}
-			}
-		}
-	}
+                        /* Без горизонтального scale, чтобы края не обрезались при overflow-x: hidden */
+                        &:hover {
+                            filter: brightness(1.08);
+                            transform: translate3d(0, -1px, 0);
+                        }
 
-	/* ======================================================================
+                        &:active {
+                            transform: scale(0.985);
+                        }
+
+                        /* Активный маршрут из react-router-dom */
+                        &.active {
+                            filter: brightness(1.14);
+                            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+
+                            &::after {
+                                content: "";
+                                width: 6px;
+                                height: 6px;
+                                border-radius: 50%;
+                                background-color: var(--accent-cover);
+                                flex-shrink: 0;
+                            }
+
+                            &:hover {
+                                filter: brightness(1.18);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /* ======================================================================
        4. Кнопка аккаунта внизу сайдбара
        ====================================================================== */
-	> .sidebar-account {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		flex-shrink: 0;
-		width: var(--sidebar-inner-width);
-		padding: 8px 10px;
-		margin-top: auto;
-		box-sizing: border-box;
+    > .sidebar-account {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        width: var(--sidebar-inner-width);
+        padding: 8px 10px;
+        margin-top: auto;
+        box-sizing: border-box;
 
-		border: none;
-		border-radius: var(--radius-item);
-		background-color: var(--surface-active);
-		box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
-		text-align: left;
-		cursor: pointer;
-		-webkit-user-select: none;
-		user-select: none;
+        border: none;
+        border-radius: var(--radius-item);
+        background-color: var(--surface-active);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+        text-align: left;
+        cursor: pointer;
+        -webkit-user-select: none;
+        user-select: none;
 
-		transition:
-			filter 0.18s ease,
-			transform 0.12s ease;
+        transition:
+            filter 0.18s ease,
+            transform 0.12s ease;
 
-		&:hover {
-			filter: brightness(1.08);
-			transform: translate3d(0, -1px, 0);
-		}
+        &:hover {
+            filter: brightness(1.08);
+            transform: translate3d(0, -1px, 0);
+        }
 
-		&:active {
-			transform: scale(0.985);
-		}
+        &:active {
+            transform: scale(0.985);
+        }
 
-		/* Квадратный аватар со скруглением и тонким акцентом обложки */
-		> .account-avatar {
-			position: relative;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			width: 32px;
-			height: 32px;
-			flex-shrink: 0;
+        /* Квадратный аватар со скруглением и тонким акцентом обложки */
+        > .account-avatar {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
 
-			border-radius: 8px;
-			background: linear-gradient(
-				145deg,
-				color-mix(in srgb, var(--accent-cover) 55%, #2a2421),
-				rgba(230, 227, 221, 0.08)
-			);
-			box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+            border-radius: 8px;
+            background: linear-gradient(
+                145deg,
+                color-mix(in srgb, var(--accent-cover) 55%, #2a2421),
+                rgba(230, 227, 221, 0.08)
+            );
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 
-			font-family: var(--font-editorial);
-			font-size: 14px;
-			color: var(--text-primary);
-		}
+            font-family: var(--font-editorial);
+            font-size: 14px;
+            color: var(--text-primary);
+        }
 
-		/* Имя и подпись режима/качества */
-		> .account-meta {
-			display: flex;
-			flex-direction: column;
-			gap: 2px;
-			min-width: 0;
-			flex: 1;
+        /* Имя и подпись режима/качества */
+        > .account-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1;
 
-			> .account-name {
-				font-family: var(--font-editorial);
-				font-size: 14px;
-				line-height: 1.2;
-				color: var(--text-primary);
-				white-space: nowrap;
-				overflow: hidden;
-				text-overflow: ellipsis;
-			}
+            > .account-name {
+                font-family: var(--font-editorial);
+                font-size: 14px;
+                line-height: 1.2;
+                color: var(--text-primary);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
 
-			> .account-sub {
-				font-family: var(--font-mono);
-				font-size: 9.5px;
-				letter-spacing: 0.04em;
-				color: var(--text-secondary);
-				white-space: nowrap;
-				overflow: hidden;
-				text-overflow: ellipsis;
-			}
-		}
-	}
+            > .account-sub {
+                font-family: var(--font-mono);
+                font-size: 9.5px;
+                letter-spacing: 0.04em;
+                color: var(--text-secondary);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
+    }
 }

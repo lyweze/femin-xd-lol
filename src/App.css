@@ -1,36 +1,313 @@
 /* ==========================================================================
-   1. Корневой контейнер документа (внешняя рамка и динамический фон)
+   1. Корневой контейнер документа (внешняя рамка и базовый холст)
    ========================================================================== */
 body {
-	margin: 0;
-	padding: var(--layout-inset); /* 12px — единый внешний отступ каркаса */
-	height: calc(100vh - (var(--layout-inset) * 2));
-	height: calc(100dvh - (var(--layout-inset) * 2));
+    margin: 0;
+    padding: var(--layout-inset); /* 12px — единый внешний отступ каркаса */
+    height: calc(100vh - (var(--layout-inset) * 2));
+    height: calc(100dvh - (var(--layout-inset) * 2));
 
-	/* Фон подстраивается под текущий трек через --accent-cover */
-	/* background-color: var(--accent-cover); */
-	color: var(--text-primary);
-	font-family: var(--font-ui);
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
 
-	/* Плавный переход цвета фона при смене обложки трека */
-	transition: background-color 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    /* Плавный переход цвета фона при смене обложки трека */
+    transition: background-color 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 
-	/* Запрещаем прокрутку всего окна (скроллятся только внутренние панели) */
-	overflow: hidden;
+    /* Запрещаем прокрутку всего окна (скроллятся только внутренние панели) */
+    overflow: hidden;
 
-	/* Чёткое ретина-сглаживание шрифтов на macOS и Windows */
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
+    /* Чёткое ретина-сглаживание шрифтов на macOS и Windows */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* ==========================================================================
-   2. Главный каркас приложения (сайдбар + рабочая область)
+   2. Главный каркас приложения (PlayerLayout: полоса открытия + сайдбар + .main)
    ========================================================================== */
 .app {
-	display: flex;
-	flex-direction: row;
-	gap: var(--layout-inset); /* 12px — зазор между панелями */
-	width: 100%;
-	height: 100%;
-	min-width: 0;
+    display: flex;
+    flex-direction: row;
+    gap: var(--layout-inset); /* 12px — зазор между панелями */
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+
+    /* Узкая интерактивная полоса слева для возврата свёрнутого сайдбара */
+    > .sidebar-reopen-strip {
+        width: 14px;
+        flex-shrink: 0;
+        height: calc(100dvh - (var(--layout-inset) * 2) - var(--titlebar-height, 0px));
+        padding: 0;
+        margin: 0;
+
+        border: 1px solid var(--border-hairline);
+        border-radius: 8px;
+        background-color: var(--surface-sidebar);
+        -webkit-backdrop-filter: var(--blur-sidebar);
+        backdrop-filter: var(--blur-sidebar);
+        cursor: pointer;
+
+        transition:
+            background-color 0.18s ease,
+            border-color 0.18s ease,
+            width 0.18s ease;
+
+        &:hover {
+            width: 18px;
+            background-color: var(--surface-hover);
+            border-color: rgba(230, 227, 221, 0.14);
+        }
+    }
+
+    /* Правая рабочая область для всех экранов маршрутизатора */
+    > .main {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        width: 100%;
+        min-width: 0;
+        height: calc(100vh - (var(--layout-inset) * 2));
+        height: calc(100dvh - (var(--layout-inset) * 2));
+        box-sizing: border-box;
+        padding: calc(var(--layout-inset) * 2);
+        margin: 0;
+
+        background-color: var(--surface-sidebar);
+        border-radius: var(--radius-window);
+        box-shadow: var(--shadow-player);
+        -webkit-backdrop-filter: var(--blur-sidebar);
+        backdrop-filter: var(--blur-sidebar);
+
+        /* Скролл делегирован внутренним контейнерам страниц */
+        overflow: hidden;
+        overscroll-behavior: none;
+
+        /* Обёртка плавного появления при смене маршрута */
+        > .page-transition {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 0%;
+            min-height: 0;
+            animation: pageEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+    }
+}
+
+/* ==========================================================================
+   3. Анимация переключения страниц
+   ========================================================================== */
+@keyframes pageEnter {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 10px, 0);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app > .main > .page-transition {
+        animation: none;
+    }
+}
+
+/* ==========================================================================
+   4. Общая шапка внутренних страниц (SearchPage, LibraryPage)
+   ========================================================================== */
+.page-header {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+
+    > .page-title {
+        margin: 0;
+        padding: 0;
+        font-family: var(--font-editorial);
+        font-size: 44px;
+        line-height: 1.1;
+        color: var(--text-primary);
+    }
+
+    > .page-subtitle {
+        margin: 8px 0 0;
+        padding: 0;
+        font-family: var(--font-editorial);
+        font-size: 20px;
+        font-weight: 400;
+        line-height: 1.4;
+        color: var(--text-secondary);
+    }
+}
+
+/* ==========================================================================
+   5. Общий вертикальный скролл-контейнер страниц с динамической маской
+   ========================================================================== */
+.page-scroll {
+    --fade-top: 0px;
+    --fade-bottom: 0px;
+
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0%;
+    min-height: 0;
+    /* Выносим скроллбар на 8px вправо, чтобы не сдвигать выравнивание контента;
+       нижний паддинг 88px оставляет запас под плавающий нижний плеер */
+    width: calc(100% + 8px);
+    box-sizing: border-box;
+    margin-right: -8px;
+    padding: 0 8px 88px 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+
+    transition:
+        --fade-top 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        --fade-bottom 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0px,
+        #000 var(--fade-top),
+        #000 calc(100% - var(--fade-bottom)),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0px,
+        #000 var(--fade-top),
+        #000 calc(100% - var(--fade-bottom)),
+        transparent 100%
+    );
+
+    transform: translateZ(0);
+    will-change: scroll-position;
+
+    &::-webkit-scrollbar {
+        width: 3px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    &::-webkit-scrollbar-button:end:increment {
+        display: block;
+        height: 88px;
+        background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: rgba(230, 227, 221, 0.01);
+        border-radius: 999px;
+    }
+
+    &.is-scrolling::-webkit-scrollbar-thumb {
+        background: rgba(230, 227, 221, 0.22);
+    }
+
+    &.is-scrolling::-webkit-scrollbar-thumb:hover {
+        background: rgba(230, 227, 221, 0.4);
+    }
+}
+
+/* ==========================================================================
+   6. Общие заголовки секций и переиспользуемые элементы списков
+   ========================================================================== */
+.section-title {
+    margin: 24px 0 12px;
+    padding: 0;
+    font-family: var(--font-editorial);
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+
+/* Встраиваемый список треков без собственного скролла (внутри .page-scroll) */
+.Library.is-embedded {
+    flex: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    mask-image: none;
+    -webkit-mask-image: none;
+}
+
+/* Интерактивная ссылка на страницу исполнителя внутри строки трека */
+.artist-inline-link {
+    width: fit-content;
+    text-decoration: none;
+
+    &:hover {
+        color: var(--text-primary);
+        text-decoration: underline;
+    }
+}
+
+/* ==========================================================================
+   7. Общие кнопки действий коллекции / артиста (Play / Shuffle)
+   ========================================================================== */
+.collection-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+
+    > .btn-primary,
+    > .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding: 0 18px;
+        border-radius: 999px;
+        font-family: var(--font-ui);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        -webkit-user-select: none;
+        user-select: none;
+        transition:
+            filter 0.16s ease,
+            background-color 0.16s ease,
+            transform 0.12s ease;
+
+        &:active {
+            transform: scale(0.97);
+        }
+    }
+
+    > .btn-primary {
+        border: none;
+        background-color: var(--surface-active);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+        color: var(--text-primary);
+
+        &:hover {
+            filter: brightness(1.12);
+        }
+
+        > .btn-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--accent-cover);
+        }
+    }
+
+    > .btn-secondary {
+        border: 1px solid var(--border-hairline);
+        background-color: transparent;
+        color: var(--text-secondary);
+
+        &:hover {
+            background-color: var(--surface-hover);
+            color: var(--text-primary);
+        }
+    }
 }

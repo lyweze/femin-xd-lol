@@ -1,45 +1,45 @@
 // ============================================================================
-// Импорты: состояние, стили каркаса и базовые компоненты интерфейса
+// Импорты: маршрутизатор, глобальные стили каркаса и страницы приложения
 // ============================================================================
-import { useState } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
-import { useSidebar } from "./hooks/useSidebar.js";
-import Sidebar from "./components/layout/sidebar/Sidebar.jsx";
+import { AppRouter } from "./platform/AppRouter.jsx";
+import PlayerLayout from "./components/layout/PlayerLayout.jsx";
 import MainPage from "./components/pages/main-page/MainPage.jsx";
-// В будущем сюда подключаются остальные экраны и постоянный плеер:
-// import LibraryPage from "./components/pages/library-page/LibraryPage.jsx";
-// import PlaylistPage from "./components/pages/playlist-page/PlaylistPage.jsx";
-// import Player from "./components/layout/player/Player.jsx";
+import SearchPage from "./components/pages/search-page/SearchPage.jsx";
+import LibraryPage from "./components/pages/library-page/LibraryPage.jsx";
+import PlaylistPage from "./components/pages/playlist-page/PlaylistPage.jsx";
+import ArtistPage from "./components/pages/artist-page/ArtistPage.jsx";
 
 /**
  * Корневой компонент приложения (`App`).
- * Управляет навигацией между разделами и удерживает постоянный каркас
- * (боковую панель и парящий плеер) поверх сменяемых страниц.
+ * Описывает таблицу маршрутов внутри постоянного каркаса `PlayerLayout`.
  */
 function App() {
-	const [activeView, setActiveView] = useState("home");
-	const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar(true);
+    return (
+        <AppRouter>
+            <Routes>
+                <Route element={<PlayerLayout />}>
+                    <Route path="/" element={<MainPage />} />
+                    <Route path="/search" element={<SearchPage />} />
+                    <Route path="/library" element={<LibraryPage />} />
+                    <Route
+                        path="/playlist/:id"
+                        element={<PlaylistPage kind="playlist" />}
+                    />
+                    <Route
+                        path="/album/:id"
+                        element={<PlaylistPage kind="album" />}
+                    />
+                    <Route path="/artist/:id" element={<ArtistPage />} />
+                </Route>
 
-	return (
-		<div className="app">
-			{/* Постоянная боковая панель навигации */}
-			<Sidebar
-				isOpen={isSidebarOpen}
-				onToggle={toggleSidebar}
-				activeView={activeView}
-				onNavigate={setActiveView}
-			/>
-
-			{/* Активный экран рабочей области */}
-			{activeView === "home" && (
-				<MainPage
-					isSidebarOpen={isSidebarOpen}
-					onToggleSidebar={toggleSidebar}
-				/>
-			)}
-		</div>
-	);
+                {/* Фолбэк для неизвестных маршрутов */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </AppRouter>
+    );
 }
 
 export default App;
