@@ -12,7 +12,7 @@ import (
 )
 
 type DeleteAlbumIn struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 func (i DeleteAlbumIn) Validate() error {

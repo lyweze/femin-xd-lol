@@ -130,6 +130,8 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminListUsers() {
 
 			s.Equal(http.StatusUnprocessableEntity, res.status, res.text())
 			s.Equal("VALIDATION_ERROR", res.code())
+			s.NotContains(res.message(), "\n")
+			s.NotContains(res.message(), "validation error")
 		})
 	}
 }

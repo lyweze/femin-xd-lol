@@ -15,11 +15,11 @@ import (
 )
 
 type CreateAlbumIn struct {
-	Title       string
-	Type        models.AlbumType
-	ReleaseDate *time.Time
+	Title       string           `json:"title"`
+	Type        models.AlbumType `json:"type"`
+	ReleaseDate *time.Time       `json:"release_date"`
 	// ArtistIDs в порядке показа.
-	ArtistIDs []uuid.UUID
+	ArtistIDs []uuid.UUID `json:"artist_ids"`
 }
 
 func (i CreateAlbumIn) Validate() error {

@@ -13,7 +13,7 @@ import (
 )
 
 type GetTrackIn struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 func (i GetTrackIn) Validate() error {

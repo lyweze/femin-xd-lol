@@ -88,7 +88,7 @@ func (h *AdminCatalogHandlers) AdminDeleteArtist(ctx context.Context, req g.Admi
 		case errors.Is(err, usecases.ErrArtistNotFound) || isValidation(err):
 			return g.AdminDeleteArtist404JSONResponse{NotFoundErrorJSONResponse: notFound()}, nil
 		case errors.Is(err, usecases.ErrArtistInUse):
-			return g.AdminDeleteArtist409JSONResponse{ConflictErrorJSONResponse: conflict(err)}, nil
+			return g.AdminDeleteArtist409JSONResponse{ConflictErrorJSONResponse: conflict(err, usecases.ErrArtistInUse)}, nil
 		default:
 			return nil, fmt.Errorf("failed to delete artist: %w", err)
 		}

@@ -5,6 +5,7 @@ package httpserver
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -47,6 +48,7 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminListArtists() {
 		res := s.adminClient(s.newAPI()).do(http.MethodGet, adminArtists+"?limit=0", nil)
 
 		s.Equal(http.StatusUnprocessableEntity, res.status, res.text())
+		s.Equal("limit: must be between 1 and 100.", res.message())
 	})
 }
 
@@ -62,15 +64,18 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminCreateArtist() {
 		r.Nil(artist.Avatar)
 	})
 
-	for name, body := range map[string]map[string]any{
-		"empty name": {"name": "   "},
-		"long name":  {"name": string(make([]byte, 256))},
-		"no name":    {"bio": "x"},
+	for name, tc := range map[string]struct {
+		body    map[string]any
+		message string
+	}{
+		"empty name": {map[string]any{"name": "   "}, "name: cannot be blank."},
+		"long name":  {map[string]any{"name": strings.Repeat("a", 256)}, "name: the length must be between 1 and 255."},
 	} {
 		s.Run("error: "+name, func() {
-			res := s.adminClient(s.newAPI()).do(http.MethodPost, adminArtists, body)
+			res := s.adminClient(s.newAPI()).do(http.MethodPost, adminArtists, tc.body)
 
 			s.Equal(http.StatusUnprocessableEntity, res.status, res.text())
+			s.Equal(tc.message, res.message())
 			s.Equal(0, s.queryInt("SELECT count(*) FROM artists"))
 		})
 	}
@@ -143,7 +148,7 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminDeleteArtist() {
 		res := c.do(http.MethodDelete, adminArtists+"/"+artist.Id.String(), nil)
 
 		r.Equal(http.StatusConflict, res.status)
-		r.Contains(res.text(), "1 albums")
+		r.Equal("artist has 1 albums and 0 tracks", res.message())
 	})
 
 	s.Run("error: artist is only a feat on a track", func() {

@@ -163,6 +163,7 @@ type AdminAlbum struct {
 	Cover     *Image             `json:"cover,omitempty"`
 	CreatedAt time.Time          `json:"created_at"`
 	Id        openapi_types.UUID `json:"id"`
+	Label     *string            `json:"label"`
 
 	// PublishedAt Дата публикации, `null` у черновика. В будущем значит отложенный релиз
 	PublishedAt *time.Time          `json:"published_at,omitempty"`

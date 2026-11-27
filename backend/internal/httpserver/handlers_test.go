@@ -378,6 +378,17 @@ func (r testResponse) code() string {
 	return reply.Code
 }
 
+// message текст для человека. Технические обёртки вроде "failed to ..." сюда попадать не должны.
+func (r testResponse) message() string {
+	var reply struct {
+		Message string `json:"message"`
+	}
+
+	_ = json.Unmarshal(r.body, &reply)
+
+	return reply.Message
+}
+
 func (r testResponse) sessionCookie() *http.Cookie {
 	for _, cookie := range r.cookies {
 		if cookie.Name == middleware.SessionCookieName {

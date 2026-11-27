@@ -1134,6 +1134,7 @@ components:
         - track_count
         - created_at
         - updated_at
+        - label
       properties:
         id:
           type: string
@@ -1164,6 +1165,9 @@ components:
         updated_at:
           type: string
           format: date-time
+        label:
+          type: string
+          nullable: true
     AdminAlbumReply:
       type: object
       required:

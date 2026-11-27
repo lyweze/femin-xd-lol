@@ -12,9 +12,9 @@ import (
 )
 
 type ListAlbumsIn struct {
-	Search   *string
-	ArtistID *uuid.UUID
-	Page     PageIn
+	Search   *string    `json:"q"`
+	ArtistID *uuid.UUID `json:"artist_id"`
+	Page     PageIn     `json:"page"`
 }
 
 func (i ListAlbumsIn) Validate() error {

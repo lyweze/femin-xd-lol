@@ -13,8 +13,8 @@ import (
 )
 
 type SetAlbumTrackOrderIn struct {
-	AlbumID uuid.UUID
-	Items   []models.TrackPosition
+	AlbumID uuid.UUID              `json:"album_id"`
+	Items   []models.TrackPosition `json:"items"`
 }
 
 func (i SetAlbumTrackOrderIn) Validate() error {

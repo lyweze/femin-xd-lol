@@ -115,6 +115,8 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_Register() {
 
 			r.Equal(http.StatusUnprocessableEntity, res.status, res.text())
 			r.Equal("VALIDATION_ERROR", res.code())
+			r.NotContains(res.message(), "\n")
+			r.NotContains(res.message(), "validation error")
 			r.Nil(res.sessionCookie())
 			r.Equal(0, s.queryInt("SELECT count(*) FROM users"))
 		})
@@ -131,6 +133,15 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_Register() {
 		r.Equal(http.StatusUnprocessableEntity, res.status, res.text())
 		r.Contains(res.text(), "too large")
 		r.Equal(0, s.queryInt("SELECT count(*) FROM users"))
+	})
+
+	s.Run("error: message names the API field", func() {
+		body := registerBody()
+		body["password"] = "short"
+
+		res := s.newAPI().client().do(http.MethodPost, registerPath, body)
+
+		s.Equal("password: the length must be between 8 and 128.", res.message())
 	})
 
 	s.Run("error: rate limit by ip", func() {

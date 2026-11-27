@@ -12,8 +12,8 @@ import (
 )
 
 type CreateArtistIn struct {
-	Name string
-	Bio  string
+	Name string `json:"name"`
+	Bio  string `json:"bio"`
 }
 
 func (i CreateArtistIn) Validate() error {

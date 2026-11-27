@@ -13,10 +13,10 @@ import (
 )
 
 type ListTracksIn struct {
-	Search  *string
-	AlbumID *uuid.UUID
-	Status  *models.TrackStatus
-	Page    PageIn
+	Search  *string             `json:"q"`
+	AlbumID *uuid.UUID          `json:"album_id"`
+	Status  *models.TrackStatus `json:"status"`
+	Page    PageIn              `json:"page"`
 }
 
 func (i ListTracksIn) Validate() error {

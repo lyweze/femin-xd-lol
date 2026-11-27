@@ -62,7 +62,7 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminCreateTrack() {
 		res := c.do(http.MethodPost, adminTracks, trackBody(album.Id, 1, album.Artists[0].Id))
 
 		s.Equal(http.StatusUnprocessableEntity, res.status)
-		s.Contains(res.text(), "already taken")
+		s.Equal("position 1-1 is already taken", res.message())
 	})
 
 	s.Run("error: deleted album", func() {
@@ -82,6 +82,7 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminCreateTrack() {
 			"unknown album":  trackBody(uuid.New(), 1, artist),
 			"unknown artist": trackBody(album.Id, 1, uuid.New()),
 			"zero number":    trackBody(album.Id, 0, artist),
+			"zero disc":      lo.Assign(trackBody(album.Id, 1, artist), map[string]any{"disc_no": 0}),
 			"only feat": lo.Assign(trackBody(album.Id, 1, artist), map[string]any{
 				"artists": []map[string]any{{"artist_id": artist, "role": "feat"}},
 			}),
@@ -95,6 +96,9 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminCreateTrack() {
 			res := c.do(http.MethodPost, adminTracks, body)
 
 			s.Equal(http.StatusUnprocessableEntity, res.status, "%s: %s", name, res.text())
+			s.NotEmpty(res.message(), name)
+			s.NotContains(res.message(), "\n", name)
+			s.NotContains(res.message(), "validation error", name)
 		}
 
 		s.Zero(s.queryInt("SELECT count(*) FROM tracks"))

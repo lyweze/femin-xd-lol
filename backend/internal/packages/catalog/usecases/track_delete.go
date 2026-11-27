@@ -12,7 +12,7 @@ import (
 )
 
 type DeleteTrackIn struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 func (i DeleteTrackIn) Validate() error {

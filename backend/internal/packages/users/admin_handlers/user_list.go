@@ -8,6 +8,7 @@ import (
 	g "github.com/lyweze/femin-xd-lol/backend/gen/serveradminhttp"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/models"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/usecases"
+	"github.com/lyweze/femin-xd-lol/backend/pkg/errreason"
 )
 
 func (h *AdminHandlers) AdminListUsers(ctx context.Context, req g.AdminListUsersRequestObject) (g.AdminListUsersResponseObject, error) { //nolint:lll
@@ -26,7 +27,7 @@ func (h *AdminHandlers) AdminListUsers(ctx context.Context, req g.AdminListUsers
 	if err != nil {
 		if errors.Is(err, usecases.ErrValidation) {
 			return g.AdminListUsers422JSONResponse{
-				ValidationErrorJSONResponse: g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(err.Error())},
+				ValidationErrorJSONResponse: g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(errreason.Of(err, usecases.ErrValidation))},
 			}, nil
 		}
 
