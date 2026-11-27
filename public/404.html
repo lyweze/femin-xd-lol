@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FEMIN</title>
+    <script>
+      // GitHub Pages SPA fallback: сохраняет исходный вложенный путь в sessionStorage
+      // и переводит на корень /femin-xd-lol/, где index.html восстанавливает адрес до старта React.
+      (function () {
+        var base = "/femin-xd-lol/";
+        try {
+          var fullPath =
+            window.location.pathname + window.location.search + window.location.hash;
+          if (fullPath.indexOf(base) === 0) {
+            window.sessionStorage.setItem("gh_pages_redirect", fullPath);
+          }
+        } catch {
+          // Игнорируем ошибку квоты/приватного режима — в крайнем случае откроется корень приложения
+        }
+        window.location.replace(window.location.origin + base);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>
