@@ -425,23 +425,23 @@
 				gap: 24px;
 				flex: 1 1 0%;
 				min-height: 0;
-				padding: 18% 30px 38% 6px;
+				padding: 24px 30px 68% 6px;
 				overflow-y: auto;
 				overflow-x: hidden;
 				overscroll-behavior: contain;
 
 				-webkit-mask-image: linear-gradient(
 					to bottom,
-					transparent 0%,
-					#000 14%,
-					#000 82%,
+					transparent 0px,
+					#000 18px,
+					#000 calc(100% - 88px),
 					transparent 100%
 				);
 				mask-image: linear-gradient(
 					to bottom,
-					transparent 0%,
-					#000 14%,
-					#000 82%,
+					transparent 0px,
+					#000 18px,
+					#000 calc(100% - 88px),
 					transparent 100%
 				);
 
@@ -656,7 +656,7 @@
 
 				> .fs-lyrics-scroll {
 					gap: 18px;
-					padding: 14% 28px 26% 6px;
+					padding: 24px 28px 65% 6px;
 
 					> .fs-lyrics-line {
 						font-size: clamp(20px, 5.4vw, 27px);

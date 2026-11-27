@@ -7,6 +7,8 @@ import { usePlayerTime } from "../../../context/playerContexts.js";
 
 // Пауза автоскролла после ручного пролистывания текста (3.5 секунды)
 const MANUAL_SCROLL_COOLDOWN_MS = 3500;
+// Отступ активной строки от верхнего края скролл-контейнера (ниже зоны верхнего фейда)
+const ACTIVE_LINE_TOP_OFFSET_PX = 24;
 
 /** Находит индекс активной строки по текущему времени воспроизведения с учётом offset_ms */
 function findActiveLineIndex(activeLyrics, currentTimeMs) {
@@ -31,6 +33,7 @@ function FullscreenLyricsPane({
 	onSeekToMs,
 }) {
 	const { currentTimeMs } = usePlayerTime();
+	const scrollContainerRef = useRef(null);
 	const activeLineRef = useRef(null);
 	const manualScrollUntilRef = useRef(0);
 
@@ -39,13 +42,26 @@ function FullscreenLyricsPane({
 		[activeLyrics, currentTimeMs],
 	);
 
-	// Плавно центрируем активную строку, только если пользователь не скроллил сам
+	// Плавно подводим активную строку к верхней части контейнера (если пользователь не скроллил сам)
 	useEffect(() => {
 		if (!isFullscreenOpen || activeLineIndex < 0) return;
 		if (Date.now() < manualScrollUntilRef.current) return;
-		activeLineRef.current?.scrollIntoView({
-			behavior: "smooth",
-			block: "center",
+
+		const container = scrollContainerRef.current;
+		const lineEl = activeLineRef.current;
+		if (!container || !lineEl) return;
+
+		const containerRect = container.getBoundingClientRect();
+		const lineRect = lineEl.getBoundingClientRect();
+		const targetTop = Math.max(
+			0,
+			lineRect.top - containerRect.top + container.scrollTop - ACTIVE_LINE_TOP_OFFSET_PX,
+		);
+
+		const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+		container.scrollTo({
+			top: targetTop,
+			behavior: prefersReduced ? "auto" : "smooth",
 		});
 	}, [activeLineIndex, isFullscreenOpen]);
 
@@ -73,6 +89,7 @@ function FullscreenLyricsPane({
 			)}
 
 			<div
+				ref={scrollContainerRef}
 				className="fs-lyrics-scroll"
 				onWheel={handleManualScrollIntent}
 				onTouchStart={handleManualScrollIntent}
