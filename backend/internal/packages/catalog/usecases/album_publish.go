@@ -16,9 +16,9 @@ import (
 )
 
 type PublishAlbumIn struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 	// PublishedAt в будущем откладывает релиз. Без неё альбом публикуется сразу.
-	PublishedAt *time.Time
+	PublishedAt *time.Time `json:"published_at"`
 }
 
 func (i PublishAlbumIn) Validate() error {
@@ -103,7 +103,7 @@ func publishable(album *models.Album, tracks []*models.Track) error {
 }
 
 type UnpublishAlbumIn struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 func (i UnpublishAlbumIn) Validate() error {

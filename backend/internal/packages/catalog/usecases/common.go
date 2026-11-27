@@ -25,8 +25,8 @@ const (
 
 // PageIn общие параметры списков.
 type PageIn struct {
-	Limit  *int
-	Cursor *string
+	Limit  *int    `json:"limit"`
+	Cursor *string `json:"cursor"`
 }
 
 func pageRules(p *PageIn) []*validation.FieldRules {

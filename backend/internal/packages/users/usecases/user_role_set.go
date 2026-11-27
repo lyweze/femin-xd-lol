@@ -15,9 +15,9 @@ import (
 )
 
 type SetUserRoleIn struct {
-	ActorID uuid.UUID
-	UserID  uuid.UUID
-	Role    models.UserRole
+	ActorID uuid.UUID       `json:"actor_id"`
+	UserID  uuid.UUID       `json:"user_id"`
+	Role    models.UserRole `json:"role"`
 }
 
 func (i SetUserRoleIn) Validate() error {

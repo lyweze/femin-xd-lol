@@ -9,6 +9,7 @@ import (
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/auth/usecases"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/requestctx"
 	users "github.com/lyweze/femin-xd-lol/backend/internal/packages/users/usecases"
+	"github.com/lyweze/femin-xd-lol/backend/pkg/errreason"
 )
 
 func (h *AuthHttpHandlers) Register(ctx context.Context, req g.RegisterRequestObject) (g.RegisterResponseObject, error) {
@@ -22,7 +23,7 @@ func (h *AuthHttpHandlers) Register(ctx context.Context, req g.RegisterRequestOb
 		switch {
 		case errors.Is(err, users.ErrValidation):
 			return g.Register422JSONResponse{
-				ValidationErrorJSONResponse: g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(err.Error())},
+				ValidationErrorJSONResponse: g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(errreason.Of(err, users.ErrValidation))},
 			}, nil
 		case errors.Is(err, users.ErrUserAlreadyExists):
 			return g.Register409JSONResponse{

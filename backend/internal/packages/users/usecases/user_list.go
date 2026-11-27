@@ -19,10 +19,10 @@ const (
 )
 
 type ListUsersIn struct {
-	Search *string
-	Role   *models.UserRole
-	Limit  *int
-	Cursor *string
+	Search *string          `json:"q"`
+	Role   *models.UserRole `json:"role"`
+	Limit  *int             `json:"limit"`
+	Cursor *string          `json:"cursor"`
 }
 
 func (i ListUsersIn) Validate() error {

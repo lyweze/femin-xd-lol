@@ -135,7 +135,7 @@ func (h *AdminCatalogHandlers) AdminPublishAlbum(ctx context.Context, req g.Admi
 		case errors.Is(err, usecases.ErrAlbumNotFound):
 			return g.AdminPublishAlbum404JSONResponse{NotFoundErrorJSONResponse: notFound()}, nil
 		case errors.Is(err, usecases.ErrAlbumNotPublishable):
-			return g.AdminPublishAlbum409JSONResponse{ConflictErrorJSONResponse: conflict(err)}, nil
+			return g.AdminPublishAlbum409JSONResponse{ConflictErrorJSONResponse: conflict(err, usecases.ErrAlbumNotPublishable)}, nil
 		case isValidation(err):
 			return g.AdminPublishAlbum422JSONResponse{ValidationErrorJSONResponse: validationError(err)}, nil
 		default:

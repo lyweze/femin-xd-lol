@@ -17,11 +17,11 @@ import (
 
 // UpdateAlbumIn меняет только переданные поля. ArtistIDs заменяет список целиком.
 type UpdateAlbumIn struct {
-	ID          uuid.UUID
-	Title       *string
-	Type        *models.AlbumType
-	ReleaseDate *time.Time
-	ArtistIDs   *[]uuid.UUID
+	ID          uuid.UUID         `json:"id"`
+	Title       *string           `json:"title"`
+	Type        *models.AlbumType `json:"type"`
+	ReleaseDate *time.Time        `json:"release_date"`
+	ArtistIDs   *[]uuid.UUID      `json:"artist_ids"`
 }
 
 func (i UpdateAlbumIn) Validate() error {

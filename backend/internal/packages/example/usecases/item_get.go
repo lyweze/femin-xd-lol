@@ -13,7 +13,7 @@ import (
 )
 
 type GetItemIn struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 func (i GetItemIn) Validate() error {

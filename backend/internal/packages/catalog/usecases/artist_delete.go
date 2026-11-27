@@ -12,7 +12,7 @@ import (
 )
 
 type DeleteArtistIn struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 func (i DeleteArtistIn) Validate() error {

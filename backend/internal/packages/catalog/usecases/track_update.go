@@ -17,10 +17,10 @@ import (
 // UpdateTrackIn меняет только переданные поля. Artists заменяет список целиком.
 // Порядок в альбоме меняется через SetAlbumTrackOrder.
 type UpdateTrackIn struct {
-	ID       uuid.UUID
-	Title    *string
-	Explicit *bool
-	Artists  *[]models.TrackArtistInput
+	ID       uuid.UUID                  `json:"id"`
+	Title    *string                    `json:"title"`
+	Explicit *bool                      `json:"explicit"`
+	Artists  *[]models.TrackArtistInput `json:"artists"`
 }
 
 func (i UpdateTrackIn) Validate() error {

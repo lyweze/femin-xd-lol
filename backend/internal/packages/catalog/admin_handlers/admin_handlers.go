@@ -8,6 +8,7 @@ import (
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog/models"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog/usecases"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/catalog/view_models"
+	"github.com/lyweze/femin-xd-lol/backend/pkg/errreason"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -28,16 +29,16 @@ func New(args *NewArgs) *AdminCatalogHandlers {
 }
 
 func validationError(err error) g.ValidationErrorJSONResponse {
-	return g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(err.Error())}
+	return g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(errreason.Of(err, usecases.ErrValidation))}
 }
 
 func notFound() g.NotFoundErrorJSONResponse {
 	return g.NotFoundErrorJSONResponse{Code: g.NOTFOUND}
 }
 
-// conflict отдаёт админу причину целиком: по ней в админке понятно, что исправить.
-func conflict(err error) g.ConflictErrorJSONResponse {
-	return g.ConflictErrorJSONResponse{Code: g.CONFLICT, Message: new(err.Error())}
+// conflict отдаёт админу причину конфликта: по ней в админке понятно, что исправить.
+func conflict(err, kind error) g.ConflictErrorJSONResponse {
+	return g.ConflictErrorJSONResponse{Code: g.CONFLICT, Message: new(errreason.Of(err, kind))}
 }
 
 func isValidation(err error) bool {
@@ -75,8 +76,8 @@ func imageToHttp(image *view_models.Image) *g.Image {
 func artistToHttp(artist view_models.Artist) g.AdminArtist {
 	return g.AdminArtist{
 		Id:        artist.ID,
-		Name:      artist.Name,
 		Bio:       artist.Bio,
+		Name:      artist.Name,
 		Avatar:    imageToHttp(artist.Avatar),
 		CreatedAt: artist.CreatedAt,
 		UpdatedAt: artist.UpdatedAt,

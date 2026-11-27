@@ -11,8 +11,8 @@ import (
 )
 
 type ListArtistsIn struct {
-	Search *string
-	Page   PageIn
+	Search *string `json:"q"`
+	Page   PageIn  `json:"page"`
 }
 
 func (i ListArtistsIn) Validate() error {

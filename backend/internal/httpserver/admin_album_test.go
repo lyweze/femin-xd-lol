@@ -46,7 +46,7 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminCreateAlbum() {
 		res := c.do(http.MethodPost, adminAlbums, map[string]any{"title": "X", "type": "album", "artist_ids": []uuid.UUID{artist.Id}})
 
 		s.Equal(http.StatusUnprocessableEntity, res.status)
-		s.Contains(res.text(), artist.Id.String())
+		s.Equal("artist "+artist.Id.String()+" not found", res.message())
 	})
 
 	for name, body := range map[string]map[string]any{
@@ -60,6 +60,9 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminCreateAlbum() {
 			res := s.adminClient(s.newAPI()).do(http.MethodPost, adminAlbums, body)
 
 			s.Equal(http.StatusUnprocessableEntity, res.status, res.text())
+			s.NotEmpty(res.message())
+			s.NotContains(res.message(), "\n")
+			s.NotContains(res.message(), "validation error")
 			s.Zero(s.queryInt("SELECT count(*) FROM albums"))
 		})
 	}
@@ -265,7 +268,7 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminPublishAlbum() {
 		res := c.do(http.MethodPost, albumPath(album.Id, "/publish"), nil)
 
 		r.Equal(http.StatusConflict, res.status, res.text())
-		r.Contains(res.text(), "no cover")
+		r.Equal("album has no cover", res.message())
 	})
 
 	s.Run("error: no tracks", func() {
@@ -276,7 +279,7 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminPublishAlbum() {
 		res := c.do(http.MethodPost, albumPath(album.Id, "/publish"), nil)
 
 		s.Equal(http.StatusConflict, res.status)
-		s.Contains(res.text(), "no tracks")
+		s.Equal("album has no tracks", res.message())
 	})
 
 	s.Run("error: track not ready", func() {
@@ -290,7 +293,7 @@ func (s *HttpHandlersTestSuite) Test_handlersFacade_AdminPublishAlbum() {
 		res := c.do(http.MethodPost, albumPath(album.Id, "/publish"), nil)
 
 		r.Equal(http.StatusConflict, res.status)
-		r.Contains(res.text(), draft.Title)
+		r.Equal(`track "`+draft.Title+`" is draft, every track must be ready`, res.message())
 		r.Zero(s.queryInt("SELECT count(*) FROM albums WHERE published_at IS NOT NULL"))
 	})
 

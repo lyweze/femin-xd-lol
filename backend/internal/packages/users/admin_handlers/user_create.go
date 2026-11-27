@@ -8,6 +8,7 @@ import (
 	g "github.com/lyweze/femin-xd-lol/backend/gen/serveradminhttp"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/models"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/usecases"
+	"github.com/lyweze/femin-xd-lol/backend/pkg/errreason"
 )
 
 func (h *AdminHandlers) AdminCreateUser(ctx context.Context, req g.AdminCreateUserRequestObject) (g.AdminCreateUserResponseObject, error) { //nolint:lll
@@ -21,7 +22,7 @@ func (h *AdminHandlers) AdminCreateUser(ctx context.Context, req g.AdminCreateUs
 		switch {
 		case errors.Is(err, usecases.ErrValidation):
 			return g.AdminCreateUser422JSONResponse{
-				ValidationErrorJSONResponse: g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(err.Error())},
+				ValidationErrorJSONResponse: g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(errreason.Of(err, usecases.ErrValidation))},
 			}, nil
 		case errors.Is(err, usecases.ErrUserAlreadyExists):
 			return g.AdminCreateUser409JSONResponse{

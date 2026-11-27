@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/example/usecases"
+	"github.com/lyweze/femin-xd-lol/backend/pkg/errreason"
 	"go.uber.org/zap"
 )
 
@@ -36,7 +37,7 @@ func (h *ExampleHttpHandlers) GetItem(w http.ResponseWriter, r *http.Request) {
 			log.Warn("context cancelled", zap.Error(err))
 		case errors.Is(err, usecases.ErrValidation):
 			log.Warn("failed to validate input", zap.Error(err), zap.Any(inLogKey, in))
-			writeJSON(w, http.StatusUnprocessableEntity, errorReply{Code: replyCodeValidationError, Message: err.Error()})
+			writeJSON(w, http.StatusUnprocessableEntity, errorReply{Code: replyCodeValidationError, Message: errreason.Of(err, usecases.ErrValidation)})
 		case errors.Is(err, usecases.ErrItemNotFound):
 			log.Warn("item not found", zap.Error(err), zap.Any(inLogKey, in))
 			writeJSON(w, http.StatusNotFound, errorReply{Code: replyCodeNotFound})

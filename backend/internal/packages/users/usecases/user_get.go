@@ -13,7 +13,7 @@ import (
 )
 
 type GetUserIn struct {
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 func (i GetUserIn) Validate() error {

@@ -15,9 +15,9 @@ import (
 
 // UpdateArtistIn меняет только переданные поля.
 type UpdateArtistIn struct {
-	ID   uuid.UUID
-	Name *string
-	Bio  *string
+	ID   uuid.UUID `json:"id"`
+	Name *string   `json:"name"`
+	Bio  *string   `json:"bio"`
 }
 
 func (i UpdateArtistIn) Validate() error {

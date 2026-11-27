@@ -22,10 +22,10 @@ const (
 )
 
 type CreateUserIn struct {
-	Email    string
-	Username string
-	Password string
-	Role     models.UserRole
+	Email    string          `json:"email"`
+	Username string          `json:"username"`
+	Password string          `json:"password"`
+	Role     models.UserRole `json:"role"`
 }
 
 func (i CreateUserIn) Validate() error {

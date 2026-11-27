@@ -9,6 +9,7 @@ import (
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/common/requestctx"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/models"
 	"github.com/lyweze/femin-xd-lol/backend/internal/packages/users/usecases"
+	"github.com/lyweze/femin-xd-lol/backend/pkg/errreason"
 )
 
 func (h *AdminHandlers) AdminSetUserRole(ctx context.Context, req g.AdminSetUserRoleRequestObject) (g.AdminSetUserRoleResponseObject, error) { //nolint:lll
@@ -26,7 +27,7 @@ func (h *AdminHandlers) AdminSetUserRole(ctx context.Context, req g.AdminSetUser
 		switch {
 		case errors.Is(err, usecases.ErrValidation):
 			return g.AdminSetUserRole422JSONResponse{
-				ValidationErrorJSONResponse: g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(err.Error())},
+				ValidationErrorJSONResponse: g.ValidationErrorJSONResponse{Code: g.VALIDATIONERROR, Message: new(errreason.Of(err, usecases.ErrValidation))},
 			}, nil
 		case errors.Is(err, usecases.ErrUserNotFound):
 			return g.AdminSetUserRole404JSONResponse{

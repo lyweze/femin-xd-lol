@@ -16,13 +16,13 @@ import (
 )
 
 type CreateTrackIn struct {
-	AlbumID  uuid.UUID
-	Title    string
-	DiscNo   int
-	TrackNo  int
-	Explicit bool
+	AlbumID  uuid.UUID `json:"album_id"`
+	Title    string    `json:"title"`
+	DiscNo   int       `json:"disc_no"`
+	TrackNo  int       `json:"track_no"`
+	Explicit bool      `json:"explicit"`
 	// Artists в порядке показа.
-	Artists []models.TrackArtistInput
+	Artists []models.TrackArtistInput `json:"artists"`
 }
 
 func (i CreateTrackIn) Validate() error {
