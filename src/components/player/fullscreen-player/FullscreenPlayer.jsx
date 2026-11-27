@@ -10,7 +10,7 @@ import { musicApi } from "../../../api/musicApi.js";
 import { handleCoverError } from "../../../utils/cover.js";
 import AmbientBackdrop from "../../shared/ambient-backdrop/AmbientBackdrop.jsx";
 import ArtistLinks from "../../shared/artist-links/ArtistLinks.jsx";
-import { ChevronDownIcon, HeartIcon } from "../../shared/icons/Icons.jsx";
+import { ChevronDownIcon, HeartIcon, LyricsIcon } from "../../shared/icons/Icons.jsx";
 import VolumeControl from "../../shared/volume-control/VolumeControl.jsx";
 import PlayerControls from "../player-controls/PlayerControls.jsx";
 import ProgressBar from "../progress-bar/ProgressBar.jsx";
@@ -52,6 +52,13 @@ function FullscreenPlayerContent({ isMobile }) {
 
 	// Запоминаем выбор языка вместе с trackId, чтобы при смене трека выбор сбрасывался сам
 	const [langSelection, setLangSelection] = useState(null);
+	// Отмечаем ручное переключение «текст ↔ обложка», чтобы проигрывать анимацию смены режима без конфликта с открытием модалки
+	const [hasToggledView, setHasToggledView] = useState(false);
+
+	const handleToggleView = useCallback(() => {
+		setHasToggledView(true);
+		toggleShowLyrics();
+	}, [toggleShowLyrics]);
 
 	const handleSwipeDismiss = useCallback(() => {
 		closeFullscreen();
@@ -140,7 +147,7 @@ function FullscreenPlayerContent({ isMobile }) {
 						<button
 							type="button"
 							className={`fs-pill-btn ${displayLyricsPane ? "is-active" : ""}`}
-							onClick={toggleShowLyrics}
+							onClick={handleToggleView}
 							title="Toggle lyrics (L)"
 							aria-pressed={displayLyricsPane}
 						>
@@ -161,10 +168,27 @@ function FullscreenPlayerContent({ isMobile }) {
 			</header>
 
 			<div
-				className={`fs-stage ${displayLyricsPane ? "has-lyrics" : "is-centered"}`}
+				className={`fs-stage ${displayLyricsPane ? "has-lyrics" : "is-centered"} ${hasToggledView ? "is-view-switched" : ""}`}
 			>
 				<section className="fs-deck">
-					<div className={`fs-artwork-wrap ${isPlaying ? "is-playing" : "is-paused"}`}>
+					<div
+						className={`fs-artwork-wrap ${isPlaying ? "is-playing" : "is-paused"} ${displayLyricsPane ? "is-interactive" : ""}`}
+						role={displayLyricsPane ? "button" : undefined}
+						tabIndex={displayLyricsPane ? 0 : undefined}
+						title={displayLyricsPane ? "Show full cover" : undefined}
+						aria-label={displayLyricsPane ? "Show full cover" : undefined}
+						onClick={displayLyricsPane ? handleToggleView : undefined}
+						onKeyDown={
+							displayLyricsPane
+								? (e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.preventDefault();
+											handleToggleView();
+										}
+									}
+								: undefined
+						}
+					>
 						{currentTrack.cover?.large_url && (
 							<img
 								key={currentTrack.id}
@@ -197,15 +221,29 @@ function FullscreenPlayerContent({ isMobile }) {
 							</div>
 						</div>
 
-						<button
-							type="button"
-							className={`fs-like-btn ${isLiked ? "is-active" : ""}`}
-							onClick={() => toggleLike(currentTrack.id)}
-							aria-label={isLiked ? "Unlike track" : "Like track"}
-							aria-pressed={isLiked}
-						>
-							<HeartIcon filled={isLiked} size={17} />
-						</button>
+						<div className="fs-track-actions">
+							{hasLyrics && !displayLyricsPane && (
+								<button
+									type="button"
+									className="fs-action-btn fs-lyrics-action-btn"
+									onClick={handleToggleView}
+									title="Show lyrics (L)"
+									aria-label="Show lyrics"
+								>
+									<LyricsIcon />
+								</button>
+							)}
+
+							<button
+								type="button"
+								className={`fs-action-btn fs-like-btn ${isLiked ? "is-active" : ""}`}
+								onClick={() => toggleLike(currentTrack.id)}
+								aria-label={isLiked ? "Unlike track" : "Like track"}
+								aria-pressed={isLiked}
+							>
+								<HeartIcon filled={isLiked} size={17} />
+							</button>
+						</div>
 					</div>
 
 					<div className="fs-progress">
