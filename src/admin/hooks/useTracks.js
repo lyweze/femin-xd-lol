@@ -1,17 +1,32 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { adminApi } from "../../api/adminApi.js";
 import { useCursorList } from "./useCursorList.js";
 
 export function useTracks(initialFilters = {}) {
 	const list = useCursorList(adminApi.listTracks, initialFilters);
+	const { items, setItems, refresh } = list;
 	const [uploadingIds, setUploadingIds] = useState({});
+
+	// Автообновление очереди, пока есть треки в статусе processing
+	const hasProcessing = useMemo(
+		() => items.some((t) => t.status === "processing"),
+		[items],
+	);
+
+	useEffect(() => {
+		if (!hasProcessing) return;
+		const timer = setInterval(() => {
+			refresh();
+		}, 3500);
+		return () => clearInterval(timer);
+	}, [hasProcessing, refresh]);
 
 	const uploadAudio = useCallback(
 		async (trackId, file) => {
 			setUploadingIds((prev) => ({ ...prev, [trackId]: true }));
 			try {
 				const { track } = await adminApi.uploadTrackAudio(trackId, file);
-				list.setItems((prev) =>
+				setItems((prev) =>
 					prev.map((t) => (t.id === trackId ? track : t)),
 				);
 				return track;
@@ -19,24 +34,24 @@ export function useTracks(initialFilters = {}) {
 				setUploadingIds((prev) => ({ ...prev, [trackId]: false }));
 			}
 		},
-		[list],
+		[setItems],
 	);
 
 	const reprocessTrack = useCallback(
 		async (trackId) => {
 			const { track } = await adminApi.reprocessTrack(trackId);
-			list.setItems((prev) => prev.map((t) => (t.id === trackId ? track : t)));
+			setItems((prev) => prev.map((t) => (t.id === trackId ? track : t)));
 			return track;
 		},
-		[list],
+		[setItems],
 	);
 
 	const deleteTrack = useCallback(
 		async (trackId) => {
 			await adminApi.deleteTrack(trackId);
-			list.setItems((prev) => prev.filter((t) => t.id !== trackId));
+			setItems((prev) => prev.filter((t) => t.id !== trackId));
 		},
-		[list],
+		[setItems],
 	);
 
 	return {

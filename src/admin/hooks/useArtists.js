@@ -1,59 +1,60 @@
-// src/admin/hooks/useArtists.js
 import { useState, useCallback } from "react";
 import { adminApi } from "../../api/adminApi.js";
 import { useCursorList } from "./useCursorList.js";
 
 export function useArtists(initialFilters = {}) {
 	const list = useCursorList(adminApi.listArtists, initialFilters);
-	const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+	const { setItems } = list;
+	const [uploadingAvatarId, setUploadingAvatarId] = useState(null);
 
 	const createArtist = useCallback(
 		async (payload) => {
 			const { artist } = await adminApi.createArtist(payload);
-			list.setItems((prev) => [artist, ...prev]);
+			setItems((prev) => [artist, ...prev]);
 			return artist;
 		},
-		[list],
+		[setItems],
 	);
 
 	const updateArtist = useCallback(
 		async (artistId, payload) => {
 			const { artist } = await adminApi.updateArtist(artistId, payload);
-			list.setItems((prev) =>
+			setItems((prev) =>
 				prev.map((a) => (a.id === artistId ? artist : a)),
 			);
 			return artist;
 		},
-		[list],
+		[setItems],
 	);
 
 	const uploadAvatar = useCallback(
 		async (artistId, file) => {
-			setIsUploadingAvatar(true);
+			setUploadingAvatarId(artistId);
 			try {
 				const { artist } = await adminApi.uploadArtistAvatar(artistId, file);
-				list.setItems((prev) =>
+				setItems((prev) =>
 					prev.map((a) => (a.id === artistId ? artist : a)),
 				);
 				return artist;
 			} finally {
-				setIsUploadingAvatar(false);
+				setUploadingAvatarId(null);
 			}
 		},
-		[list],
+		[setItems],
 	);
 
 	const deleteArtist = useCallback(
 		async (artistId) => {
 			await adminApi.deleteArtist(artistId);
-			list.setItems((prev) => prev.filter((a) => a.id !== artistId));
+			setItems((prev) => prev.filter((a) => a.id !== artistId));
 		},
-		[list],
+		[setItems],
 	);
 
 	return {
 		...list,
-		isUploadingAvatar,
+		uploadingAvatarId,
+		isUploadingAvatar: Boolean(uploadingAvatarId),
 		createArtist,
 		updateArtist,
 		uploadAvatar,

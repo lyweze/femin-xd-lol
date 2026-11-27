@@ -1,0 +1,117 @@
+/* ==========================================================================
+   Кнопки управления воспроизведением (компактный и полноэкранный режимы)
+   ========================================================================== */
+.player-controls {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+
+	&.is-large {
+		gap: 14px;
+
+		> .ctrl-btn {
+			width: 40px;
+			height: 40px;
+
+			svg {
+				transform: scale(1.22);
+			}
+
+			&.ctrl-play {
+				width: 54px;
+				height: 54px;
+				background-color: rgba(255, 255, 255, 0.14);
+				box-shadow:
+					inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
+					0 8px 24px rgba(0, 0, 0, 0.28);
+
+				&:hover {
+					background-color: rgba(255, 255, 255, 0.22);
+				}
+
+				svg {
+					transform: scale(1.38);
+				}
+			}
+		}
+	}
+
+	> .ctrl-btn {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 30px;
+		height: 30px;
+		padding: 0;
+
+		border: none;
+		border-radius: 50%;
+		background: transparent;
+		color: var(--text-secondary);
+		cursor: pointer;
+		-webkit-user-select: none;
+		user-select: none;
+
+		transition:
+			background-color 0.16s ease,
+			color 0.16s ease,
+			transform 0.12s ease;
+
+		&:hover {
+			background-color: var(--surface-hover);
+			color: var(--text-primary);
+		}
+
+		&:active {
+			transform: scale(0.92);
+		}
+
+		&.is-active {
+			color: var(--accent-cover);
+
+			&::after {
+				content: "";
+				position: absolute;
+				bottom: 2px;
+				left: 50%;
+				width: 3px;
+				height: 3px;
+				border-radius: 50%;
+				background-color: var(--accent-cover);
+				transform: translateX(-50%);
+			}
+		}
+
+		&.ctrl-play {
+			width: 34px;
+			height: 34px;
+			background-color: var(--surface-active);
+			color: var(--text-primary);
+			box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+
+			&:hover {
+				background-color: rgba(230, 227, 221, 0.18);
+			}
+		}
+
+		> .ctrl-repeat-one {
+			position: absolute;
+			top: 2px;
+			right: 2px;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+			background-color: var(--accent-cover);
+			font-family: var(--font-mono);
+			font-size: 8px;
+			font-weight: 700;
+			line-height: 1;
+			color: #141413;
+		}
+	}
+}

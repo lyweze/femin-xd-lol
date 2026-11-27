@@ -10,23 +10,24 @@
 	flex-direction: column;
 	width: var(--sidebar-width);
 	flex-shrink: 0;
-	height: calc(100vh - (var(--layout-inset) * 2));
-	height: calc(100dvh - (var(--layout-inset) * 2));
+	height: calc(100vh - (var(--layout-inset) * 2) - var(--titlebar-height, 0px));
+	height: calc(100dvh - (var(--layout-inset) * 2) - var(--titlebar-height, 0px));
 	box-sizing: border-box;
 	padding: var(--layout-inset);
 	margin: 0;
 
 	background-color: var(--surface-sidebar);
+	border: 1px solid var(--border-hairline);
+	border-top-color: var(--border-specular);
 	border-radius: var(--radius-window);
-	box-shadow: var(--shadow-player);
+	box-shadow:
+		inset 0 1px 0 0 rgba(255, 255, 255, 0.045),
+		var(--shadow-window);
 	-webkit-backdrop-filter: var(--blur-sidebar);
 	backdrop-filter: var(--blur-sidebar);
 
-	/* Скролл делегирован .sidebar-navigation, чтобы верхняя кнопка и аккаунт
-       всегда оставались прибитыми к краям и не дёргались при анимации */
 	overflow: hidden;
 
-	/* Плавное схлопывание панели в стиле macOS */
 	transition:
 		width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
 		padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
@@ -48,7 +49,8 @@
 		width: 0;
 		padding-left: 0;
 		padding-right: 0;
-		/* Компенсируем gap родительского .app, чтобы .main встал ровно по сетке */
+		border-left-width: 0;
+		border-right-width: 0;
 		margin-right: calc(var(--layout-inset) * -1);
 		opacity: 0;
 		pointer-events: none;
@@ -106,9 +108,8 @@
 		flex-direction: column;
 		flex: 1 1 0%;
 		min-height: 0;
-		gap: 28px;
+		gap: 24px;
 
-		/* Фиксируем ширину контента, чтобы при закрытии сайдбара текст не сминался */
 		width: var(--sidebar-inner-width);
 		margin: 0;
 		padding: 2px 0 12px;
@@ -118,7 +119,6 @@
 		overflow-x: hidden;
 		overscroll-behavior: contain;
 
-		/* Незаметный скроллбар при большом количестве плейлистов */
 		&::-webkit-scrollbar {
 			width: 3px;
 		}
@@ -136,9 +136,6 @@
 			background: rgba(230, 227, 221, 0.32);
 		}
 
-		/* ------------------------------------------------------------------
-           Группы меню и интерактивные пункты
-           ------------------------------------------------------------------ */
 		> .main-li,
 		> .library-li {
 			margin: 0;
@@ -148,7 +145,7 @@
 			> ul {
 				display: flex;
 				flex-direction: column;
-				gap: 6px;
+				gap: 5px;
 				margin: 0;
 				padding: 0;
 				list-style: none;
@@ -158,7 +155,6 @@
 					padding: 0;
 					list-style: none;
 
-					/* Отдельная карточка-ссылка вкладки / плейлиста (<NavLink>) */
 					> .sidebar-link {
 						display: flex;
 						align-items: center;
@@ -171,8 +167,8 @@
 						margin: 0;
 
 						border-radius: var(--radius-item);
-						background-color: var(--surface-active);
-						color: var(--text-primary);
+						background-color: var(--surface-elevated);
+						color: var(--text-secondary);
 						font-family: var(--font-editorial);
 						font-size: 15px;
 						line-height: 1.2;
@@ -185,6 +181,7 @@
 
 						transition:
 							background-color 0.18s ease,
+							color 0.18s ease,
 							box-shadow 0.18s ease,
 							transform 0.12s ease;
 
@@ -195,9 +192,19 @@
 							text-overflow: ellipsis;
 						}
 
-						/* Без горизонтального scale, чтобы края не обрезались при overflow-x: hidden */
+						> .sidebar-count {
+							margin-left: auto;
+							font-style: normal;
+							font-family: var(--font-mono);
+							font-variant-numeric: tabular-nums;
+							font-size: 10px;
+							color: var(--text-tertiary);
+							flex-shrink: 0;
+						}
+
 						&:hover {
-							background-color: rgba(230, 227, 221, 0.08);
+							background-color: var(--surface-hover);
+							color: var(--text-primary);
 							transform: translate3d(0, -1px, 0);
 						}
 
@@ -205,10 +212,10 @@
 							transform: scale(0.985);
 						}
 
-						/* Активный маршрут из react-router-dom */
 						&.active {
-							background-color: rgba(230, 227, 221, 0.11);
-							box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+							background-color: var(--surface-active);
+							color: var(--text-primary);
+							box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.09);
 
 							&::after {
 								content: "";
@@ -216,11 +223,12 @@
 								height: 6px;
 								border-radius: 50%;
 								background-color: var(--accent-cover);
+								box-shadow: 0 0 8px rgba(var(--accent-cover-rgb), 0.75);
 								flex-shrink: 0;
 							}
 
 							&:hover {
-								background-color: rgba(230, 227, 221, 0.14);
+								background-color: rgba(230, 227, 221, 0.16);
 							}
 						}
 					}
@@ -230,7 +238,54 @@
 	}
 
 	/* ======================================================================
-4. Кнопка аккаунта внизу сайдбара
+4. Быстрая ссылка на админ-студию (для роли admin)
+       ====================================================================== */
+	> .sidebar-admin-link {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-shrink: 0;
+		width: var(--sidebar-inner-width);
+		min-height: 34px;
+		padding: 7px 12px;
+		margin: 0 0 8px;
+		box-sizing: border-box;
+
+		border: 1px solid var(--border-hairline);
+		border-radius: var(--radius-item);
+		background-color: transparent;
+		color: var(--text-secondary);
+		font-family: var(--font-ui);
+		font-size: 12.5px;
+		text-decoration: none;
+		cursor: pointer;
+		-webkit-user-select: none;
+		user-select: none;
+
+		transition:
+			background-color 0.16s ease,
+			border-color 0.16s ease,
+			color 0.16s ease;
+
+		&:hover {
+			background-color: var(--surface-hover);
+			border-color: var(--border-strong);
+			color: var(--text-primary);
+		}
+
+		> .sidebar-admin-badge {
+			padding: 2px 6px;
+			border-radius: 999px;
+			background-color: rgba(var(--accent-cover-rgb), 0.18);
+			font-family: var(--font-mono);
+			font-size: 9px;
+			letter-spacing: 0.06em;
+			color: var(--accent-cover);
+		}
+	}
+
+	/* ======================================================================
+5. Кнопка аккаунта внизу сайдбара
        ====================================================================== */
 	> .sidebar-account {
 		display: flex;
@@ -242,10 +297,10 @@
 		margin-top: auto;
 		box-sizing: border-box;
 
-		border: none;
+		border: 1px solid var(--border-hairline);
 		border-radius: var(--radius-item);
-		background-color: var(--surface-active);
-		box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+		background-color: var(--surface-elevated);
+		box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 		text-align: left;
 		cursor: pointer;
 		-webkit-user-select: none;
@@ -255,10 +310,12 @@
 
 		transition:
 			background-color 0.18s ease,
+			border-color 0.18s ease,
 			transform 0.12s ease;
 
 		&:hover {
-			background-color: rgba(230, 227, 221, 0.08);
+			background-color: var(--surface-hover);
+			border-color: var(--border-strong);
 			transform: translate3d(0, -1px, 0);
 		}
 
@@ -266,7 +323,6 @@
 			transform: scale(0.985);
 		}
 
-		/* Квадратный аватар со скруглением и тонким акцентом обложки */
 		> .account-avatar {
 			position: relative;
 			display: flex;
@@ -279,7 +335,7 @@
 			border-radius: 8px;
 			background: linear-gradient(
 				145deg,
-				color-mix(in srgb, var(--accent-cover) 55%, #2a2421),
+				rgba(var(--accent-cover-rgb), 0.55),
 				rgba(230, 227, 221, 0.08)
 			);
 			box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
@@ -289,7 +345,6 @@
 			color: var(--text-primary);
 		}
 
-		/* Имя и подпись режима/качества */
 		> .account-meta {
 			display: flex;
 			flex-direction: column;

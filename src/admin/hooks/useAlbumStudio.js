@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { adminApi } from "../../api/adminApi.js";
 
 export function useAlbumStudio(albumId) {
@@ -9,6 +9,9 @@ export function useAlbumStudio(albumId) {
 	const [uploadingTrackIds, setUploadingTrackIds] = useState({});
 	const [isPublishing, setIsPublishing] = useState(false);
 	const [error, setError] = useState(null);
+
+	const tracksRef = useRef(tracks);
+	tracksRef.current = tracks;
 
 	const fetchAlbum = useCallback(
 		async (silent = false) => {
@@ -33,7 +36,7 @@ export function useAlbumStudio(albumId) {
 		fetchAlbum(false);
 	}, [fetchAlbum]);
 
-	// Поллинг раз в 4 сек, пока хотя бы один трек обрабатывается воркером
+	// Поллинг раз в 3 сек, пока хотя бы один трек обрабатывается воркером
 	const hasProcessingTracks = useMemo(
 		() => tracks.some((t) => t.status === "processing"),
 		[tracks],
@@ -41,9 +44,14 @@ export function useAlbumStudio(albumId) {
 
 	useEffect(() => {
 		if (!hasProcessingTracks) return;
-		const timer = setInterval(() => fetchAlbum(true), 4000);
+		const timer = setInterval(() => fetchAlbum(true), 3000);
 		return () => clearInterval(timer);
 	}, [hasProcessingTracks, fetchAlbum]);
+
+	const isPublished = Boolean(album?.published_at);
+	const isScheduled =
+		Boolean(album?.published_at) &&
+		new Date(album.published_at).getTime() > Date.now();
 
 	// Чек-лист перед POST /publish (предотвращает 409 Conflict)
 	const publishChecklist = useMemo(() => {
@@ -88,7 +96,8 @@ export function useAlbumStudio(albumId) {
 		async (payload) => {
 			const { track } = await adminApi.createTrack({
 				album_id: albumId,
-				track_no: tracks.length + 1,
+				disc_no: payload.disc_no || 1,
+				track_no: payload.track_no || tracksRef.current.length + 1,
 				...payload,
 			});
 			setTracks((prev) => [...prev, track]);
@@ -97,7 +106,7 @@ export function useAlbumStudio(albumId) {
 			);
 			return track;
 		},
-		[albumId, tracks.length],
+		[albumId],
 	);
 
 	const updateTrack = useCallback(async (trackId, payload) => {
@@ -133,14 +142,21 @@ export function useAlbumStudio(albumId) {
 
 	const reorderTracks = useCallback(
 		async (orderedTracks) => {
+			const previous = tracksRef.current;
 			setTracks(orderedTracks);
 			const items = orderedTracks.map((t, idx) => ({
 				track_id: t.id,
 				disc_no: t.disc_no || 1,
 				track_no: idx + 1,
 			}));
-			const data = await adminApi.setAlbumTrackOrder(albumId, items);
-			setTracks(data.tracks);
+			try {
+				const data = await adminApi.setAlbumTrackOrder(albumId, items);
+				setTracks(data.tracks);
+			} catch (err) {
+				// Откатываем оптимистичное обновление при 422 / сетевой ошибке
+				setTracks(previous);
+				throw err;
+			}
 		},
 		[albumId],
 	);
@@ -178,6 +194,8 @@ export function useAlbumStudio(albumId) {
 		isUploadingCover,
 		uploadingTrackIds,
 		isPublishing,
+		isPublished,
+		isScheduled,
 		error,
 		publishChecklist,
 		refresh: () => fetchAlbum(false),

@@ -1,4 +1,14 @@
-const BASE_URL = "/admin/v1";
+// ============================================================================
+// Клиент Femin. Admin API v1.0 (/admin/v1/*)
+// До подключения бэкенда работает OpenAPI-мок (`VITE_USE_MOCK_ADMIN !== "false"`).
+// Для переключения на реальный сервер достаточно задать VITE_USE_MOCK_ADMIN=false.
+// ============================================================================
+import { createAdminMockApi } from "./adminMockAdapter.js";
+
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
+const BASE_URL = `${API_ORIGIN}/admin/v1`;
+
+export const IS_MOCK_ADMIN_MODE = import.meta.env.VITE_USE_MOCK_ADMIN !== "false";
 
 export class AdminApiError extends Error {
 	constructor(status, code, message) {
@@ -54,7 +64,7 @@ async function request(path, { method = "GET", body, headers = {} } = {}) {
 	return data;
 }
 
-export const adminApi = {
+const liveAdminApi = {
 	// Artists
 	listArtists: (params) => request(`/artists${buildQuery(params)}`),
 	getArtist: (artistId) => request(`/artists/${artistId}`),
@@ -113,3 +123,7 @@ export const adminApi = {
 	setUserRole: (userId, role) =>
 		request(`/users/${userId}/role`, { method: "PUT", body: { role } }),
 };
+
+export const adminApi = IS_MOCK_ADMIN_MODE
+	? createAdminMockApi(AdminApiError)
+	: liveAdminApi;
