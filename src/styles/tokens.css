@@ -7,13 +7,15 @@
 	/* --- Фоновые слои и дымчатое стекло (мягкое тональное разделение) --- */
 	--bg-canvas: #121211;
 	--surface-sidebar: rgba(24, 24, 22, 0.68);
+	--surface-drawer: rgba(22, 22, 20, 0.92);
 	--surface-main: rgba(20, 20, 19, 0.64);
-	--surface-player: rgba(28, 28, 26, 0.78);
+	--surface-player: rgba(28, 28, 26, 0.8);
+	--surface-tabbar: rgba(20, 20, 19, 0.86);
 	--surface-elevated: rgba(230, 227, 221, 0.048);
 	--surface-hover: rgba(230, 227, 221, 0.088);
 	--surface-active: rgba(230, 227, 221, 0.13);
 
-	/* --- Лёгкий blur только для плавающей капсулы плеера --- */
+	/* --- Лёгкий blur только для плавающей капсулы плеера и таб-бара --- */
 	--blur-player: blur(20px) saturate(1.2);
 	--shadow-player: 0 10px 28px rgba(0, 0, 0, 0.24);
 
@@ -31,7 +33,7 @@
 	--font-ui: "Rubik", -apple-system, BlinkMacSystemFont, sans-serif;
 	--font-mono: "JetBrains Mono", "SF Mono", monospace;
 
-	/* --- Гармоничные скругления и отступы --- */
+	/* --- Гармоничные скругления и адаптивные отступы --- */
 	--radius-window: 24px;
 	--radius-player: 26px;
 	--radius-cover: 16px;
@@ -39,4 +41,21 @@
 	--radius-sm: 10px;
 	--layout-inset: 14px;
 	--titlebar-height: 0px;
+	--mobile-tabbar-height: 58px;
+}
+
+@media (max-width: 1024px) {
+	:root {
+		--layout-inset: 10px;
+		--radius-window: 20px;
+		--radius-player: 22px;
+	}
+}
+
+@media (max-width: 640px) {
+	:root {
+		--layout-inset: 0px;
+		--radius-window: 0px;
+		--radius-cover: 14px;
+	}
 }

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Карточка альбома / плейлиста (гладкие скругления, мягкий микро-зум обложки)
+   Карточка альбома / плейлиста (адаптивные размеры + мягкий микро-зум обложки)
    ========================================================================== */
 .media-card {
 	display: flex;
@@ -84,5 +84,30 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+}
+
+@media (max-width: 900px) {
+	.media-card {
+		width: 184px;
+
+		&.is-compact {
+			width: 168px;
+		}
+	}
+}
+
+@media (max-width: 540px) {
+	.media-card {
+		width: 150px;
+
+		&.is-compact {
+			width: 140px;
+		}
+
+		> .media-card-title {
+			margin-top: 8px;
+			font-size: 14px;
+		}
 	}
 }

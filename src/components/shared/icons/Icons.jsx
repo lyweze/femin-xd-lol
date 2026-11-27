@@ -194,3 +194,55 @@ export function ChevronRightIcon({ size = 12 }) {
 		</svg>
 	);
 }
+
+export function HomeIcon({ size = 18 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M2.5 6.8L8 2.4l5.5 4.4v6.1a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V6.8z"
+				stroke="currentColor"
+				strokeWidth="1.35"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+}
+
+export function LibraryIcon({ size = 18 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M3 3.2v9.6M6.3 3.2v9.6M9.6 3.6l3.4 9"
+				stroke="currentColor"
+				strokeWidth="1.4"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
+export function MenuIcon({ size = 18 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7.5"
+				stroke="currentColor"
+				strokeWidth="1.4"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
+export function CloseIcon({ size = 16 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M4 4l8 8M12 4l-8 8"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}

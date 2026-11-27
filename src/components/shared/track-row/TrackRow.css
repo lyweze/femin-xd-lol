@@ -284,6 +284,44 @@
 	}
 }
 
+@media (hover: none), (max-width: 768px) {
+	.track-row {
+		> .track-row-right > .track-row-like {
+			opacity: 0.72;
+		}
+
+		&:hover {
+			> .track-row-left > .track-row-index {
+				> .track-row-indicator {
+					opacity: 1;
+					transform: none;
+				}
+
+				> .track-row-hover-icon {
+					opacity: 0;
+				}
+			}
+		}
+	}
+}
+
+@media (max-width: 640px) {
+	.track-row {
+		height: 54px;
+		padding: 0 10px;
+		gap: 10px;
+		border-radius: 12px;
+
+		> .track-row-left {
+			gap: 10px;
+		}
+
+		> .track-row-right {
+			gap: 10px;
+		}
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.track-row > .track-row-left > .track-row-index > .track-row-indicator > .track-row-eq > i,
 	.track-row > .track-row-right > .track-row-like.is-liked svg {

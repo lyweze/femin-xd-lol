@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Парящая капсула плеера (концентричные скругления и мягкие микро-анимации)
+   Парящая капсула плеера (Desktop 3-col + Mobile Mini-Player)
    ========================================================================== */
 .player-wrapper {
 	position: absolute;
@@ -21,6 +21,38 @@
 
 		> .player-capsule {
 			pointer-events: none;
+		}
+	}
+
+	&.is-mobile {
+		position: fixed;
+		bottom: calc(var(--mobile-tabbar-height) + env(safe-area-inset-bottom, 0px) + 8px);
+		padding: 0 10px;
+		z-index: 24;
+
+		> .player-capsule {
+			position: relative;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			width: 100%;
+			max-width: 560px;
+			height: 60px;
+			padding: 0 10px 0 9px;
+			border-radius: 18px;
+			overflow: hidden;
+
+			> .player-track {
+				flex: 1 1 0%;
+				gap: 10px;
+
+				> .player-cover-btn {
+					width: 42px;
+					height: 42px;
+					border-radius: 11px;
+				}
+			}
 		}
 	}
 
@@ -106,6 +138,7 @@
 				align-items: flex-start;
 				gap: 2px;
 				min-width: 0;
+				flex: 1 1 0%;
 				animation: trackMetaSwap 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 
 				> .player-title-btn {
@@ -148,6 +181,20 @@
 							text-decoration: underline;
 						}
 					}
+
+					.player-mobile-artist-btn {
+						max-width: 100%;
+						padding: 0;
+						border: none;
+						background: transparent;
+						font: inherit;
+						color: inherit;
+						text-align: left;
+						white-space: nowrap;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						cursor: pointer;
+					}
 				}
 			}
 		}
@@ -161,66 +208,66 @@
 			min-width: 0;
 		}
 
+		.player-icon-btn {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 32px;
+			height: 32px;
+			padding: 0;
+
+			border: none;
+			border-radius: 999px;
+			background: transparent;
+			color: var(--text-secondary);
+			cursor: pointer;
+			-webkit-user-select: none;
+			user-select: none;
+
+			transition:
+				background-color 0.16s ease,
+				color 0.16s ease,
+				transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1),
+				opacity 0.16s ease;
+
+			&:hover:not(:disabled) {
+				background-color: var(--surface-hover);
+				color: var(--text-primary);
+			}
+
+			&:active:not(:disabled) {
+				transform: scale(0.9);
+			}
+
+			&.is-active {
+				background-color: rgba(var(--accent-cover-rgb), 0.16);
+				color: var(--accent-cover);
+
+				&:hover:not(:disabled) {
+					background-color: rgba(var(--accent-cover-rgb), 0.24);
+				}
+			}
+
+			&.is-muted {
+				background-color: var(--surface-elevated);
+				color: var(--text-primary);
+			}
+
+			&.player-like-btn.is-active svg {
+				animation: heartPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+			}
+
+			&:disabled {
+				opacity: 0.28;
+				cursor: default;
+			}
+		}
+
 		> .player-extra {
 			display: flex;
 			align-items: center;
 			gap: 5px;
 			flex-shrink: 0;
-
-			.player-icon-btn {
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				width: 32px;
-				height: 32px;
-				padding: 0;
-
-				border: none;
-				border-radius: 999px;
-				background: transparent;
-				color: var(--text-secondary);
-				cursor: pointer;
-				-webkit-user-select: none;
-				user-select: none;
-
-				transition:
-					background-color 0.16s ease,
-					color 0.16s ease,
-					transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1),
-					opacity 0.16s ease;
-
-				&:hover:not(:disabled) {
-					background-color: var(--surface-hover);
-					color: var(--text-primary);
-				}
-
-				&:active:not(:disabled) {
-					transform: scale(0.9);
-				}
-
-				&.is-active {
-					background-color: rgba(var(--accent-cover-rgb), 0.16);
-					color: var(--accent-cover);
-
-					&:hover:not(:disabled) {
-						background-color: rgba(var(--accent-cover-rgb), 0.24);
-					}
-				}
-
-				&.is-muted {
-					background-color: var(--surface-elevated);
-					color: var(--text-primary);
-				}
-
-				&.player-like-btn.is-active svg {
-					animation: heartPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-				}
-
-				&:disabled {
-					opacity: 0.28;
-					cursor: default;
-				}
-			}
 
 			> .player-volume {
 				display: flex;
@@ -231,6 +278,54 @@
 					flex: none;
 					width: 72px;
 				}
+			}
+		}
+
+		> .player-mobile-actions {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+			flex-shrink: 0;
+
+			> .player-mobile-play-btn {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 36px;
+				height: 36px;
+				padding: 0;
+				border: none;
+				border-radius: 999px;
+				background-color: var(--surface-active);
+				color: var(--text-primary);
+				cursor: pointer;
+				transition:
+					background-color 0.16s ease,
+					transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+				&:active {
+					transform: scale(0.9);
+				}
+			}
+		}
+
+		> .player-mobile-progress {
+			position: absolute;
+			left: 10px;
+			right: 10px;
+			bottom: 0;
+			height: 2.5px;
+			border-radius: 999px;
+			background-color: rgba(230, 227, 221, 0.12);
+			overflow: hidden;
+			pointer-events: none;
+
+			> .player-mobile-progress-fill {
+				width: 100%;
+				height: 100%;
+				background-color: var(--accent-cover);
+				transform-origin: left center;
+				transition: transform 0.14s linear;
 			}
 		}
 	}
@@ -281,10 +376,11 @@
 	}
 }
 
-@media (max-width: 820px) {
-	.player-wrapper > .player-capsule {
-		grid-template-columns: minmax(110px, 1fr) minmax(180px, 1.4fr) auto;
+@media (max-width: 900px) {
+	.player-wrapper:not(.is-mobile) > .player-capsule {
+		grid-template-columns: minmax(120px, 1fr) minmax(190px, 1.45fr) auto;
 		gap: 12px;
+		padding: 0 14px;
 
 		> .player-extra > .player-volume > .volume-mono-slider {
 			display: none;
@@ -296,7 +392,7 @@
 	.player-wrapper > .player-capsule,
 	.player-wrapper > .player-capsule > .player-track > .player-cover-btn > .player-cover,
 	.player-wrapper > .player-capsule > .player-track > .player-meta,
-	.player-wrapper > .player-capsule > .player-extra .player-icon-btn.player-like-btn.is-active svg {
+	.player-wrapper > .player-capsule .player-icon-btn.player-like-btn.is-active svg {
 		animation: none;
 	}
 }

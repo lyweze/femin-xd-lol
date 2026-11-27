@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Боковая панель навигации (чистое тональное разделение без лишних рамок и теней)
+   Боковая панель навигации (Desktop Island + Mobile Slide-Over Drawer)
    ========================================================================== */
 .sidebar {
 	--sidebar-width: 248px;
@@ -43,6 +43,15 @@
 		width: var(--sidebar-inner-width);
 		margin: 0 0 14px;
 		padding: 0;
+
+		> .sidebar-mobile-title {
+			margin-right: auto;
+			padding-left: 4px;
+			font-family: var(--font-editorial);
+			font-size: 18px;
+			font-weight: 500;
+			color: var(--text-primary);
+		}
 
 		> .sidebar-toggle-btn {
 			display: flex;
@@ -328,6 +337,57 @@
 	}
 }
 
+.sidebar-mobile-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 35;
+	background-color: rgba(10, 10, 9, 0.58);
+	animation: mobileBackdropIn 0.22s ease both;
+}
+
+@media (max-width: 1024px) {
+	.sidebar {
+		--sidebar-width: 218px;
+	}
+}
+
+@media (max-width: 768px) {
+	.sidebar {
+		--sidebar-width: min(296px, 84vw);
+		position: fixed;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		z-index: 40;
+		height: 100vh;
+		height: 100dvh;
+		padding: max(16px, env(safe-area-inset-top, 0px)) 14px
+			max(16px, env(safe-area-inset-bottom, 0px));
+		border-radius: 0 24px 24px 0;
+		background-color: var(--surface-drawer);
+		-webkit-backdrop-filter: var(--blur-player);
+		backdrop-filter: var(--blur-player);
+		box-shadow: 12px 0 36px rgba(0, 0, 0, 0.38);
+		transform: translate3d(-105%, 0, 0);
+		opacity: 1;
+		pointer-events: none;
+		transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+
+		&.is-collapsed {
+			width: var(--sidebar-width);
+			padding: max(16px, env(safe-area-inset-top, 0px)) 14px
+				max(16px, env(safe-area-inset-bottom, 0px));
+			margin-right: 0;
+			opacity: 1;
+		}
+
+		&.is-mobile-open {
+			transform: translate3d(0, 0, 0);
+			pointer-events: auto;
+		}
+	}
+}
+
 @keyframes sidebarDotIn {
 	from {
 		opacity: 0;
@@ -339,9 +399,19 @@
 	}
 }
 
+@keyframes mobileBackdropIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.sidebar > .sidebar-navigation > .main-li > ul > li > .sidebar-link.active::after,
-	.sidebar > .sidebar-navigation > .library-li > ul > li > .sidebar-link.active::after {
+	.sidebar > .sidebar-navigation > .library-li > ul > li > .sidebar-link.active::after,
+	.sidebar-mobile-backdrop {
 		animation: none;
 	}
 }

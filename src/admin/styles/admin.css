@@ -382,6 +382,7 @@
 .admin-table-wrap {
 	width: 100%;
 	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
 	border-radius: 18px;
 	background-color: var(--surface-elevated);
 }
@@ -404,6 +405,7 @@
 		font-size: 10px;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
+		white-space: nowrap;
 		color: var(--text-tertiary);
 	}
 
@@ -743,5 +745,121 @@
 		margin: 0 0 8px;
 		color: var(--text-secondary);
 		font-size: 13px;
+	}
+}
+
+/* ==========================================================================
+   Адаптив админ-студии под планшеты и телефоны
+   ========================================================================== */
+@media (max-width: 900px) {
+	.admin-shell {
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.admin-sidebar {
+		width: 100%;
+		height: auto;
+		padding: 14px 16px;
+		border-radius: 18px;
+	}
+
+	.admin-brand {
+		flex-direction: row;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 8px 12px;
+		padding: 0;
+	}
+
+	.admin-brand-title {
+		font-size: 20px;
+	}
+
+	.admin-mode-pill {
+		margin-top: 0;
+		margin-left: auto;
+	}
+
+	.admin-nav {
+		flex-direction: row;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		gap: 6px;
+		margin-top: 12px;
+		padding-bottom: 2px;
+	}
+
+	.admin-nav-link {
+		flex-shrink: 0;
+		white-space: nowrap;
+		min-height: 34px;
+		padding: 7px 14px;
+		font-size: 14px;
+	}
+
+	.admin-sidebar-footer {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		margin-top: 10px;
+	}
+
+	.admin-user-chip {
+		flex-direction: row;
+		align-items: center;
+		gap: 8px;
+		padding: 7px 12px;
+	}
+
+	.admin-main {
+		padding: 20px 18px;
+		border-radius: 18px;
+		min-height: 0;
+	}
+
+	.admin-page-head h1 {
+		font-size: clamp(24px, 5vw, 34px);
+	}
+}
+
+@media (max-width: 640px) {
+	.admin-shell {
+		gap: 0;
+	}
+
+	.admin-main {
+		padding: 18px 14px max(24px, env(safe-area-inset-bottom, 0px));
+		border-radius: 0;
+	}
+
+	.admin-sidebar {
+		padding-top: max(14px, env(safe-area-inset-top, 0px));
+		border-radius: 0;
+	}
+
+	.admin-card {
+		padding: 16px;
+		border-radius: 14px;
+	}
+
+	.admin-cover-drop:not(.is-circle) {
+		margin: 0 auto;
+	}
+
+	.admin-drawer {
+		width: 100vw;
+		padding: max(18px, env(safe-area-inset-top, 0px)) 16px
+			max(20px, env(safe-area-inset-bottom, 0px));
+		border-radius: 0;
+	}
+
+	.admin-lyrics-line-row {
+		grid-template-columns: 1fr 1fr;
+
+		> input:nth-child(3) {
+			grid-column: 1 / -1;
+		}
 	}
 }
