@@ -1,30 +1,44 @@
+// ============================================================================
+// Хук управления мультиязычными текстами трека (`useTrackLyrics`)
+// ============================================================================
 import { useState, useEffect, useCallback } from "react";
 import { adminApi } from "../../api/adminApi.js";
 
+/**
+ * Загружает, сохраняет и удаляет языковые версии текста трека в `LyricsDrawer`.
+ * Выбранный язык и загруженный список привязаны к `trackId` во избежание гонок при переключении.
+ */
 export function useTrackLyrics(trackId) {
-	const [lyricsList, setLyricsList] = useState([]);
-	const [activeLang, setActiveLang] = useState("ru");
-	const [isLoading, setIsLoading] = useState(false);
+	const [state, setState] = useState({
+		trackId: null,
+		items: [],
+		error: null,
+	});
+	const [selectedLang, setSelectedLang] = useState({
+		trackId: null,
+		lang: "ru",
+	});
 	const [isSaving, setIsSaving] = useState(false);
 
 	useEffect(() => {
-		if (!trackId) {
-			setLyricsList([]);
-			return;
-		}
+		if (!trackId) return;
 
 		let cancelled = false;
-		setIsLoading(true);
-
 		adminApi
 			.listTrackLyrics(trackId)
 			.then((data) => {
 				if (cancelled) return;
-				setLyricsList(data.items);
-				setActiveLang(data.items[0]?.language ?? "ru");
+				const items = data.items ?? [];
+				setState({ trackId, items, error: null });
+				setSelectedLang({
+					trackId,
+					lang: items[0]?.language ?? "ru",
+				});
 			})
-			.finally(() => {
-				if (!cancelled) setIsLoading(false);
+			.catch((err) => {
+				if (!cancelled) {
+					setState({ trackId, items: [], error: err });
+				}
 			});
 
 		return () => {
@@ -32,26 +46,41 @@ export function useTrackLyrics(trackId) {
 		};
 	}, [trackId]);
 
-	const currentLyrics =
-		lyricsList.find((l) => l.language === activeLang) ?? null;
+	const lyricsList = trackId && state.trackId === trackId ? state.items : [];
+	const error = trackId && state.trackId === trackId ? state.error : null;
+	const isLoading = Boolean(trackId) && state.trackId !== trackId;
+	const activeLang = selectedLang.trackId === trackId ? selectedLang.lang : "ru";
+
+	const setActiveLang = useCallback(
+		(lang) => {
+			setSelectedLang({ trackId, lang });
+		},
+		[trackId],
+	);
+
+	const currentLyrics = lyricsList.find((l) => l.language === activeLang) ?? null;
 
 	const saveLyrics = useCallback(
 		async (language, payload) => {
-			if (!trackId) return;
+			if (!trackId) return null;
 			setIsSaving(true);
+			setState((prev) => ({ ...prev, error: null }));
 			try {
-				const { lyrics } = await adminApi.putTrackLyrics(
-					trackId,
-					language,
-					payload,
-				);
-				setLyricsList((prev) => {
-					const exists = prev.some((l) => l.language === language);
-					return exists
-						? prev.map((l) => (l.language === language ? lyrics : l))
-						: [...prev, lyrics];
+				const { lyrics } = await adminApi.putTrackLyrics(trackId, language, payload);
+				setState((prev) => {
+					const exists = prev.items.some((l) => l.language === language);
+					return {
+						...prev,
+						items: exists
+							? prev.items.map((l) => (l.language === language ? lyrics : l))
+							: [...prev.items, lyrics],
+					};
 				});
-				setActiveLang(language);
+				setSelectedLang({ trackId, lang: language });
+				return lyrics;
+			} catch (err) {
+				setState((prev) => ({ ...prev, error: err }));
+				throw err;
 			} finally {
 				setIsSaving(false);
 			}
@@ -62,8 +91,22 @@ export function useTrackLyrics(trackId) {
 	const removeLyrics = useCallback(
 		async (language) => {
 			if (!trackId) return;
-			await adminApi.deleteTrackLyrics(trackId, language);
-			setLyricsList((prev) => prev.filter((l) => l.language !== language));
+			setState((prev) => ({ ...prev, error: null }));
+			try {
+				await adminApi.deleteTrackLyrics(trackId, language);
+				setState((prev) => {
+					const next = prev.items.filter((l) => l.language !== language);
+					setSelectedLang((curr) =>
+						curr.trackId === trackId && curr.lang === language
+							? { trackId, lang: next[0]?.language ?? "ru" }
+							: curr,
+					);
+					return { ...prev, items: next };
+				});
+			} catch (err) {
+				setState((prev) => ({ ...prev, error: err }));
+				throw err;
+			}
 		},
 		[trackId],
 	);
@@ -75,6 +118,7 @@ export function useTrackLyrics(trackId) {
 		setActiveLang,
 		isLoading,
 		isSaving,
+		error,
 		saveLyrics,
 		removeLyrics,
 	};

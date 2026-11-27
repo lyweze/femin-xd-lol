@@ -1,0 +1,99 @@
+/* ==========================================================================
+   Плавный кроссфейд слоёв ambient-фона (изображение + радиальный тинт вместе)
+   ========================================================================== */
+.ambient-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	overflow: hidden;
+	background-color: var(--bg-canvas);
+
+	&.is-fullscreen {
+		position: absolute;
+		background-color: #10100f;
+
+		> .ambient-layer {
+			background-color: #10100f;
+
+			> .ambient-layer-tint {
+				background: radial-gradient(
+					ellipse 82% 76% at 26% 32%,
+					rgba(var(--layer-accent-rgb), 0.24) 0%,
+					rgba(var(--layer-accent-rgb), 0.08) 46%,
+					transparent 78%
+				);
+			}
+
+			> .ambient-layer-scrim {
+				background: radial-gradient(
+					ellipse 80% 75% at 28% 35%,
+					rgba(14, 14, 13, 0.24) 0%,
+					rgba(12, 12, 11, 0.62) 64%,
+					rgba(8, 8, 8, 0.86) 100%
+				);
+			}
+		}
+	}
+
+	> .ambient-layer {
+		--layer-accent-rgb: 197, 107, 78;
+		position: absolute;
+		inset: 0;
+		background-color: var(--bg-canvas);
+		animation: ambientLayerCrossfade 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+		> .ambient-layer-img {
+			position: absolute;
+			inset: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			transform: scale(1.06);
+			opacity: 0.92;
+		}
+
+		> .ambient-layer-tint {
+			position: absolute;
+			inset: 0;
+			background: radial-gradient(
+				circle at 18% 15%,
+				rgba(var(--layer-accent-rgb), 0.25) 0%,
+				rgba(var(--layer-accent-rgb), 0.07) 46%,
+				transparent 78%
+			);
+		}
+
+		> .ambient-layer-scrim {
+			position: absolute;
+			inset: 0;
+			background:
+				radial-gradient(
+					ellipse 90% 80% at 32% 24%,
+					rgba(14, 14, 13, 0.34) 0%,
+					rgba(14, 14, 13, 0.62) 56%,
+					rgba(10, 10, 9, 0.84) 100%
+				),
+				linear-gradient(
+					180deg,
+					rgba(14, 14, 13, 0.2) 0%,
+					rgba(12, 12, 11, 0.54) 100%
+				);
+		}
+	}
+}
+
+@keyframes ambientLayerCrossfade {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ambient-backdrop > .ambient-layer {
+		animation: none;
+	}
+}

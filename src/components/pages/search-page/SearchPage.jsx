@@ -1,183 +1,155 @@
 // ============================================================================
-// Импорты: состояние, ссылки маршрутизатора, хук скролла и стили поиска
+// Страница поиска по каталогу (`SearchPage`)
+// Использует useDeferredValue, чтобы ввод текста не тормозил на больших списках.
 // ============================================================================
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useDeferredValue, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
+import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll.js";
+import { useMediaQuery } from "../../../hooks/useMediaQuery.js";
+import { musicApi } from "../../../api/musicApi.js";
+import { usePlayerState } from "../../../context/playerContexts.js";
+import { MOCK_TRACKS } from "../../../services/mockData.js";
+import ArtistCard from "../../shared/artist-card/ArtistCard.jsx";
+import MediaCard from "../../shared/media-card/MediaCard.jsx";
+import TrackList from "../../shared/track-list/TrackList.jsx";
+import { SearchIcon } from "../../shared/icons/Icons.jsx";
 import "./SearchPage.css";
 
-// ============================================================================
-// Временные данные для карточек настроений и быстрого поиска
-// ============================================================================
-const PLACEHOLDER_MOODS = [
-    "Late Night Ambient",
-    "Minimal Techno",
-    "Modern Classical",
-    "Analog Synth",
-    "Deep Focus",
-    "Lo-Fi Tapes",
+const BROWSE_MOODS = [
+	{ label: "Matte Obsidian", query: "Obsidian" },
+	{ label: "Smoked Glass", query: "Smoked" },
+	{ label: "Late Night Focus", query: "Late Night" },
+	{ label: "Mastering Reference", query: "Reference" },
 ];
 
-const PLACEHOLDER_RESULTS = [
-    {
-        id: "1",
-        title: "The Rint",
-        artist: "Matte Obsidian",
-        artistId: "1",
-        duration: "03:12",
-    },
-    {
-        id: "2",
-        title: "Alabaster Echo",
-        artist: "Nils Frahm",
-        artistId: "2",
-        duration: "03:38",
-    },
-    {
-        id: "3",
-        title: "Spatial Drift",
-        artist: "Rival Consoles",
-        artistId: "3",
-        duration: "04:24",
-    },
-    {
-        id: "4",
-        title: "Subtle Grain",
-        artist: "Christian Löffler",
-        artistId: "4",
-        duration: "03:51",
-    },
-];
+const RECENT_TRACKS = MOCK_TRACKS.slice(0, 5);
 
-/**
- * Страница поиска (`SearchPage`).
- * Содержит строку фильтрации по трекам и исполнителям, быстрые теги настроений
- * при пустом запросе и список найденных композиций.
- */
 function SearchPage() {
-    const [query, setQuery] = useState("");
-    const scrollRef = useVerticalScroll();
+	const isMobile = useMediaQuery("(max-width: 768px)");
+	const [searchParams, setSearchParams] = useSearchParams();
+	const query = searchParams.get("q") ?? "";
+	const deferredQuery = useDeferredValue(query.trim());
 
-    const normalizedQuery = query.trim().toLowerCase();
-    const filteredTracks = normalizedQuery
-        ? PLACEHOLDER_RESULTS.filter(
-              (track) =>
-                  track.title.toLowerCase().includes(normalizedQuery) ||
-                  track.artist.toLowerCase().includes(normalizedQuery),
-          )
-        : PLACEHOLDER_RESULTS;
+	const scrollRef = useVerticalScroll();
+	const artistsRef = useHorizontalScroll();
+	const releasesRef = useHorizontalScroll();
+	const { playlists } = usePlayerState();
 
-    return (
-        <div className="search-page">
-            {/* ================================================================
-                1. Шапка страницы с полем ввода поискового запроса
-               ================================================================ */}
-            <header className="page-header">
-                <h1 className="page-title">Search</h1>
+	const results = useMemo(
+		() => musicApi.searchCatalog(deferredQuery, playlists),
+		[deferredQuery, playlists],
+	);
+	const collections = useMemo(
+		() => [...results.albums, ...results.playlists],
+		[results.albums, results.playlists],
+	);
 
-                <div className="search-bar">
-                    <svg
-                        className="search-icon"
-                        width="15"
-                        height="15"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        aria-hidden="true"
-                    >
-                        <circle
-                            cx="7"
-                            cy="7"
-                            r="4.8"
-                            stroke="currentColor"
-                            strokeWidth="1.4"
-                        />
-                        <path
-                            d="M10.8 10.8L14 14"
-                            stroke="currentColor"
-                            strokeWidth="1.4"
-                            strokeLinecap="round"
-                        />
-                    </svg>
+	const hasAnyResult =
+		results.artists.length > 0 ||
+		results.tracks.length > 0 ||
+		collections.length > 0;
 
-                    <input
-                        type="text"
-                        className="search-input"
-                        placeholder="Artists, tracks, albums..."
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        autoFocus
-                    />
+	const updateQuery = (next) => {
+		setSearchParams(next ? { q: next } : {}, { replace: true });
+	};
 
-                    {query && (
-                        <button
-                            type="button"
-                            className="search-clear"
-                            onClick={() => setQuery("")}
-                            aria-label="Clear search"
-                        >
-                            ×
-                        </button>
-                    )}
-                </div>
-            </header>
+	return (
+		<div className="search-page">
+			<header className="page-header">
+				<h1 className="page-title">Search</h1>
 
-            {/* ================================================================
-                2. Прокручиваемая область: подборки настроений и результаты
-               ================================================================ */}
-            <div className="page-scroll" ref={scrollRef}>
-                {!normalizedQuery && (
-                    <section className="search-section">
-                        <h2 className="section-title">Browse Moods</h2>
-                        <div className="moods-grid">
-                            {PLACEHOLDER_MOODS.map((mood) => (
-                                <button
-                                    key={mood}
-                                    type="button"
-                                    className="mood-card"
-                                    onClick={() => setQuery(mood)}
-                                >
-                                    <span>{mood}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </section>
-                )}
+				<div className="search-bar">
+					<SearchIcon className="search-icon" />
 
-                <section className="search-section">
-                    <h2 className="section-title">
-                        {normalizedQuery ? "Top Results" : "Recent Tracks"}
-                    </h2>
+					{/* На мобильных отключаем autoFocus, чтобы не вызывать клавиатуру при открытии вкладки */}
+					<input
+						type="text"
+						className="search-input"
+						placeholder="Artists, tracks, albums, playlists..."
+						value={query}
+						onChange={(e) => updateQuery(e.target.value)}
+						autoFocus={!isMobile}
+					/>
 
-                    {filteredTracks.length === 0 ? (
-                        <p className="search-empty">Nothing found for «{query}»</p>
-                    ) : (
-                        <ul className="Library is-embedded">
-                            {filteredTracks.map((track, idx) => (
-                                <li key={track.id} className="Library-item">
-                                    <div className="Library-left">
-                                        <div className="Library-index">
-                                            <span>{idx + 1}</span>
-                                        </div>
-                                        <div className="Library-meta">
-                                            <span className="Library-title">{track.title}</span>
-                                            <Link
-                                                to={`/artist/${track.artistId}`}
-                                                className="Library-artist artist-inline-link"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                {track.artist}
-                                            </Link>
-                                        </div>
-                                    </div>
-                                    <span className="Library-duration">{track.duration}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </section>
-            </div>
-        </div>
-    );
+					{query && (
+						<button
+							type="button"
+							className="search-clear"
+							onClick={() => updateQuery("")}
+							aria-label="Clear search"
+						>
+							×
+						</button>
+					)}
+				</div>
+			</header>
+
+			<div className="page-scroll" ref={scrollRef}>
+				{!deferredQuery ? (
+					<>
+						<section className="search-section">
+							<h2 className="section-title">Quick Filters</h2>
+							<div className="moods-grid">
+								{BROWSE_MOODS.map((mood) => (
+									<button
+										key={mood.label}
+										type="button"
+										className="mood-card"
+										onClick={() => updateQuery(mood.query)}
+									>
+										<span>{mood.label}</span>
+									</button>
+								))}
+							</div>
+						</section>
+
+						<section className="search-section">
+							<h2 className="section-title">Recent Tracks</h2>
+							<TrackList tracks={RECENT_TRACKS} queueTracks={MOCK_TRACKS} />
+						</section>
+					</>
+				) : !hasAnyResult ? (
+					<p className="search-empty">Nothing found for «{deferredQuery}»</p>
+				) : (
+					<>
+						{results.artists.length > 0 && (
+							<section className="search-section">
+								<h2 className="section-title">Artists</h2>
+								<div className="Playlists" ref={artistsRef}>
+									{results.artists.map((artist) => (
+										<ArtistCard key={artist.id} artist={artist} />
+									))}
+								</div>
+							</section>
+						)}
+
+						{results.tracks.length > 0 && (
+							<section className="search-section">
+								<h2 className="section-title">Tracks</h2>
+								<TrackList tracks={results.tracks} />
+							</section>
+						)}
+
+						{collections.length > 0 && (
+							<section className="search-section">
+								<h2 className="section-title">Albums & Playlists</h2>
+								<div className="Playlists" ref={releasesRef}>
+									{collections.map((item) => (
+										<MediaCard
+											key={`${item.type}-${item.id}`}
+											item={item}
+											compact
+										/>
+									))}
+								</div>
+							</section>
+						)}
+					</>
+				)}
+			</div>
+		</div>
+	);
 }
 
 export default SearchPage;

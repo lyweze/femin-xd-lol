@@ -1,107 +1,105 @@
 // ============================================================================
-// Импорты: параметры маршрута, ссылки, хуки скролла и стили профиля артиста
+// Страница исполнителя (`ArtistPage`): шапка, популярные треки и дискография
 // ============================================================================
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
 import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll.js";
+import { musicApi } from "../../../api/musicApi.js";
+import { handleCoverError } from "../../../utils/cover.js";
+import { usePlayerActions } from "../../../context/playerContexts.js";
+import CollectionActions from "../../shared/collection-actions/CollectionActions.jsx";
+import MediaCard from "../../shared/media-card/MediaCard.jsx";
+import TrackList from "../../shared/track-list/TrackList.jsx";
 import "./ArtistPage.css";
 
-// ============================================================================
-// Временные данные популярных треков и дискографии артиста
-// ============================================================================
-const TOP_TRACKS = [
-    { id: "1", title: "The Rint", duration: "03:12" },
-    { id: "2", title: "Obsidian Grain", duration: "04:18" },
-    { id: "3", title: "Smoked Glass", duration: "02:54" },
-    { id: "4", title: "Velvet Tape", duration: "03:45" },
-];
+const POPULAR_TRACKS_LIMIT = 5;
 
-const DISCOGRAPHY = [
-    { id: "1", title: "Smoked Glass Vol. I" },
-    { id: "2", title: "Alabaster Echoes" },
-    { id: "3", title: "Nocturne Tapes" },
-    { id: "4", title: "Spatial Drift" },
-];
-
-/**
- * Страница профиля исполнителя (`ArtistPage`).
- * Отображает карточку артиста, список популярных композиций
- * и горизонтальную ленту релизов дискографии.
- */
 function ArtistPage() {
-    const { id } = useParams();
-    const scrollRef = useVerticalScroll();
-    const discographyRef = useHorizontalScroll();
+	const { id } = useParams();
+	const scrollRef = useVerticalScroll();
+	const discographyRef = useHorizontalScroll();
+	const [isBioExpanded, setIsBioExpanded] = useState(false);
 
-    return (
-        <div className="page-scroll artist-page" ref={scrollRef}>
-            {/* ================================================================
-                1. Шапка профиля артиста
-               ================================================================ */}
-            <header className="artist-hero">
-                <div className="artist-avatar" aria-hidden="true">
-                    <span>A</span>
-                </div>
+	const { playQueue } = usePlayerActions();
 
-                <div className="artist-meta">
-                    <span className="artist-badge">ARTIST</span>
-                    <h1 className="artist-name">Artist #{id}</h1>
-                    <p className="artist-bio">
-                        Minimalist electronic and ambient textures recorded on analog tape.
-                    </p>
+	const artist = useMemo(() => musicApi.getArtist(id), [id]);
+	const topTracks = useMemo(() => artist?.topTracks ?? [], [artist]);
+	const albums = useMemo(() => artist?.albums ?? [], [artist]);
 
-                    <div className="collection-actions">
-                        <button type="button" className="btn-primary">
-                            <span className="btn-dot" aria-hidden="true" />
-                            <span>Play Artist</span>
-                        </button>
-                    </div>
-                </div>
-            </header>
+	if (!artist) {
+		return (
+			<div className="page-scroll artist-page" ref={scrollRef}>
+				<div className="artist-not-found">
+					<h2>Artist not found</h2>
+					<Link to="/" className="artist-back-link">
+						Back to Now Playing
+					</Link>
+				</div>
+			</div>
+		);
+	}
 
-            {/* ================================================================
-                2. Популярные треки исполнителя
-               ================================================================ */}
-            <section className="artist-section">
-                <h2 className="section-title">Popular</h2>
-                <ul className="Library is-embedded">
-                    {TOP_TRACKS.map((track, idx) => (
-                        <li key={track.id} className="Library-item">
-                            <div className="Library-left">
-                                <div className="Library-index">
-                                    <span>{idx + 1}</span>
-                                </div>
-                                <div className="Library-meta">
-                                    <span className="Library-title">{track.title}</span>
-                                    <span className="Library-artist">Artist #{id}</span>
-                                </div>
-                            </div>
-                            <span className="Library-duration">{track.duration}</span>
-                        </li>
-                    ))}
-                </ul>
-            </section>
+	return (
+		<div className="page-scroll artist-page" ref={scrollRef}>
+			<header className="artist-hero">
+				<div className="artist-avatar">
+					{artist.avatar?.medium_url ? (
+						<img
+							src={artist.avatar.medium_url}
+							alt={artist.name}
+							draggable={false}
+							onError={(e) => handleCoverError(e, artist.avatar, "medium")}
+						/>
+					) : (
+						<span>{artist.name[0]?.toUpperCase()}</span>
+					)}
+				</div>
 
-            {/* ================================================================
-                3. Горизонтальная лента релизов дискографии
-               ================================================================ */}
-            <section className="artist-section">
-                <h2 className="section-title">Discography</h2>
-                <div className="Playlists" ref={discographyRef}>
-                    {DISCOGRAPHY.map((album) => (
-                        <Link
-                            key={album.id}
-                            to={`/album/${album.id}`}
-                            className="Playlist-item album-link"
-                        >
-                            <div className="Playlist-icon" aria-hidden="true" />
-                            <span className="Playlist-name">{album.title}</span>
-                        </Link>
-                    ))}
-                </div>
-            </section>
-        </div>
-    );
+				<div className="artist-meta">
+					<span className="artist-badge">ARTIST</span>
+					<h1 className="artist-name">{artist.name}</h1>
+
+					{artist.bio && (
+						<p
+							className={`artist-bio ${isBioExpanded ? "is-expanded" : ""}`}
+							onClick={() => setIsBioExpanded((prev) => !prev)}
+							title="Click to expand bio"
+						>
+							{artist.bio}
+						</p>
+					)}
+
+					<CollectionActions
+						tracks={topTracks}
+						onPlayQueue={playQueue}
+						playLabel="Play Artist"
+					/>
+				</div>
+			</header>
+
+			{topTracks.length > 0 && (
+				<section className="artist-section">
+					<h2 className="section-title">Popular</h2>
+					<TrackList
+						tracks={topTracks.slice(0, POPULAR_TRACKS_LIMIT)}
+						queueTracks={topTracks}
+					/>
+				</section>
+			)}
+
+			{albums.length > 0 && (
+				<section className="artist-section">
+					<h2 className="section-title">Discography</h2>
+					<div className="Playlists" ref={discographyRef}>
+						{albums.map((album) => (
+							<MediaCard key={album.id} item={album} compact />
+						))}
+					</div>
+				</section>
+			)}
+		</div>
+	);
 }
 
 export default ArtistPage;

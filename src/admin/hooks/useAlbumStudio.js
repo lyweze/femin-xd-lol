@@ -1,51 +1,104 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+// ============================================================================
+// Хук студии релиза (`useAlbumStudio`): метаданные, обложка, треклист и публикация
+// ============================================================================
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { adminApi } from "../../api/adminApi.js";
+import { getAlbumPublicationStatus } from "../utils/albumHelpers.js";
 
+const STUDIO_POLL_INTERVAL_MS = 3000;
+
+/**
+ * Инкапсулирует полный жизненный цикл редактирования альбома:
+ * - загрузку карточки альбома и треклиста;
+ * - фоновый поллинг статусов треков во время транскодинга;
+ * - чеклист готовности к публикации (обложка + >= 1 трек + все `ready`);
+ * - оптимистичное перетаскивание треков (`reorderTracks`) с откатом при ошибке.
+ */
 export function useAlbumStudio(albumId) {
-	const [album, setAlbum] = useState(null);
-	const [tracks, setTracks] = useState([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const [refreshTick, setRefreshTick] = useState(0);
+	const [state, setState] = useState(() => ({
+		album: null,
+		tracks: [],
+		fetchedKey: null,
+		loadedAtMs: Date.now(),
+		error: null,
+	}));
 	const [isUploadingCover, setIsUploadingCover] = useState(false);
 	const [uploadingTrackIds, setUploadingTrackIds] = useState({});
 	const [isPublishing, setIsPublishing] = useState(false);
-	const [error, setError] = useState(null);
 
-	const fetchAlbum = useCallback(
-		async (silent = false) => {
-			if (!albumId) return;
-			if (!silent) setIsLoading(true);
-			setError(null);
-
-			try {
-				const data = await adminApi.getAlbum(albumId);
-				setAlbum(data.album);
-				setTracks(data.tracks);
-			} catch (err) {
-				setError(err);
-			} finally {
-				if (!silent) setIsLoading(false);
-			}
-		},
-		[albumId],
-	);
+	const activeKey = albumId ? `${albumId}:${refreshTick}` : null;
+	const tracksRef = useRef(state.tracks);
 
 	useEffect(() => {
-		fetchAlbum(false);
-	}, [fetchAlbum]);
+		tracksRef.current = state.tracks;
+	}, [state.tracks]);
 
-	// Поллинг раз в 4 сек, пока хотя бы один трек обрабатывается воркером
+	const applyAlbumData = useCallback((key, data) => {
+		setState({
+			album: data.album,
+			tracks: data.tracks,
+			fetchedKey: key,
+			loadedAtMs: Date.now(),
+			error: null,
+		});
+	}, []);
+
+	useEffect(() => {
+		if (!albumId || !activeKey) return;
+		let cancelled = false;
+
+		adminApi
+			.getAlbum(albumId)
+			.then((data) => {
+				if (!cancelled) applyAlbumData(activeKey, data);
+			})
+			.catch((err) => {
+				if (!cancelled) {
+					setState((prev) => ({
+						...prev,
+						fetchedKey: activeKey,
+						error: err,
+					}));
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [albumId, activeKey, applyAlbumData]);
+
 	const hasProcessingTracks = useMemo(
-		() => tracks.some((t) => t.status === "processing"),
-		[tracks],
+		() => state.tracks.some((t) => t.status === "processing"),
+		[state.tracks],
 	);
 
+	// Тихий поллинг каждые 3 с, пока хотя бы один трек находится в обработке
 	useEffect(() => {
-		if (!hasProcessingTracks) return;
-		const timer = setInterval(() => fetchAlbum(true), 4000);
-		return () => clearInterval(timer);
-	}, [hasProcessingTracks, fetchAlbum]);
+		if (!albumId || !hasProcessingTracks) return;
+		let cancelled = false;
 
-	// Чек-лист перед POST /publish (предотвращает 409 Conflict)
+		const timer = setInterval(() => {
+			adminApi
+				.getAlbum(albumId)
+				.then((data) => {
+					if (!cancelled) applyAlbumData(activeKey, data);
+				})
+				.catch(() => {
+					// Игнорируем разовые сетевые сбои фонового опроса, чтобы не затирать UI
+				});
+		}, STUDIO_POLL_INTERVAL_MS);
+
+		return () => {
+			cancelled = true;
+			clearInterval(timer);
+		};
+	}, [albumId, hasProcessingTracks, activeKey, applyAlbumData]);
+
+	const { album, tracks, loadedAtMs, error } = state;
+	const isLoading = Boolean(albumId) && state.fetchedKey !== activeKey;
+	const publicationStatus = getAlbumPublicationStatus(album, loadedAtMs);
+
 	const publishChecklist = useMemo(() => {
 		const hasCover = Boolean(album?.cover);
 		const hasTracks = tracks.length > 0;
@@ -58,102 +111,137 @@ export function useAlbumStudio(albumId) {
 		};
 	}, [album, tracks]);
 
+	const setTracks = useCallback((updater) => {
+		setState((prev) => ({
+			...prev,
+			tracks: typeof updater === "function" ? updater(prev.tracks) : updater,
+		}));
+	}, []);
+
+	const setAlbum = useCallback((updater) => {
+		setState((prev) => ({
+			...prev,
+			album: typeof updater === "function" ? updater(prev.album) : updater,
+		}));
+	}, []);
+
 	const updateAlbum = useCallback(
 		async (payload) => {
 			const { album: updated } = await adminApi.updateAlbum(albumId, payload);
 			setAlbum(updated);
 			return updated;
 		},
-		[albumId],
+		[albumId, setAlbum],
 	);
 
 	const uploadCover = useCallback(
 		async (file) => {
 			setIsUploadingCover(true);
 			try {
-				const { album: updated } = await adminApi.uploadAlbumCover(
-					albumId,
-					file,
-				);
+				const { album: updated } = await adminApi.uploadAlbumCover(albumId, file);
 				setAlbum(updated);
 				return updated;
 			} finally {
 				setIsUploadingCover(false);
 			}
 		},
-		[albumId],
+		[albumId, setAlbum],
 	);
 
 	const addTrack = useCallback(
 		async (payload) => {
 			const { track } = await adminApi.createTrack({
 				album_id: albumId,
-				track_no: tracks.length + 1,
+				disc_no: payload.disc_no || 1,
+				track_no: payload.track_no || tracksRef.current.length + 1,
 				...payload,
 			});
-			setTracks((prev) => [...prev, track]);
-			setAlbum((prev) =>
-				prev ? { ...prev, track_count: prev.track_count + 1 } : prev,
-			);
+			setState((prev) => ({
+				...prev,
+				tracks: [...prev.tracks, track],
+				album: prev.album
+					? { ...prev.album, track_count: prev.album.track_count + 1 }
+					: prev.album,
+			}));
 			return track;
 		},
-		[albumId, tracks.length],
+		[albumId],
 	);
 
-	const updateTrack = useCallback(async (trackId, payload) => {
-		const { track } = await adminApi.updateTrack(trackId, payload);
-		setTracks((prev) => prev.map((t) => (t.id === trackId ? track : t)));
-		return track;
-	}, []);
+	const updateTrack = useCallback(
+		async (trackId, payload) => {
+			const { track } = await adminApi.updateTrack(trackId, payload);
+			setTracks((prev) => prev.map((t) => (t.id === trackId ? track : t)));
+			return track;
+		},
+		[setTracks],
+	);
 
 	const removeTrack = useCallback(async (trackId) => {
 		await adminApi.deleteTrack(trackId);
-		setTracks((prev) => prev.filter((t) => t.id !== trackId));
-		setAlbum((prev) =>
-			prev ? { ...prev, track_count: Math.max(0, prev.track_count - 1) } : prev,
-		);
+		setState((prev) => ({
+			...prev,
+			tracks: prev.tracks.filter((t) => t.id !== trackId),
+			album: prev.album
+				? { ...prev.album, track_count: Math.max(0, prev.album.track_count - 1) }
+				: prev.album,
+		}));
 	}, []);
 
-	const uploadTrackAudio = useCallback(async (trackId, file) => {
-		setUploadingTrackIds((prev) => ({ ...prev, [trackId]: true }));
-		try {
-			const { track } = await adminApi.uploadTrackAudio(trackId, file);
+	const uploadTrackAudio = useCallback(
+		async (trackId, file) => {
+			setUploadingTrackIds((prev) => ({ ...prev, [trackId]: true }));
+			try {
+				const { track } = await adminApi.uploadTrackAudio(trackId, file);
+				setTracks((prev) => prev.map((t) => (t.id === trackId ? track : t)));
+				return track;
+			} finally {
+				setUploadingTrackIds((prev) => ({ ...prev, [trackId]: false }));
+			}
+		},
+		[setTracks],
+	);
+
+	const reprocessTrack = useCallback(
+		async (trackId) => {
+			const { track } = await adminApi.reprocessTrack(trackId);
 			setTracks((prev) => prev.map((t) => (t.id === trackId ? track : t)));
 			return track;
-		} finally {
-			setUploadingTrackIds((prev) => ({ ...prev, [trackId]: false }));
-		}
-	}, []);
-
-	const reprocessTrack = useCallback(async (trackId) => {
-		const { track } = await adminApi.reprocessTrack(trackId);
-		setTracks((prev) => prev.map((t) => (t.id === trackId ? track : t)));
-		return track;
-	}, []);
+		},
+		[setTracks],
+	);
 
 	const reorderTracks = useCallback(
 		async (orderedTracks) => {
+			const previous = tracksRef.current;
 			setTracks(orderedTracks);
 			const items = orderedTracks.map((t, idx) => ({
 				track_id: t.id,
 				disc_no: t.disc_no || 1,
 				track_no: idx + 1,
 			}));
-			const data = await adminApi.setAlbumTrackOrder(albumId, items);
-			setTracks(data.tracks);
+			try {
+				const data = await adminApi.setAlbumTrackOrder(albumId, items);
+				setTracks(data.tracks);
+			} catch (err) {
+				// При ошибке API откатываем визуальный порядок обратно
+				setTracks(previous);
+				throw err;
+			}
 		},
-		[albumId],
+		[albumId, setTracks],
 	);
 
 	const publish = useCallback(
 		async (publishedAt = null) => {
 			setIsPublishing(true);
 			try {
-				const { album: updated } = await adminApi.publishAlbum(
-					albumId,
-					publishedAt,
-				);
-				setAlbum(updated);
+				const { album: updated } = await adminApi.publishAlbum(albumId, publishedAt);
+				setState((prev) => ({
+					...prev,
+					album: updated,
+					loadedAtMs: Date.now(),
+				}));
 			} finally {
 				setIsPublishing(false);
 			}
@@ -169,7 +257,11 @@ export function useAlbumStudio(albumId) {
 		} finally {
 			setIsPublishing(false);
 		}
-	}, [albumId]);
+	}, [albumId, setAlbum]);
+
+	const refresh = useCallback(() => {
+		setRefreshTick((t) => t + 1);
+	}, []);
 
 	return {
 		album,
@@ -178,9 +270,11 @@ export function useAlbumStudio(albumId) {
 		isUploadingCover,
 		uploadingTrackIds,
 		isPublishing,
+		publicationStatus,
+		isPublished: publicationStatus.isPublished,
 		error,
 		publishChecklist,
-		refresh: () => fetchAlbum(false),
+		refresh,
 		updateAlbum,
 		uploadCover,
 		addTrack,

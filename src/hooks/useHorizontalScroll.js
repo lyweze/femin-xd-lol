@@ -1,30 +1,21 @@
 import { useState, useCallback, useEffect } from "react";
+import { attachScrollBehavior } from "./scrollUtils.js";
 
-// ============================================================================
-// Константы настройки скролла, перетаскивания и краевых градиентов (fades)
-// ============================================================================
-const DRAG_THRESHOLD_PX = 5; // Минимальный сдвиг мыши, после которого клик считается перетаскиванием
-const DRAG_SPEED_MULTIPLIER = 1.4; // Коэффициент скорости прокрутки при удержании ЛКМ
-const SCROLL_IDLE_DELAY_MS = 700; // Задержка перед снятием `.is-scrolling` (скрытие скроллбара)
-const SCROLL_EDGE_TOLERANCE_PX = 2; // Допуск в пикселях для определения краёв (учёт дробного зума)
-
-const FADE_LEFT_WIDTH = "44px"; // Ширина мягкого затухания слева при наличии скрытого контента
-const FADE_RIGHT_WIDTH = "56px"; // Ширина мягкого затухания справа при наличии скрытого контента
+const DRAG_THRESHOLD_PX = 5;
+const DRAG_SPEED_MULTIPLIER = 1.4;
+const FADE_LEFT_WIDTH = "44px";
+const FADE_RIGHT_WIDTH = "56px";
 
 /**
- * Хук для горизонтальной прокрутки контейнера колесиком мыши и перетаскиванием (Drag-to-Scroll).
- *
- * Что делает автоматически:
- * 1. Переводит вертикальное колесико мыши в горизонтальный скролл (не ломая жесты трекпада).
- * 2. Позволяет перетаскивать ленту зажатой левой кнопкой мыши и блокирует случайный клик после скролла.
- * 3. Управляет классами `.is-scrolling` и `.is-dragging` для плавного показа/скрытия скроллбара.
- * 4. Обновляет CSS-переменные `--fade-left` и `--fade-right` через `requestAnimationFrame`
- *    для динамического затухания краёв списка при ресайзе или подгрузке карточек.
+ * Хук горизонтальной прокрутки полок (`.Playlists`):
+ * 1. Конвертирует вертикальное вращение колеса мыши в горизонтальный скролл, не ломая диагональные жесты трекпада.
+ * 2. Поддерживает drag-to-scroll мышью с динамической подпиской на `window` только во время перетаскивания.
+ * 3. Подавляет случайный `click` по карточке сразу после перетаскивания (на этапе capture).
+ * 4. Управляет классом `.is-scrolling` и CSS-переменными краевого затухания `--fade-left` / `--fade-right`.
  */
 export function useHorizontalScroll() {
 	const [slider, setSlider] = useState(null);
 
-	// Callback-ref гарантирует запуск эффекта, даже если список отрендерится после загрузки данных
 	const containerRef = useCallback((node) => {
 		setSlider(node);
 	}, []);
@@ -32,102 +23,33 @@ export function useHorizontalScroll() {
 	useEffect(() => {
 		if (!slider) return;
 
-		// Локальное состояние перетаскивания (в замыкании, чтобы не вызывать лишние ререндеры)
+		const scrollTracker = attachScrollBehavior(slider, {
+			axis: "x",
+			fadeStartProp: "--fade-left",
+			fadeEndProp: "--fade-right",
+			fadeStartSize: FADE_LEFT_WIDTH,
+			fadeEndSize: FADE_RIGHT_WIDTH,
+			observeSubtree: false,
+		});
+
 		let isDown = false;
 		let startX = 0;
 		let startScrollLeft = 0;
 		let moved = false;
-		let scrollTimeout = null;
-		let rafId = null;
 
-		// Кэш состояний краёв: записываем CSS-переменные только в момент реального перехода
-		let prevHasLeft = null;
-		let prevHasRight = null;
-
-		// ====================================================================
-		// 1. Расчёт краевых затуханий (--fade-left / --fade-right) через rAF
-		// ====================================================================
-		const updateFades = () => {
-			rafId = null;
-			const maxScroll = Math.max(0, slider.scrollWidth - slider.clientWidth);
-			const isOverflowing = maxScroll > SCROLL_EDGE_TOLERANCE_PX;
-
-			const hasLeft =
-				isOverflowing && slider.scrollLeft > SCROLL_EDGE_TOLERANCE_PX;
-			const hasRight =
-				isOverflowing &&
-				maxScroll - slider.scrollLeft > SCROLL_EDGE_TOLERANCE_PX;
-
-			if (hasLeft !== prevHasLeft) {
-				prevHasLeft = hasLeft;
-				slider.style.setProperty(
-					"--fade-left",
-					hasLeft ? FADE_LEFT_WIDTH : "0px",
-				);
-			}
-
-			if (hasRight !== prevHasRight) {
-				prevHasRight = hasRight;
-				slider.style.setProperty(
-					"--fade-right",
-					hasRight ? FADE_RIGHT_WIDTH : "0px",
-				);
-			}
-		};
-
-		// Группируем вызовы в один кадр отрисовки браузера (60–240 Гц)
-		const scheduleFadeUpdate = () => {
-			if (rafId === null) {
-				rafId = requestAnimationFrame(updateFades);
-			}
-		};
-
-		// ====================================================================
-		// 2. Отслеживание прокрутки (обновление масок + класс .is-scrolling)
-		// ====================================================================
-		const onScroll = () => {
-			scheduleFadeUpdate();
-
-			if (!slider.classList.contains("is-scrolling")) {
-				slider.classList.add("is-scrolling");
-			}
-
-			clearTimeout(scrollTimeout);
-			scrollTimeout = setTimeout(() => {
-				slider.classList.remove("is-scrolling");
-			}, SCROLL_IDLE_DELAY_MS);
-		};
-
-		// ====================================================================
-		// 3. Перевод вертикального колесика мыши в горизонтальный скролл
-		// ====================================================================
 		const onWheel = (e) => {
 			if (e.deltaY === 0) return;
-
-			// Пропускаем горизонтальные жесты трекпада (где deltaX доминирует над deltaY)
+			// Если пользователь скроллит вертикально мышью, переводим дельту в горизонталь
 			if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
 				e.preventDefault();
 				slider.scrollLeft += e.deltaY;
 			}
 		};
 
-		// ====================================================================
-		// 4. Механика перетаскивания мышью (Drag-to-Scroll)
-		// ====================================================================
-		const onMouseDown = (e) => {
-			if (e.button !== 0) return; // Игнорируем правую и среднюю кнопки мыши
-			isDown = true;
-			moved = false;
-			startX = e.clientX;
-			startScrollLeft = slider.scrollLeft;
-		};
-
 		const onMouseMove = (e) => {
 			if (!isDown) return;
-
 			const delta = e.clientX - startX;
 
-			// Активируем режим перетаскивания только после преодоления порога в 5px
 			if (!moved && Math.abs(delta) > DRAG_THRESHOLD_PX) {
 				moved = true;
 				slider.classList.add("is-dragging");
@@ -139,23 +61,38 @@ export function useHorizontalScroll() {
 			}
 		};
 
-		const onMouseUp = () => {
+		const detachWindowDrag = () => {
+			window.removeEventListener("mousemove", onMouseMove);
+			window.removeEventListener("mouseup", onMouseUp);
+			window.removeEventListener("blur", onMouseUp);
+		};
+
+		function onMouseUp() {
 			if (!isDown) return;
 			isDown = false;
 			slider.classList.remove("is-dragging");
+			detachWindowDrag();
 
-			// Страховка: если кнопку отпустили за пределами ленты, событие click не сработает.
-			// Сбрасываем moved в следующем тике (после фазы click), чтобы не заблокировать следующий клик.
+			// Сбрасываем флаг на следующем тике после того, как обработается capture-клик
 			if (moved) {
 				setTimeout(() => {
 					moved = false;
 				}, 0);
 			}
+		}
+
+		const onMouseDown = (e) => {
+			if (e.button !== 0) return;
+			isDown = true;
+			moved = false;
+			startX = e.clientX;
+			startScrollLeft = slider.scrollLeft;
+
+			window.addEventListener("mousemove", onMouseMove);
+			window.addEventListener("mouseup", onMouseUp);
+			window.addEventListener("blur", onMouseUp);
 		};
 
-		// ====================================================================
-		// 5. Блокировка ложного клика по карточке сразу после перетаскивания
-		// ====================================================================
 		const onClickCapture = (e) => {
 			if (moved) {
 				e.stopPropagation();
@@ -164,38 +101,17 @@ export function useHorizontalScroll() {
 			}
 		};
 
-		// ====================================================================
-		// 6. Инициализация наблюдателей и подписка на события
-		// ====================================================================
-		updateFades();
-
-		const resizeObserver = new ResizeObserver(scheduleFadeUpdate);
-		resizeObserver.observe(slider);
-
-		const mutationObserver = new MutationObserver(scheduleFadeUpdate);
-		mutationObserver.observe(slider, { childList: true });
-
-		slider.addEventListener("scroll", onScroll, { passive: true });
+		// wheel требует passive: false для вызова e.preventDefault() при конвертации оси
 		slider.addEventListener("wheel", onWheel, { passive: false });
 		slider.addEventListener("mousedown", onMouseDown);
 		slider.addEventListener("click", onClickCapture, true);
-		window.addEventListener("mousemove", onMouseMove);
-		window.addEventListener("mouseup", onMouseUp);
-		window.addEventListener("blur", onMouseUp);
 
-		// Полная очистка при размонтировании или смене DOM-узла
 		return () => {
-			clearTimeout(scrollTimeout);
-			if (rafId !== null) cancelAnimationFrame(rafId);
-			resizeObserver.disconnect();
-			mutationObserver.disconnect();
-			slider.removeEventListener("scroll", onScroll);
+			scrollTracker.cleanup();
+			detachWindowDrag();
 			slider.removeEventListener("wheel", onWheel);
 			slider.removeEventListener("mousedown", onMouseDown);
 			slider.removeEventListener("click", onClickCapture, true);
-			window.removeEventListener("mousemove", onMouseMove);
-			window.removeEventListener("mouseup", onMouseUp);
-			window.removeEventListener("blur", onMouseUp);
 		};
 	}, [slider]);
 

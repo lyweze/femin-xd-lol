@@ -1,0 +1,150 @@
+/* ==========================================================================
+   Кнопки управления воспроизведением в монолитном стиле macOS
+   ========================================================================== */
+.player-controls {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+
+	&.is-large {
+		gap: 14px;
+
+		> .ctrl-btn {
+			width: 42px;
+			height: 42px;
+
+			svg {
+				transform: scale(1.22);
+			}
+
+			&.ctrl-play {
+				width: 56px;
+				height: 56px;
+				background-color: rgba(255, 255, 255, 0.16);
+
+				&:hover {
+					background-color: rgba(255, 255, 255, 0.24);
+					transform: scale(1.06);
+				}
+
+				&:active {
+					transform: scale(0.93);
+				}
+
+				svg {
+					transform: scale(1.38);
+				}
+			}
+		}
+	}
+
+	> .ctrl-btn {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+
+		border: none;
+		border-radius: 999px;
+		background: transparent;
+		color: var(--text-secondary);
+		cursor: pointer;
+		-webkit-user-select: none;
+		user-select: none;
+
+		transition:
+			background-color 0.16s ease,
+			color 0.16s ease,
+			transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+		&:hover {
+			background-color: var(--surface-hover);
+			color: var(--text-primary);
+		}
+
+		&:active {
+			transform: scale(0.9);
+		}
+
+		&.is-active {
+			background-color: rgba(var(--accent-cover-rgb), 0.18);
+			color: var(--accent-cover);
+
+			&:hover {
+				background-color: rgba(var(--accent-cover-rgb), 0.26);
+			}
+		}
+
+		&.ctrl-play {
+			width: 36px;
+			height: 36px;
+			background-color: var(--surface-active);
+			color: var(--text-primary);
+
+			&:hover {
+				background-color: rgba(230, 227, 221, 0.2);
+				transform: scale(1.05);
+			}
+
+			&:active {
+				transform: scale(0.92);
+			}
+		}
+
+		> .ctrl-repeat-one {
+			position: absolute;
+			top: 2px;
+			right: 2px;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 12px;
+			height: 12px;
+			border-radius: 50%;
+			background-color: var(--accent-cover);
+			font-family: var(--font-mono);
+			font-size: 8px;
+			font-weight: 700;
+			line-height: 1;
+			color: #141413;
+			animation: badgePop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+		}
+	}
+}
+
+@keyframes badgePop {
+	from {
+		opacity: 0;
+		transform: scale(0);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@media (max-width: 640px) {
+	.player-controls.is-large {
+		gap: 16px;
+
+		> .ctrl-btn {
+			width: 44px;
+			height: 44px;
+
+			&.ctrl-play {
+				width: 60px;
+				height: 60px;
+			}
+		}
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.player-controls > .ctrl-btn > .ctrl-repeat-one {
+		animation: none;
+	}
+}

@@ -1,152 +1,124 @@
 // ============================================================================
-// Импорты: состояние, ссылки маршрутизатора, хук скролла и стили медиатеки
+// Медиатека пользователя (`LibraryPage`): альбомы/плейлисты, артисты и лайки
 // ============================================================================
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo } from "react";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
+import { musicApi } from "../../../api/musicApi.js";
+import {
+	MOCK_ALBUMS,
+	MOCK_ARTISTS,
+	MOCK_TRACKS,
+} from "../../../services/mockData.js";
+import { usePlayerState } from "../../../context/playerContexts.js";
+import ArtistCard from "../../shared/artist-card/ArtistCard.jsx";
+import { PlusIcon } from "../../shared/icons/Icons.jsx";
+import MediaCard from "../../shared/media-card/MediaCard.jsx";
+import TrackList from "../../shared/track-list/TrackList.jsx";
 import "./LibraryPage.css";
 
-// ============================================================================
-// Временные данные для вкладок медиатеки
-// ============================================================================
 const FILTER_TABS = [
-    { id: "collections", label: "Albums & Playlists" },
-    { id: "artists", label: "Artists" },
-    { id: "liked", label: "Liked Tracks" },
+	{ id: "collections", label: "Albums & Playlists" },
+	{ id: "artists", label: "Artists" },
+	{ id: "liked", label: "Liked Tracks" },
 ];
 
-const PLACEHOLDER_COLLECTIONS = [
-    {
-        id: "1",
-        title: "Smoked Glass Vol. I",
-        meta: "ALBUM • 2026",
-        to: "/album/1",
-    },
-    {
-        id: "2",
-        title: "Alabaster Echoes",
-        meta: "EP • 2026",
-        to: "/album/2",
-    },
-    {
-        id: "3",
-        title: "Late Night Focus",
-        meta: "PLAYLIST • 12 TRACKS",
-        to: "/playlist/1",
-    },
-    {
-        id: "4",
-        title: "Mastering Reference",
-        meta: "PLAYLIST • 9 TRACKS",
-        to: "/playlist/2",
-    },
-];
-
-const PLACEHOLDER_ARTISTS = [
-    { id: "1", name: "Matte Obsidian" },
-    { id: "2", name: "Nils Frahm" },
-    { id: "3", name: "Rival Consoles" },
-    { id: "4", name: "Kiasmos" },
-];
-
-const PLACEHOLDER_LIKED = [
-    { id: "1", title: "The Rint", artist: "Matte Obsidian", duration: "03:12" },
-    { id: "2", title: "The Skin", artist: "Kiasmos & Olafur", duration: "04:05" },
-    { id: "3", title: "Monolith II", artist: "Ben Böhmer", duration: "05:10" },
-];
-
-/**
- * Страница медиатеки пользователя (`LibraryPage`).
- * Переключается между сеткой альбомов/плейлистов, списком исполнителей
- * и понравившимися треками.
- */
 function LibraryPage() {
-    const [activeTab, setActiveTab] = useState("collections");
-    const scrollRef = useVerticalScroll();
+	const [searchParams, setSearchParams] = useSearchParams();
+	const activeTab = searchParams.get("tab") || "collections";
+	const scrollRef = useVerticalScroll();
+	const outletCtx = useOutletContext();
 
-    return (
-        <div className="library-page">
-            {/* ================================================================
-                1. Шапка медиатеки с фильтр-табами
-               ================================================================ */}
-            <header className="page-header">
-                <h1 className="page-title">Library</h1>
+	const { likedIds, playlists } = usePlayerState();
 
-                <div className="filter-pills" role="tablist" aria-label="Library filters">
-                    {FILTER_TABS.map((tab) => {
-                        const isActive = activeTab === tab.id;
+	const collections = useMemo(() => {
+		const favourites = musicApi.getPlaylist("favourites", likedIds);
+		return [favourites, ...MOCK_ALBUMS, ...playlists].filter(Boolean);
+	}, [likedIds, playlists]);
 
-                        return (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                role="tab"
-                                aria-selected={isActive}
-                                className={`pill-btn ${isActive ? "is-active" : ""}`}
-                                onClick={() => setActiveTab(tab.id)}
-                            >
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            </header>
+	const likedTracks = useMemo(() => {
+		const likedSet = new Set(likedIds);
+		return MOCK_TRACKS.filter((t) => likedSet.has(t.id));
+	}, [likedIds]);
 
-            {/* ================================================================
-                2. Прокручиваемая область выбранной вкладки
-               ================================================================ */}
-            <div className="page-scroll" ref={scrollRef}>
-                {activeTab === "collections" && (
-                    <div className="library-grid">
-                        {PLACEHOLDER_COLLECTIONS.map((item) => (
-                            <Link key={item.id} to={item.to} className="grid-media-card">
-                                <div className="grid-media-cover" aria-hidden="true" />
-                                <span className="grid-media-title">{item.title}</span>
-                                <span className="grid-media-meta">{item.meta}</span>
-                            </Link>
-                        ))}
-                    </div>
-                )}
+	const setTab = (tabId) => {
+		setSearchParams(tabId === "collections" ? {} : { tab: tabId }, { replace: true });
+	};
 
-                {activeTab === "artists" && (
-                    <div className="artists-grid">
-                        {PLACEHOLDER_ARTISTS.map((artist) => (
-                            <Link
-                                key={artist.id}
-                                to={`/artist/${artist.id}`}
-                                className="grid-artist-card"
-                            >
-                                <div className="grid-artist-avatar" aria-hidden="true">
-                                    <span>{artist.name[0]}</span>
-                                </div>
-                                <span className="grid-artist-name">{artist.name}</span>
-                                <span className="grid-artist-role">ARTIST</span>
-                            </Link>
-                        ))}
-                    </div>
-                )}
+	return (
+		<div className="library-page">
+			<header className="page-header">
+				<h1 className="page-title">Library</h1>
 
-                {activeTab === "liked" && (
-                    <ul className="Library is-embedded">
-                        {PLACEHOLDER_LIKED.map((track, idx) => (
-                            <li key={track.id} className="Library-item">
-                                <div className="Library-left">
-                                    <div className="Library-index">
-                                        <span>{idx + 1}</span>
-                                    </div>
-                                    <div className="Library-meta">
-                                        <span className="Library-title">{track.title}</span>
-                                        <span className="Library-artist">{track.artist}</span>
-                                    </div>
-                                </div>
-                                <span className="Library-duration">{track.duration}</span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-        </div>
-    );
+				<div className="filter-pills" role="tablist" aria-label="Library filters">
+					{FILTER_TABS.map((tab) => {
+						const isActive = activeTab === tab.id;
+						const countSuffix =
+							tab.id === "liked" ? ` (${likedTracks.length})` : "";
+
+						return (
+							<button
+								key={tab.id}
+								type="button"
+								role="tab"
+								aria-selected={isActive}
+								className={`pill-btn ${isActive ? "is-active" : ""}`}
+								onClick={() => setTab(tab.id)}
+							>
+								{tab.label}
+								{countSuffix}
+							</button>
+						);
+					})}
+
+					{activeTab === "collections" && outletCtx?.openCreatePlaylist && (
+						<button
+							type="button"
+							className="pill-btn is-create"
+							onClick={outletCtx.openCreatePlaylist}
+						>
+							<PlusIcon size={12} />
+							<span>New Playlist</span>
+						</button>
+					)}
+				</div>
+			</header>
+
+			<div className="page-scroll" ref={scrollRef}>
+				{/* Ключ по вкладке запускает плавное переключение содержимого */}
+				<div key={activeTab} className="library-tab-panel">
+					{activeTab === "collections" && (
+						<div className="library-grid">
+							{collections.map((item) => (
+								<MediaCard
+									key={`${item.type}-${item.id}`}
+									item={item}
+									fluid
+								/>
+							))}
+						</div>
+					)}
+
+					{activeTab === "artists" && (
+						<div className="artists-grid">
+							{MOCK_ARTISTS.map((artist) => (
+								<ArtistCard key={artist.id} artist={artist} fluid />
+							))}
+						</div>
+					)}
+
+					{activeTab === "liked" &&
+						(likedTracks.length === 0 ? (
+							<p className="library-empty-hint">
+								No liked tracks yet. Press ♥ next to any track to save it.
+							</p>
+						) : (
+							<TrackList tracks={likedTracks} />
+						))}
+				</div>
+			</div>
+		</div>
+	);
 }
 
 export default LibraryPage;

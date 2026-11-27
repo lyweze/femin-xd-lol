@@ -1,0 +1,32 @@
+/* ==========================================================================
+   Контейнер полосы прогресса и таймингов трека
+   ========================================================================== */
+.progress-bar-wrap {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	width: 100%;
+	min-width: 0;
+
+	&.is-fullscreen {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 6px;
+
+		> .progress-times-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+	}
+
+	.progress-time {
+		flex-shrink: 0;
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-size: 10px;
+		color: var(--text-secondary);
+		-webkit-user-select: none;
+		user-select: none;
+	}
+}

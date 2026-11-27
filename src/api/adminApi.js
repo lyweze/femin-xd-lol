@@ -1,5 +1,19 @@
-const BASE_URL = "/admin/v1";
+// ============================================================================
+// Клиент Femin. Admin API v1.0 (/admin/v1/*)
+// До подключения бэкенда работает OpenAPI-мок (`VITE_USE_MOCK_ADMIN !== "false"`).
+// Для переключения на реальный сервер достаточно задать VITE_USE_MOCK_ADMIN=false.
+// ============================================================================
+import { createAdminMockApi } from "./adminMockAdapter.js";
 
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
+const BASE_URL = `${API_ORIGIN}/admin/v1`;
+
+/** Флаг активности встроенного OpenAPI-мока вместо реального HTTP-сервера */
+export const IS_MOCK_ADMIN_MODE = import.meta.env.VITE_USE_MOCK_ADMIN !== "false";
+
+/**
+ * Типизированная ошибка Admin API с HTTP-статусом и машинным кодом (например `CONFLICT`, `VALIDATION_ERROR`).
+ */
 export class AdminApiError extends Error {
 	constructor(status, code, message) {
 		super(message || code || `HTTP ${status}`);
@@ -9,6 +23,7 @@ export class AdminApiError extends Error {
 	}
 }
 
+/** Сериализует объект фильтров в query-строку, отбрасывая пустые значения */
 function buildQuery(params = {}) {
 	const search = new URLSearchParams();
 	Object.entries(params).forEach(([key, value]) => {
@@ -20,6 +35,10 @@ function buildQuery(params = {}) {
 	return qs ? `?${qs}` : "";
 }
 
+/**
+ * Универсальный HTTP-транспорт для `/admin/v1/*` с поддержкой JSON и бинарных `Blob`/`File` загрузок.
+ * Отправляет cookie-сессию через `credentials: "include"`.
+ */
 async function request(path, { method = "GET", body, headers = {} } = {}) {
 	const isBinary = body instanceof Blob || body instanceof File;
 	const requestHeaders = { ...headers };
@@ -54,8 +73,8 @@ async function request(path, { method = "GET", body, headers = {} } = {}) {
 	return data;
 }
 
-export const adminApi = {
-	// Artists
+const liveAdminApi = {
+	// --- Артисты ---
 	listArtists: (params) => request(`/artists${buildQuery(params)}`),
 	getArtist: (artistId) => request(`/artists/${artistId}`),
 	createArtist: (body) => request("/artists", { method: "POST", body }),
@@ -66,7 +85,7 @@ export const adminApi = {
 	uploadArtistAvatar: (artistId, file) =>
 		request(`/artists/${artistId}/avatar`, { method: "PUT", body: file }),
 
-	// Albums
+	// --- Альбомы и публикация ---
 	listAlbums: (params) => request(`/albums${buildQuery(params)}`),
 	getAlbum: (albumId) => request(`/albums/${albumId}`),
 	createAlbum: (body) => request("/albums", { method: "POST", body }),
@@ -88,7 +107,7 @@ export const adminApi = {
 	unpublishAlbum: (albumId) =>
 		request(`/albums/${albumId}/unpublish`, { method: "POST" }),
 
-	// Tracks & Uploads
+	// --- Треки и аудио-загрузка ---
 	listTracks: (params) => request(`/tracks${buildQuery(params)}`),
 	getTrack: (trackId) => request(`/tracks/${trackId}`),
 	createTrack: (body) => request("/tracks", { method: "POST", body }),
@@ -100,16 +119,21 @@ export const adminApi = {
 	reprocessTrack: (trackId) =>
 		request(`/tracks/${trackId}/reprocess`, { method: "POST" }),
 
-	// Lyrics
+	// --- Тексты песен ---
 	listTrackLyrics: (trackId) => request(`/tracks/${trackId}/lyrics`),
 	putTrackLyrics: (trackId, language, body) =>
 		request(`/tracks/${trackId}/lyrics/${language}`, { method: "PUT", body }),
 	deleteTrackLyrics: (trackId, language) =>
 		request(`/tracks/${trackId}/lyrics/${language}`, { method: "DELETE" }),
 
-	// Users
+	// --- Пользователи и роли ---
 	listUsers: (params) => request(`/users${buildQuery(params)}`),
 	createUser: (body) => request("/users", { method: "POST", body }),
 	setUserRole: (userId, role) =>
 		request(`/users/${userId}/role`, { method: "PUT", body: { role } }),
 };
+
+/** Активный экземпляр Admin API (мок или боевой HTTP-клиент) */
+export const adminApi = IS_MOCK_ADMIN_MODE
+	? createAdminMockApi(AdminApiError)
+	: liveAdminApi;

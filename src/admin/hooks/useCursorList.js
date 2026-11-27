@@ -1,57 +1,94 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+// ============================================================================
+// Универсальный хук курсорной пагинации для списков Admin Studio
+// ============================================================================
+import { useState, useCallback, useEffect } from "react";
 
+/**
+ * Управляет загрузкой первой страницы по фильтрам, догрузкой через `next_cursor`,
+ * принудительным обновлением (`refresh`) и локальным обновлением элементов без рефетча.
+ */
 export function useCursorList(fetcher, initialParams = {}) {
-	const [items, setItems] = useState([]);
-	const [nextCursor, setNextCursor] = useState(null);
 	const [params, setParams] = useState(initialParams);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState(null);
-	const requestIdRef = useRef(0);
+	const [refreshTick, setRefreshTick] = useState(0);
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-	const load = useCallback(
-		async (cursor = null, activeParams = params) => {
-			const currentId = ++requestIdRef.current;
-			setIsLoading(true);
-			setError(null);
-
-			try {
-				const data = await fetcher({ ...activeParams, cursor });
-				if (currentId !== requestIdRef.current) return;
-
-				setItems((prev) => (cursor ? [...prev, ...data.items] : data.items));
-				setNextCursor(data.next_cursor ?? null);
-			} catch (err) {
-				if (currentId === requestIdRef.current) setError(err);
-			} finally {
-				if (currentId === requestIdRef.current) setIsLoading(false);
-			}
-		},
-		[fetcher, params],
-	);
+	// Ключ запроса однозначно связывает результат fetch с текущими фильтрами
+	const activeKey = JSON.stringify({ params, refreshTick });
+	const [state, setState] = useState({
+		items: [],
+		nextCursor: null,
+		fetchedKey: null,
+		error: null,
+	});
 
 	useEffect(() => {
-		load(null, params);
-	}, [params, load]);
+		let cancelled = false;
 
-	const loadMore = useCallback(() => {
-		if (nextCursor && !isLoading) {
-			load(nextCursor, params);
+		fetcher({ ...params, cursor: null })
+			.then((data) => {
+				if (cancelled) return;
+				setState({
+					items: data.items ?? [],
+					nextCursor: data.next_cursor ?? null,
+					fetchedKey: activeKey,
+					error: null,
+				});
+			})
+			.catch((err) => {
+				if (cancelled) return;
+				setState((prev) => ({
+					...prev,
+					fetchedKey: activeKey,
+					error: err,
+				}));
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [fetcher, params, activeKey]);
+
+	const setItems = useCallback((updater) => {
+		setState((prev) => ({
+			...prev,
+			items: typeof updater === "function" ? updater(prev.items) : updater,
+		}));
+	}, []);
+
+	/** Догружает следующую страницу, добавляя записи в конец текущего списка */
+	const loadMore = useCallback(async () => {
+		if (!state.nextCursor || isLoadingMore) return;
+		setIsLoadingMore(true);
+		try {
+			const data = await fetcher({ ...params, cursor: state.nextCursor });
+			setState((prev) => ({
+				...prev,
+				items: [...prev.items, ...(data.items ?? [])],
+				nextCursor: data.next_cursor ?? null,
+				error: null,
+			}));
+		} catch (err) {
+			setState((prev) => ({ ...prev, error: err }));
+		} finally {
+			setIsLoadingMore(false);
 		}
-	}, [nextCursor, isLoading, load, params]);
+	}, [fetcher, params, state.nextCursor, isLoadingMore]);
 
 	const updateFilters = useCallback((patch) => {
 		setParams((prev) => ({ ...prev, ...patch }));
 	}, []);
 
-	const refresh = useCallback(() => load(null, params), [load, params]);
+	const refresh = useCallback(() => {
+		setRefreshTick((t) => t + 1);
+	}, []);
 
 	return {
-		items,
+		items: state.items,
 		setItems,
 		params,
-		hasMore: Boolean(nextCursor),
-		isLoading,
-		error,
+		hasMore: Boolean(state.nextCursor),
+		isLoading: isLoadingMore || state.fetchedKey !== activeKey,
+		error: state.error,
 		loadMore,
 		updateFilters,
 		refresh,

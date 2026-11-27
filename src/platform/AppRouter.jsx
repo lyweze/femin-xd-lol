@@ -1,23 +1,19 @@
 // ============================================================================
-// Импорты: хуки React и адаптивный роутер для Web / Desktop (Tauri)
+// Адаптивный роутер для Web (`BrowserRouter`) и Desktop / Tauri (`HashRouter`)
 // ============================================================================
 import { useEffect } from "react";
 import { BrowserRouter, HashRouter } from "react-router-dom";
-
-/** Флаг запуска внутри десктопного контейнера Tauri */
-export const IS_DESKTOP =
-    typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__);
+import { IS_DESKTOP } from "./env.js";
 
 /**
- * Платформенный маршрутизатор (`AppRouter`).
- * Использует `HashRouter` в десктопной сборке (Tauri) и `BrowserRouter` в вебе,
- * а также проставляет модификатор `.is-desktop` на корневой `<html>`.
+ * Проставляет модификатор `.is-desktop` на корневой `<html>` (резервирует место под titlebar macOS)
+ * и выбирает маршрутизатор под среду исполнения.
  */
 export function AppRouter({ children }) {
-    useEffect(() => {
-        document.documentElement.classList.toggle("is-desktop", IS_DESKTOP);
-    }, []);
+	useEffect(() => {
+		document.documentElement.classList.toggle("is-desktop", IS_DESKTOP);
+	}, []);
 
-    const Router = IS_DESKTOP ? HashRouter : BrowserRouter;
-    return <Router>{children}</Router>;
+	const Router = IS_DESKTOP ? HashRouter : BrowserRouter;
+	return <Router>{children}</Router>;
 }

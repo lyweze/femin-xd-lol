@@ -1,53 +1,61 @@
 /* ==========================================================================
-   1. Подключение шрифтов Google Fonts (мягкая геометрия без засечек)
-   ========================================================================== */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Outfit:wght@400;500;600&family=Rubik:wght@400;500&display=swap");
-
-/* ==========================================================================
-   2. Дизайн-токены и глобальные переменные (Warm Spatial Minimalism)
+   Дизайн-токены и глобальные переменные (Matte Obsidian & Smoked Glass)
    ========================================================================== */
 :root {
-    color-scheme: dark;
+	color-scheme: dark;
 
-    /* --- Фоновые слои и материалы (Matte Obsidian & Smoked Glass) --- */
-    --bg-canvas: #161615;
-    --surface-sidebar: rgba(27, 27, 25, 0.75);
-    --surface-player: rgba(34, 34, 32, 0.8);
-    --surface-hover: rgba(230, 227, 221, 0.04);
-    --surface-active: rgba(230, 227, 221, 0.08);
-    --ambient-mask: rgba(22, 22, 21, 0.88);
+	/* --- Фоновые слои и дымчатое стекло (мягкое тональное разделение) --- */
+	--bg-canvas: #121211;
+	--surface-sidebar: rgba(24, 24, 22, 0.68);
+	--surface-drawer: rgba(22, 22, 20, 0.92);
+	--surface-main: rgba(20, 20, 19, 0.64);
+	--surface-player: rgba(28, 28, 26, 0.8);
+	--surface-tabbar: rgba(20, 20, 19, 0.86);
+	--surface-elevated: rgba(230, 227, 221, 0.048);
+	--surface-hover: rgba(230, 227, 221, 0.088);
+	--surface-active: rgba(230, 227, 221, 0.13);
 
-    /* --- Эффекты размытия (Glassmorphism) и тени --- */
-    --blur-sidebar: blur(32px);
-    --blur-player: blur(48px);
-    --blur-ambient: blur(140px);
-    --shadow-player: 0 0 8px 4px rgba(0, 0, 0, 0.22);
+	/* --- Лёгкий blur только для плавающей капсулы плеера и таб-бара --- */
+	--blur-player: blur(20px) saturate(1.2);
+	--shadow-player: 0 10px 28px rgba(0, 0, 0, 0.24);
 
-    /* --- Тонкие границы и блики поверхностей (1px) --- */
-    --border-hairline: rgba(230, 227, 221, 0.05);
-    --border-specular: rgba(255, 255, 255, 0.07);
+	/* --- Цвета типографики --- */
+	--text-primary: #ece9e2;
+	--text-secondary: #9c978e;
+	--text-tertiary: #6b6861;
 
-    /* --- Цвета типографики --- */
-    --text-primary: #e6e3dd;
-    --text-secondary: #8a867e;
-    --text-tertiary: #52504b;
+	/* --- Динамический акцент обложки (обновляется из cover.js) --- */
+	--accent-cover: #c56b4e;
+	--accent-cover-rgb: 197, 107, 78;
 
-    /* --- Динамический акцент обложки (обновляется из JS под текущий трек) --- */
-    --accent-cover: #c56b4e;
+	/* --- Семейства шрифтов --- */
+	--font-editorial: "Outfit", "Rubik", -apple-system, BlinkMacSystemFont, sans-serif;
+	--font-ui: "Rubik", -apple-system, BlinkMacSystemFont, sans-serif;
+	--font-mono: "JetBrains Mono", "SF Mono", monospace;
 
-    /* --- Семейства шрифтов --- */
-    /* Мягкий геометрический гротеск для заголовков (с фолбэком на Rubik для кириллицы) */
-    --font-editorial: "Outfit", "Rubik", -apple-system, BlinkMacSystemFont, sans-serif;
-    /* Округлый гротеск для кнопок, навигации и списков */
-    --font-ui: "Rubik", -apple-system, BlinkMacSystemFont, sans-serif;
-    /* Моноширинный шрифт для таймкодов и технических метаданных */
-    --font-mono: "JetBrains Mono", "SF Mono", monospace;
+	/* --- Гармоничные скругления и адаптивные отступы --- */
+	--radius-window: 24px;
+	--radius-player: 26px;
+	--radius-cover: 16px;
+	--radius-item: 12px;
+	--radius-sm: 10px;
+	--layout-inset: 14px;
+	--titlebar-height: 0px;
+	--mobile-tabbar-height: 58px;
+}
 
-    /* --- Скругления и базовые отступы сетки --- */
-    --radius-window: 16px;
-    --radius-player: 20px;
-    --radius-cover: 12px;
-    --radius-item: 8px;
-    --layout-inset: 12px;
-    --titlebar-height: 0px;
+@media (max-width: 1024px) {
+	:root {
+		--layout-inset: 10px;
+		--radius-window: 20px;
+		--radius-player: 22px;
+	}
+}
+
+@media (max-width: 640px) {
+	:root {
+		--layout-inset: 0px;
+		--radius-window: 0px;
+		--radius-cover: 14px;
+	}
 }

@@ -1,25 +1,30 @@
+// ============================================================================
+// Хук управления списком альбомов в админке
+// ============================================================================
 import { useCallback } from "react";
 import { adminApi } from "../../api/adminApi.js";
 import { useCursorList } from "./useCursorList.js";
 
+/** Подключает пагинацию альбомов, создание черновика и удаление релиза */
 export function useAlbums(initialFilters = {}) {
 	const list = useCursorList(adminApi.listAlbums, initialFilters);
+	const { setItems } = list;
 
 	const createAlbum = useCallback(
 		async (payload) => {
 			const { album } = await adminApi.createAlbum(payload);
-			list.setItems((prev) => [album, ...prev]);
+			setItems((prev) => [album, ...prev]);
 			return album;
 		},
-		[list],
+		[setItems],
 	);
 
 	const deleteAlbum = useCallback(
 		async (albumId) => {
 			await adminApi.deleteAlbum(albumId);
-			list.setItems((prev) => prev.filter((a) => a.id !== albumId));
+			setItems((prev) => prev.filter((a) => a.id !== albumId));
 		},
-		[list],
+		[setItems],
 	);
 
 	return {
