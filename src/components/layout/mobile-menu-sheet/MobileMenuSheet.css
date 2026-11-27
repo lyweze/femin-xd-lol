@@ -197,7 +197,19 @@
 			display: flex;
 			align-items: center;
 			gap: 10px;
+			flex: 1 1 0%;
 			min-width: 0;
+			padding: 4px 6px 4px 2px;
+			border: none;
+			border-radius: 12px;
+			background: transparent;
+			text-align: left;
+			cursor: pointer;
+			transition: background-color 0.14s ease;
+
+			&:active {
+				background-color: var(--surface-hover);
+			}
 
 			> .mobile-sheet-avatar {
 				display: flex;
@@ -222,6 +234,7 @@
 				flex-direction: column;
 				gap: 1px;
 				min-width: 0;
+				flex: 1;
 
 				> .mobile-sheet-account-name {
 					font-family: var(--font-editorial);
@@ -237,6 +250,14 @@
 					font-size: 9.5px;
 					color: var(--text-secondary);
 				}
+			}
+
+			> .mobile-sheet-account-edit {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--text-secondary);
+				flex-shrink: 0;
 			}
 		}
 

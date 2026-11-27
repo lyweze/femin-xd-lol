@@ -9,6 +9,7 @@ import {
 } from "../../../context/playerContexts.js";
 import { handleCoverError } from "../../../utils/cover.js";
 import { formatArtistNames } from "../../../utils/format.js";
+import { hasTrackLyrics } from "../../../utils/lrc.js";
 import ArtistLinks from "../../shared/artist-links/ArtistLinks.jsx";
 import {
 	ExpandIcon,
@@ -17,6 +18,7 @@ import {
 	NextIcon,
 	PauseIcon,
 	PlayIcon,
+	QueueIcon,
 } from "../../shared/icons/Icons.jsx";
 import VolumeControl from "../../shared/volume-control/VolumeControl.jsx";
 import PlayerControls from "../player-controls/PlayerControls.jsx";
@@ -121,6 +123,7 @@ function DesktopFloatingBar({
 	isLiked,
 	hasLyrics,
 	isFullscreenOpen,
+	isQueueActive,
 	volume,
 	isMuted,
 	onOpenFullscreen,
@@ -203,6 +206,16 @@ function DesktopFloatingBar({
 						<LyricsIcon />
 					</button>
 
+					<button
+						type="button"
+						className={`player-icon-btn ${isQueueActive ? "is-active" : ""}`}
+						onClick={() => onOpenFullscreen("queue")}
+						title="Playing Next (Q)"
+						aria-label="Open playing next queue"
+					>
+						<QueueIcon />
+					</button>
+
 					<VolumeControl
 						volume={volume}
 						isMuted={isMuted}
@@ -224,6 +237,7 @@ function FloatingPlayer({ isMobile = false }) {
 		likedIds,
 		lyricsByTrack,
 		isFullscreenOpen,
+		fullscreenPane,
 		volume,
 		isMuted,
 	} = usePlayerState();
@@ -239,10 +253,7 @@ function FloatingPlayer({ isMobile = false }) {
 	if (!currentTrack) return null;
 
 	const isLiked = likedIds.includes(currentTrack.id);
-	const hasLyrics =
-		(lyricsByTrack?.[currentTrack.id]?.length ??
-			currentTrack.lyrics_languages?.length ??
-			0) > 0;
+	const hasLyrics = hasTrackLyrics(currentTrack, lyricsByTrack);
 
 	if (isMobile) {
 		return (
@@ -264,6 +275,7 @@ function FloatingPlayer({ isMobile = false }) {
 			isLiked={isLiked}
 			hasLyrics={hasLyrics}
 			isFullscreenOpen={isFullscreenOpen}
+			isQueueActive={isFullscreenOpen && fullscreenPane === "queue"}
 			volume={volume}
 			isMuted={isMuted}
 			onOpenFullscreen={openFullscreen}

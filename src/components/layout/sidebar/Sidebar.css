@@ -367,6 +367,23 @@
 				text-overflow: ellipsis;
 			}
 		}
+
+		> .account-edit-icon {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: var(--text-tertiary);
+			flex-shrink: 0;
+			opacity: 0.72;
+			transition:
+				color 0.16s ease,
+				opacity 0.16s ease;
+		}
+
+		&:hover > .account-edit-icon {
+			color: var(--text-primary);
+			opacity: 1;
+		}
 	}
 }
 

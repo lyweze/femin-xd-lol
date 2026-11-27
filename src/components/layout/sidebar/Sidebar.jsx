@@ -1,12 +1,12 @@
 // ============================================================================
 // Боковая панель навигации и плейлистов (`Sidebar` для десктопа и планшетов)
 // ============================================================================
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../context/authContext.js";
 import { usePlayerState } from "../../../context/playerContexts.js";
 import { IS_DESKTOP } from "../../../platform/env.js";
 import { getAccountSummary } from "../../../utils/format.js";
-import { PlusIcon, SidebarIcon } from "../../shared/icons/Icons.jsx";
+import { EditIcon, PlusIcon, SidebarIcon } from "../../shared/icons/Icons.jsx";
 import "./Sidebar.css";
 
 const MAIN_NAV_ITEMS = [
@@ -16,8 +16,7 @@ const MAIN_NAV_ITEMS = [
 ];
 
 function Sidebar({ isOpen = true, onToggle, onCreatePlaylist }) {
-	const navigate = useNavigate();
-	const { user, isAdmin } = useAuth();
+	const { user, isAdmin, openAccountModal } = useAuth();
 	const { likedIds, playlists } = usePlayerState();
 
 	// Когда сайдбар свёрнут в ширину 0, исключаем ссылки из порядка Tab-навигации
@@ -122,19 +121,22 @@ function Sidebar({ isOpen = true, onToggle, onCreatePlaylist }) {
 				type="button"
 				className="sidebar-account"
 				tabIndex={interactiveTabIndex}
-				aria-label="Account"
-				onClick={() => {
-					if (isAdmin && !IS_DESKTOP) navigate("/admin/albums");
-				}}
+				title="Change account name"
+				aria-label="Edit account name"
+				onClick={openAccountModal}
 			>
 				<div className="account-avatar" aria-hidden="true">
 					<span>{initialLetter}</span>
 				</div>
 
 				<div className="account-meta">
-					<span className="account-name">{user?.username || "Guest"}</span>
+					<span className="account-name">{user?.username || "User"}</span>
 					<span className="account-sub">{accountSub}</span>
 				</div>
+
+				<span className="account-edit-icon" aria-hidden="true">
+					<EditIcon size={12} />
+				</span>
 			</button>
 		</aside>
 	);

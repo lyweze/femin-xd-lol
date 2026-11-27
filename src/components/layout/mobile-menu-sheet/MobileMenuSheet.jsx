@@ -2,15 +2,15 @@
 // Мобильная нижняя шторка плейлистов, Избранного и профиля (`MobileMenuSheet`)
 // Поддерживает закрытие тапом по фону, клавишей Escape и свайпом вниз.
 // ============================================================================
-import { useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/authContext.js";
 import { usePlayerState } from "../../../context/playerContexts.js";
+import { useEscapeKey } from "../../../hooks/useEscapeKey.js";
 import { useSwipeToDismiss } from "../../../hooks/useSwipeToDismiss.js";
 import { IS_DESKTOP } from "../../../platform/env.js";
 import { formatTrackCount, getAccountSummary } from "../../../utils/format.js";
 import CollectionCover from "../../shared/collection-cover/CollectionCover.jsx";
-import { CloseIcon, PlusIcon } from "../../shared/icons/Icons.jsx";
+import { CloseIcon, EditIcon, PlusIcon } from "../../shared/icons/Icons.jsx";
 import "./MobileMenuSheet.css";
 
 const SWIPE_CLOSE_THRESHOLD_PX = 80;
@@ -24,7 +24,7 @@ const FAVOURITES_SHEET_ITEM = {
 
 function MobileMenuSheet({ isOpen, onClose, onCreatePlaylist }) {
 	const navigate = useNavigate();
-	const { user, isAdmin } = useAuth();
+	const { user, isAdmin, openAccountModal } = useAuth();
 	const { likedIds, playlists } = usePlayerState();
 
 	const { dragOffsetY, isSwiping, touchHandlers } = useSwipeToDismiss({
@@ -33,15 +33,7 @@ function MobileMenuSheet({ isOpen, onClose, onCreatePlaylist }) {
 		onDismiss: onClose,
 	});
 
-	// Закрытие шторки по Escape на устройствах с подключённой клавиатурой
-	useEffect(() => {
-		if (!isOpen) return;
-		const onKeyDown = (e) => {
-			if (e.key === "Escape") onClose();
-		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [isOpen, onClose]);
+	useEscapeKey(isOpen, onClose);
 
 	if (!isOpen) return null;
 
@@ -132,17 +124,28 @@ function MobileMenuSheet({ isOpen, onClose, onCreatePlaylist }) {
 				</div>
 
 				<div className="mobile-sheet-footer">
-					<div className="mobile-sheet-account">
+					<button
+						type="button"
+						className="mobile-sheet-account"
+						onClick={() => {
+							onClose();
+							openAccountModal();
+						}}
+						aria-label="Edit account name"
+					>
 						<div className="mobile-sheet-avatar" aria-hidden="true">
 							<span>{initialLetter}</span>
 						</div>
 						<div className="mobile-sheet-account-meta">
 							<span className="mobile-sheet-account-name">
-								{user?.username || "Guest"}
+								{user?.username || "User"}
 							</span>
 							<span className="mobile-sheet-account-sub">{accountSub}</span>
 						</div>
-					</div>
+						<span className="mobile-sheet-account-edit" aria-hidden="true">
+							<EditIcon size={13} />
+						</span>
+					</button>
 
 					{isAdmin && !IS_DESKTOP && (
 						<button

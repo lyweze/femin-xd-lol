@@ -9,7 +9,6 @@ import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll.js";
 import { useMediaQuery } from "../../../hooks/useMediaQuery.js";
 import { musicApi } from "../../../api/musicApi.js";
 import { usePlayerState } from "../../../context/playerContexts.js";
-import { MOCK_TRACKS } from "../../../services/mockData.js";
 import ArtistCard from "../../shared/artist-card/ArtistCard.jsx";
 import MediaCard from "../../shared/media-card/MediaCard.jsx";
 import TrackList from "../../shared/track-list/TrackList.jsx";
@@ -23,8 +22,6 @@ const BROWSE_MOODS = [
 	{ label: "Mastering Reference", query: "Reference" },
 ];
 
-const RECENT_TRACKS = MOCK_TRACKS.slice(0, 5);
-
 function SearchPage() {
 	const isMobile = useMediaQuery("(max-width: 768px)");
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -34,11 +31,13 @@ function SearchPage() {
 	const scrollRef = useVerticalScroll();
 	const artistsRef = useHorizontalScroll();
 	const releasesRef = useHorizontalScroll();
-	const { playlists } = usePlayerState();
+	const { playlists, catalogTracks } = usePlayerState();
+
+	const recentTracks = useMemo(() => catalogTracks.slice(0, 6), [catalogTracks]);
 
 	const results = useMemo(
-		() => musicApi.searchCatalog(deferredQuery, playlists),
-		[deferredQuery, playlists],
+		() => musicApi.searchCatalog(deferredQuery, playlists, catalogTracks),
+		[deferredQuery, playlists, catalogTracks],
 	);
 	const collections = useMemo(
 		() => [...results.albums, ...results.playlists],
@@ -106,7 +105,7 @@ function SearchPage() {
 
 						<section className="search-section">
 							<h2 className="section-title">Recent Tracks</h2>
-							<TrackList tracks={RECENT_TRACKS} queueTracks={MOCK_TRACKS} />
+							<TrackList tracks={recentTracks} queueTracks={catalogTracks} />
 						</section>
 					</>
 				) : !hasAnyResult ? (

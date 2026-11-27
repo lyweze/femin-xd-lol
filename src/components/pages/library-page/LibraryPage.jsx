@@ -5,12 +5,8 @@ import { useMemo } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
 import { musicApi } from "../../../api/musicApi.js";
-import {
-	MOCK_ALBUMS,
-	MOCK_ARTISTS,
-	MOCK_TRACKS,
-} from "../../../services/mockData.js";
-import { usePlayerState } from "../../../context/playerContexts.js";
+import { MOCK_ALBUMS } from "../../../services/mockData.js";
+import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
 import ArtistCard from "../../shared/artist-card/ArtistCard.jsx";
 import { PlusIcon } from "../../shared/icons/Icons.jsx";
 import MediaCard from "../../shared/media-card/MediaCard.jsx";
@@ -21,6 +17,7 @@ const FILTER_TABS = [
 	{ id: "collections", label: "Albums & Playlists" },
 	{ id: "artists", label: "Artists" },
 	{ id: "liked", label: "Liked Tracks" },
+	{ id: "uploads", label: "Uploads" },
 ];
 
 function LibraryPage() {
@@ -29,17 +26,28 @@ function LibraryPage() {
 	const scrollRef = useVerticalScroll();
 	const outletCtx = useOutletContext();
 
-	const { likedIds, playlists } = usePlayerState();
+	const { likedIds, playlists, localTracks, catalogTracks } = usePlayerState();
+	const { openTrackUploader } = usePlayerActions();
 
 	const collections = useMemo(() => {
-		const favourites = musicApi.getPlaylist("favourites", likedIds);
+		const favourites = musicApi.getPlaylist(
+			"favourites",
+			likedIds,
+			playlists,
+			catalogTracks,
+		);
 		return [favourites, ...MOCK_ALBUMS, ...playlists].filter(Boolean);
-	}, [likedIds, playlists]);
+	}, [likedIds, playlists, catalogTracks]);
 
 	const likedTracks = useMemo(() => {
 		const likedSet = new Set(likedIds);
-		return MOCK_TRACKS.filter((t) => likedSet.has(t.id));
-	}, [likedIds]);
+		return catalogTracks.filter((t) => likedSet.has(t.id));
+	}, [likedIds, catalogTracks]);
+
+	const artists = useMemo(
+		() => musicApi.getArtists(catalogTracks),
+		[catalogTracks],
+	);
 
 	const setTab = (tabId) => {
 		setSearchParams(tabId === "collections" ? {} : { tab: tabId }, { replace: true });
@@ -54,7 +62,11 @@ function LibraryPage() {
 					{FILTER_TABS.map((tab) => {
 						const isActive = activeTab === tab.id;
 						const countSuffix =
-							tab.id === "liked" ? ` (${likedTracks.length})` : "";
+							tab.id === "liked"
+								? ` (${likedTracks.length})`
+								: tab.id === "uploads"
+									? ` (${localTracks.length})`
+									: "";
 
 						return (
 							<button
@@ -71,16 +83,27 @@ function LibraryPage() {
 						);
 					})}
 
-					{activeTab === "collections" && outletCtx?.openCreatePlaylist && (
+					<div className="library-header-actions">
 						<button
 							type="button"
 							className="pill-btn is-create"
-							onClick={outletCtx.openCreatePlaylist}
+							onClick={openTrackUploader}
 						>
 							<PlusIcon size={12} />
-							<span>New Playlist</span>
+							<span>Add Track</span>
 						</button>
-					)}
+
+						{activeTab === "collections" && outletCtx?.openCreatePlaylist && (
+							<button
+								type="button"
+								className="pill-btn is-create"
+								onClick={outletCtx.openCreatePlaylist}
+							>
+								<PlusIcon size={12} />
+								<span>New Playlist</span>
+							</button>
+						)}
+					</div>
 				</div>
 			</header>
 
@@ -101,7 +124,7 @@ function LibraryPage() {
 
 					{activeTab === "artists" && (
 						<div className="artists-grid">
-							{MOCK_ARTISTS.map((artist) => (
+							{artists.map((artist) => (
 								<ArtistCard key={artist.id} artist={artist} fluid />
 							))}
 						</div>
@@ -114,6 +137,26 @@ function LibraryPage() {
 							</p>
 						) : (
 							<TrackList tracks={likedTracks} />
+						))}
+
+					{activeTab === "uploads" &&
+						(localTracks.length === 0 ? (
+							<div className="library-uploads-empty">
+								<p className="library-empty-hint">
+									No local tracks yet. Upload an MP3, WAV, M4A or FLAC with custom
+									cover and optional lyrics.
+								</p>
+								<button
+									type="button"
+									className="library-upload-cta"
+									onClick={openTrackUploader}
+								>
+									<PlusIcon size={13} />
+									<span>Upload Track</span>
+								</button>
+							</div>
+						) : (
+							<TrackList tracks={localTracks} />
 						))}
 				</div>
 			</div>

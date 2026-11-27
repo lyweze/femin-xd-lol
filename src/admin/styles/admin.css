@@ -115,11 +115,35 @@
 
 .admin-user-chip {
 	display: flex;
-	flex-direction: column;
-	gap: 2px;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
 	padding: 11px 14px;
+	border: none;
 	border-radius: var(--radius-item);
 	background-color: var(--surface-elevated);
+	text-align: left;
+	color: var(--text-secondary);
+
+	&.is-interactive {
+		cursor: pointer;
+		transition:
+			background-color 0.16s ease,
+			color 0.16s ease;
+
+		&:hover {
+			background-color: var(--surface-hover);
+			color: var(--text-primary);
+		}
+	}
+}
+
+.admin-user-chip-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
 }
 
 .admin-user-name {

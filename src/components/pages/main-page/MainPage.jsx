@@ -6,8 +6,9 @@ import { useMemo } from "react";
 import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll.js";
 import { useMediaQuery } from "../../../hooks/useMediaQuery.js";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
-import { musicApi } from "../../../api/musicApi.js";
-import { usePlayerState } from "../../../context/playerContexts.js";
+import { MOCK_ALBUMS } from "../../../services/mockData.js";
+import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
+import { PlusIcon } from "../../shared/icons/Icons.jsx";
 import MediaCard from "../../shared/media-card/MediaCard.jsx";
 import TrackList from "../../shared/track-list/TrackList.jsx";
 import "./MainPage.css";
@@ -18,14 +19,29 @@ function MainPage() {
 	const libraryRef = useVerticalScroll();
 	const mobileScrollRef = useVerticalScroll();
 
-	const { playlists } = usePlayerState();
-	const { albums, tracks } = useMemo(() => musicApi.getHomeData(), []);
-	const shelfItems = useMemo(() => [...albums, ...playlists], [albums, playlists]);
+	const { playlists, catalogTracks } = usePlayerState();
+	const { openTrackUploader } = usePlayerActions();
+	const shelfItems = useMemo(
+		() => [...MOCK_ALBUMS, ...playlists],
+		[playlists],
+	);
 
 	const header = (
-		<header className="page-header">
-			<h1 className="page-title">Now Playing</h1>
-			<p className="page-subtitle">Fresh releases & your rotation</p>
+		<header className="page-header main-page-header">
+			<div className="main-header-copy">
+				<h1 className="page-title">Now Playing</h1>
+				<p className="page-subtitle">Fresh releases & your rotation</p>
+			</div>
+
+			<button
+				type="button"
+				className="main-upload-btn"
+				onClick={openTrackUploader}
+				title="Upload local MP3 track"
+			>
+				<PlusIcon size={13} />
+				<span>Add Track</span>
+			</button>
 		</header>
 	);
 
@@ -44,7 +60,7 @@ function MainPage() {
 					{header}
 					{shelf}
 					<h2 className="section-title">Tracks</h2>
-					<TrackList tracks={tracks} embedded ariaLabel="Library" />
+					<TrackList tracks={catalogTracks} embedded ariaLabel="Library" />
 				</div>
 			</div>
 		);
@@ -55,7 +71,7 @@ function MainPage() {
 			{header}
 			{shelf}
 			<TrackList
-				tracks={tracks}
+				tracks={catalogTracks}
 				embedded={false}
 				listRef={libraryRef}
 				ariaLabel="Library"

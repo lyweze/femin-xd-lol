@@ -37,15 +37,15 @@ function PlaylistPage({ kind = "playlist" }) {
 	const scrollRef = useVerticalScroll();
 	const [isEditing, setIsEditing] = useState(false);
 
-	const { likedIds, playlists, durationOverrides } = usePlayerState();
+	const { likedIds, playlists, catalogTracks, durationOverrides } = usePlayerState();
 	const { playQueue, updatePlaylist, deletePlaylist } = usePlayerActions();
 
 	const collection = useMemo(
 		() =>
 			kind === "album"
 				? musicApi.getAlbum(id)
-				: musicApi.getPlaylist(id, likedIds, playlists),
-		[kind, id, likedIds, playlists],
+				: musicApi.getPlaylist(id, likedIds, playlists, catalogTracks),
+		[kind, id, likedIds, playlists, catalogTracks],
 	);
 
 	const tracks = useMemo(() => collection?.tracks ?? [], [collection]);

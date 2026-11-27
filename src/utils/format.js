@@ -91,7 +91,7 @@ export function formatTrackCount(count, { uppercase = false } = {}) {
  * Формирует инициалы и подпись режима для виджета профиля в навигации.
  */
 export function getAccountSummary(user, isAdmin) {
-	const initialLetter = user?.username?.[0]?.toUpperCase() || "D";
+	const initialLetter = user?.username?.[0]?.toUpperCase() || "U";
 	const mode = user?.mode || "LOCAL";
 	const subtitle = isAdmin ? `ADMIN • ${mode}` : mode;
 	return { initialLetter, subtitle };

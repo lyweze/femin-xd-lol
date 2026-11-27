@@ -1,6 +1,29 @@
 // ============================================================================
-// Чистые функции выбора трека в очереди (shuffle / repeat / prev / next)
+// Движок очереди воспроизведения в духе Apple Music (`playerQueue`)
+// Каждая позиция в очереди оборачивается в уникальный слот `{ uid, track, source }`,
+// что позволяет добавлять один и тот же трек повторно, переставлять «Далее» и
+// хранить историю без конфликтов индексов и ключей.
 // ============================================================================
+
+let nextQueueUid = 1;
+
+/**
+ * Создаёт уникальный элемент очереди (`source`: `"context"` | `"manual"`).
+ */
+export function createQueueEntry(track, source = "context") {
+	return {
+		uid: `q-${nextQueueUid++}`,
+		track,
+		source,
+	};
+}
+
+/**
+ * Преобразует массив треков каталога в список слотов очереди.
+ */
+export function buildQueueFromTracks(tracks = [], source = "context") {
+	return tracks.filter(Boolean).map((track) => createQueueEntry(track, source));
+}
 
 /**
  * Возвращает перемешанную копию массива (алгоритм Фишера — Йетса).
@@ -15,15 +38,100 @@ export function shuffleList(list) {
 }
 
 /**
- * Вычисляет действие при переходе к следующему треку:
- * - `{ action: "none" }` — очередь пуста;
- * - `{ action: "restart", isPlaying }` — начать текущий/единственный трек сначала;
- * - `{ action: "select", track }` — переключиться на новый трек;
- * - `{ action: "stop" }` — остановить воспроизведение в конце очереди (если выключен repeat).
+ * Вставляет трек сразу после текущей композиции («Воспроизвести следующим»).
+ * Если очередь пуста, запускает трек с индекса `0`.
  */
-export function pickNextTrackOutcome({
+export function insertPlayNext(queue, currentIndex, track) {
+	const entry = createQueueEntry(track, "manual");
+	if (!queue.length || currentIndex < 0) {
+		return { queue: [entry], currentIndex: 0, shouldPlay: true };
+	}
+
+	const nextQueue = [...queue];
+	nextQueue.splice(currentIndex + 1, 0, entry);
+	return { queue: nextQueue, currentIndex, shouldPlay: false };
+}
+
+/**
+ * Добавляет трек в конец очереди («Добавить в очередь»).
+ */
+export function appendToQueue(queue, currentIndex, track) {
+	const entry = createQueueEntry(track, "manual");
+	if (!queue.length || currentIndex < 0) {
+		return { queue: [entry], currentIndex: 0, shouldPlay: true };
+	}
+
+	return {
+		queue: [...queue, entry],
+		currentIndex,
+		shouldPlay: false,
+	};
+}
+
+/**
+ * Перемещает элемент внутри предстоящей части очереди (`currentIndex + 1 .. end`).
+ * Индексы передаются относительно списка предстоящих треков (`upcoming`).
+ */
+export function moveUpcomingItem(queue, currentIndex, fromUpcomingIdx, toUpcomingIdx) {
+	const base = Math.max(0, currentIndex + 1);
+	const fromIdx = base + fromUpcomingIdx;
+	const toIdx = base + toUpcomingIdx;
+	if (
+		fromUpcomingIdx === toUpcomingIdx ||
+		fromIdx < base ||
+		toIdx < base ||
+		fromIdx >= queue.length ||
+		toIdx >= queue.length
+	) {
+		return queue;
+	}
+
+	const next = [...queue];
+	const [moved] = next.splice(fromIdx, 1);
+	next.splice(toIdx, 0, moved);
+	return next;
+}
+
+/**
+ * Удаляет конкретный слот по `uid`, корректно корректируя `currentIndex`.
+ */
+export function removeQueueEntry(queue, currentIndex, targetUid) {
+	const targetIdx = queue.findIndex((item) => item.uid === targetUid);
+	if (targetIdx === -1) return { queue, currentIndex };
+
+	const nextQueue = queue.filter((item) => item.uid !== targetUid);
+	if (!nextQueue.length) {
+		return { queue: [], currentIndex: -1 };
+	}
+
+	let nextIndex = currentIndex;
+	if (targetIdx < currentIndex) {
+		nextIndex = currentIndex - 1;
+	} else if (targetIdx === currentIndex) {
+		nextIndex = Math.min(currentIndex, nextQueue.length - 1);
+	}
+
+	return { queue: nextQueue, currentIndex: nextIndex };
+}
+
+/**
+ * Удаляет все предстоящие треки после текущего (`currentIndex + 1 .. end`).
+ */
+export function clearUpcomingEntries(queue, currentIndex) {
+	if (currentIndex < 0) return [];
+	return queue.slice(0, currentIndex + 1);
+}
+
+/**
+ * Вычисляет исход перехода к следующему треку:
+ * - `{ action: "none" }` — очередь пуста;
+ * - `{ action: "restart" }` — повторить единственный трек с 00:00;
+ * - `{ action: "select", index }` — переключиться на индекс `index`;
+ * - `{ action: "stop" }` — дошли до конца очереди при выключенном `repeat`.
+ */
+export function pickNextQueueOutcome({
 	queue,
-	currentTrackId,
+	currentIndex,
 	isShuffle,
 	repeatMode,
 	autoAdvanced,
@@ -36,37 +144,38 @@ export function pickNextTrackOutcome({
 			: { action: "stop" };
 	}
 
-	const currentIdx = queue.findIndex((t) => t.id === currentTrackId);
+	const safeIdx = currentIndex >= 0 && currentIndex < queue.length ? currentIndex : 0;
 
-	if (isShuffle) {
-		let randIdx = currentIdx;
-		while (randIdx === currentIdx) {
+	// Если сразу после текущего трека стоит добавленный вручную («Play Next»), отдаём ему приоритет даже при Shuffle
+	const immediateNext = queue[safeIdx + 1];
+	if (isShuffle && immediateNext?.source !== "manual") {
+		let randIdx = safeIdx;
+		while (randIdx === safeIdx) {
 			randIdx = Math.floor(Math.random() * queue.length);
 		}
-		return { action: "select", track: queue[randIdx] };
+		return { action: "select", index: randIdx };
 	}
 
-	const nextIdx = currentIdx + 1;
+	const nextIdx = safeIdx + 1;
 	if (nextIdx < queue.length) {
-		return { action: "select", track: queue[nextIdx] };
+		return { action: "select", index: nextIdx };
 	}
 
 	if (repeatMode === "all" || !autoAdvanced) {
-		return { action: "select", track: queue[0] };
+		return { action: "select", index: 0 };
 	}
 
 	return { action: "stop" };
 }
 
 /**
- * Вычисляет действие при переходе назад:
- * - если трек проигран дольше порога `restartThresholdMs` (обычно 3 с) или он единственный,
- *   возвращаем его к 00:00;
- * - иначе переключаемся на предыдущий трек по кольцу очереди.
+ * Вычисляет исход перехода назад:
+ * - если трек проигран дольше `restartThresholdMs` или он единственный — сброс на 00:00;
+ * - иначе переход на `currentIndex - 1` по кольцу.
  */
-export function pickPrevTrackOutcome({
+export function pickPrevQueueOutcome({
 	queue,
-	currentTrackId,
+	currentIndex,
 	currentTimeMs,
 	restartThresholdMs,
 }) {
@@ -76,7 +185,7 @@ export function pickPrevTrackOutcome({
 		return { action: "restart" };
 	}
 
-	const currentIdx = queue.findIndex((t) => t.id === currentTrackId);
-	const prevIdx = currentIdx > 0 ? currentIdx - 1 : queue.length - 1;
-	return { action: "select", track: queue[prevIdx] };
+	const safeIdx = currentIndex >= 0 && currentIndex < queue.length ? currentIndex : 0;
+	const prevIdx = safeIdx > 0 ? safeIdx - 1 : queue.length - 1;
+	return { action: "select", index: prevIdx };
 }

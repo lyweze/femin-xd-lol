@@ -5,18 +5,38 @@
 // ============================================================================
 import { useCallback, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { usePlayerActions } from "../../context/playerContexts.js";
+import { usePlayerActions, usePlayerState } from "../../context/playerContexts.js";
 import { useMediaQuery } from "../../hooks/useMediaQuery.js";
 import { useSidebar } from "../../hooks/useSidebar.js";
 import TitlebarDrag from "../../platform/TitlebarDrag.jsx";
 import PlaylistEditModal from "../playlist/playlist-edit-modal/PlaylistEditModal.jsx";
-import { ChevronRightIcon } from "../shared/icons/Icons.jsx";
+import { ChevronRightIcon, QueueIcon } from "../shared/icons/Icons.jsx";
+import TrackActionMenu from "../shared/track-action-menu/TrackActionMenu.jsx";
+import TrackUploadModal from "../shared/track-upload-modal/TrackUploadModal.jsx";
 import AmbientBg from "./ambient-bg/AmbientBg.jsx";
 import MobileMenuSheet from "./mobile-menu-sheet/MobileMenuSheet.jsx";
 import MobileTabBar from "./mobile-tab-bar/MobileTabBar.jsx";
 import Sidebar from "./sidebar/Sidebar.jsx";
 import FloatingPlayer from "../player/floating-player/FloatingPlayer.jsx";
 import FullscreenPlayer from "../player/fullscreen-player/FullscreenPlayer.jsx";
+
+/** Всплывающая плашка подтверждения действий с очередью */
+function QueueNoticeToast() {
+	const { queueNotice } = usePlayerState();
+	if (!queueNotice) return null;
+
+	return (
+		<div
+			key={queueNotice.id}
+			className="queue-toast"
+			role="status"
+			aria-live="polite"
+		>
+			<QueueIcon size={14} />
+			<span>{queueNotice.message}</span>
+		</div>
+	);
+}
 
 function PlayerLayout() {
 	const location = useLocation();
@@ -88,6 +108,12 @@ function PlayerLayout() {
 			)}
 
 			<FullscreenPlayer isMobile={isMobile} />
+
+			<TrackActionMenu />
+
+			<TrackUploadModal />
+
+			<QueueNoticeToast />
 
 			<PlaylistEditModal
 				isOpen={isCreatePlaylistOpen}

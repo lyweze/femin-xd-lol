@@ -6,13 +6,19 @@ import { memo } from "react";
 import { formatDuration } from "../../../utils/format.js";
 import ArtistLinks from "../artist-links/ArtistLinks.jsx";
 import CollectionCover from "../collection-cover/CollectionCover.jsx";
-import { HeartIcon, LyricsIcon, PauseIcon, PlayIcon } from "../icons/Icons.jsx";
+import {
+	HeartIcon,
+	LyricsIcon,
+	MoreIcon,
+	PauseIcon,
+	PlayIcon,
+} from "../icons/Icons.jsx";
 import "./TrackRow.css";
 
 /**
  * Рендерит одну строку трека: обложку (или порядковый номер для альбомов),
  * название + бейдж E, ссылки на основных/приглашённых артистов, кнопку текста (если есть),
- * лайк и длительность.
+ * лайк, длительность и меню действий очереди.
  */
 const TrackRow = memo(function TrackRow({
 	track,
@@ -27,6 +33,7 @@ const TrackRow = memo(function TrackRow({
 	onPlay,
 	onToggleLike,
 	onOpenLyrics,
+	onOpenMenu,
 }) {
 	const artists = track.artists ?? [];
 	const mainArtists = artists.filter((a) => a.role !== "feat");
@@ -162,6 +169,21 @@ const TrackRow = memo(function TrackRow({
 				<span className="track-row-duration">
 					{formatDuration(effectiveDuration)}
 				</span>
+
+				{onOpenMenu && (
+					<button
+						type="button"
+						className="track-row-more-btn"
+						onClick={(e) => {
+							e.stopPropagation();
+							onOpenMenu(track, trackList, e.currentTarget.getBoundingClientRect());
+						}}
+						title="More options"
+						aria-label={`More options for ${track.title}`}
+					>
+						<MoreIcon size={15} />
+					</button>
+				)}
 			</div>
 		</li>
 	);

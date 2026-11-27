@@ -31,7 +31,8 @@
 	&:focus-within {
 		background-color: var(--surface-hover);
 
-		> .track-row-right > .track-row-like {
+		> .track-row-right > .track-row-like,
+		> .track-row-right > .track-row-more-btn {
 			opacity: 1;
 		}
 	}
@@ -358,6 +359,36 @@
 			font-size: 11px;
 			color: var(--text-secondary);
 		}
+
+		> .track-row-more-btn {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 28px;
+			height: 28px;
+			padding: 0;
+			border: none;
+			border-radius: 8px;
+			background: transparent;
+			color: var(--text-tertiary);
+			cursor: pointer;
+			opacity: 0;
+			transition:
+				opacity 0.16s ease,
+				color 0.16s ease,
+				background-color 0.16s ease,
+				transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+			&:hover {
+				background-color: rgba(230, 227, 221, 0.08);
+				color: var(--text-primary);
+				transform: scale(1.08);
+			}
+
+			&:active {
+				transform: scale(0.9);
+			}
+		}
 	}
 }
 
@@ -396,6 +427,12 @@
 			width: 36px;
 			height: 36px;
 		}
+
+		> .track-row-more-btn {
+			opacity: 0.82;
+			width: 34px;
+			height: 34px;
+		}
 	}
 }
 
@@ -422,7 +459,7 @@
 		}
 
 		> .track-row-right {
-			gap: 10px;
+			gap: 6px;
 		}
 	}
 }

@@ -227,11 +227,10 @@ export function getTracksByAlbumId(albumId) {
 }
 
 /** Разворачивает список ID треков плейлиста в реальные объекты треков */
-export function getTracksByPlaylist(playlist) {
+export function getTracksByPlaylist(playlist, tracksPool = MOCK_TRACKS) {
 	if (!playlist) return [];
-	return playlist.track_ids
-		.map((id) => MOCK_TRACKS.find((t) => t.id === id))
-		.filter(Boolean);
+	const byId = new Map(tracksPool.map((t) => [t.id, t]));
+	return playlist.track_ids.map((id) => byId.get(id)).filter(Boolean);
 }
 
 /** Возвращает список языковых дорожек текста песни по ID трека */

@@ -4,6 +4,7 @@
 import { Routes, Route, NavLink, Navigate, Link } from "react-router-dom";
 import { IS_MOCK_ADMIN_MODE } from "../api/adminApi.js";
 import { useAuth } from "../context/authContext.js";
+import { EditIcon } from "../components/shared/icons/Icons.jsx";
 import AlbumsListPage from "./pages/AlbumsListPage.jsx";
 import AlbumEditorPage from "./pages/AlbumEditorPage.jsx";
 import ArtistsPage from "./pages/ArtistsPage.jsx";
@@ -19,7 +20,7 @@ const ADMIN_NAV = [
 ];
 
 function AdminLayout() {
-	const { user } = useAuth();
+	const { user, openAccountModal } = useAuth();
 
 	return (
 		<div className="admin-shell">
@@ -43,12 +44,21 @@ function AdminLayout() {
 				</nav>
 
 				<div className="admin-sidebar-footer">
-					<div className="admin-user-chip">
-						<span className="admin-user-name">{user?.username || "Admin"}</span>
-						<span className="admin-user-role">
-							ROLE: {user?.role?.toUpperCase() || "ADMIN"}
-						</span>
-					</div>
+					<button
+						type="button"
+						className="admin-user-chip is-interactive"
+						onClick={openAccountModal}
+						title="Change account name"
+						aria-label="Edit account name"
+					>
+						<div className="admin-user-chip-copy">
+							<span className="admin-user-name">{user?.username || "User"}</span>
+							<span className="admin-user-role">
+								ROLE: {user?.role?.toUpperCase() || "ADMIN"}
+							</span>
+						</div>
+						<EditIcon size={12} />
+					</button>
 					<Link to="/" className="admin-btn admin-btn-ghost admin-back-btn">
 						← Back to Player
 					</Link>

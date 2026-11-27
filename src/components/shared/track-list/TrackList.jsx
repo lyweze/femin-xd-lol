@@ -5,6 +5,7 @@
 // ============================================================================
 import { useMemo } from "react";
 import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
+import { hasTrackLyrics } from "../../../utils/lrc.js";
 import TrackRow from "../track-row/TrackRow.jsx";
 
 /**
@@ -28,7 +29,8 @@ function TrackList({
 }) {
 	const { currentTrack, isPlaying, likedIds, durationOverrides, lyricsByTrack } =
 		usePlayerState();
-	const { playTrack, toggleLike, openTrackLyrics } = usePlayerActions();
+	const { playTrack, toggleLike, openTrackLyrics, openTrackMenu } =
+		usePlayerActions();
 
 	const likedSet = useMemo(() => new Set(likedIds), [likedIds]);
 	const activeQueue = queueTracks || tracks;
@@ -43,8 +45,7 @@ function TrackList({
 			{tracks.map((track, idx) => {
 				const isCurrent = currentTrack?.id === track.id;
 				const displayIndex = useTrackNumber ? track.track_no || idx + 1 : idx + 1;
-				const hasLyrics =
-					(lyricsByTrack?.[track.id]?.length ?? track.lyrics_languages?.length ?? 0) > 0;
+				const hasLyrics = hasTrackLyrics(track, lyricsByTrack);
 
 				return (
 					<TrackRow
@@ -61,6 +62,7 @@ function TrackList({
 						onPlay={playTrack}
 						onToggleLike={toggleLike}
 						onOpenLyrics={openTrackLyrics}
+						onOpenMenu={openTrackMenu}
 					/>
 				);
 			})}

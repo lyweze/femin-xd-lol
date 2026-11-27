@@ -90,3 +90,11 @@ export function formatLyricsAsLrc({ language, synced, offset_ms: offsetMs = 0, l
 
 	return [...header, ...body].join("\n");
 }
+
+/**
+ * Определяет, доступны ли у трека локальные или предзагруженные тексты.
+ */
+export function hasTrackLyrics(track, lyricsByTrack) {
+	if (!track?.id) return false;
+	return (lyricsByTrack?.[track.id]?.length ?? track.lyrics_languages?.length ?? 0) > 0;
+}

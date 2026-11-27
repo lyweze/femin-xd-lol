@@ -23,6 +23,7 @@ function buildMediaArtwork(cover) {
  *    - `Escape` — закрытие полноэкранного плеера;
  *    - `F` — переключение полноэкранного плеера;
  *    - `L` — показать/скрыть текст песни (в полноэкранном режиме);
+ *    - `Q` — показать/скрыть очередь воспроизведения (в полноэкранном режиме);
  *    - `M` — Mute / Unmute;
  *    - `ArrowLeft` / `ArrowRight` — перемотка ±5 с (`Shift` + стрелка — предыдущий/следующий трек).
  */
@@ -37,6 +38,7 @@ export function useSystemIntegration({
 	seekByMs,
 	toggleMute,
 	toggleShowLyrics,
+	toggleQueuePane,
 	closeFullscreen,
 	toggleFullscreen,
 }) {
@@ -124,6 +126,7 @@ export function useSystemIntegration({
 				KeyF: () => toggleFullscreen(),
 				KeyM: () => toggleMute(),
 				KeyL: isFullscreenOpen ? () => toggleShowLyrics() : null,
+				KeyQ: isFullscreenOpen ? () => toggleQueuePane() : null,
 				ArrowRight: () => (e.shiftKey ? nextTrack(false) : seekByMs(SEEK_STEP_MS)),
 				ArrowLeft: () => (e.shiftKey ? prevTrack() : seekByMs(-SEEK_STEP_MS)),
 			};
@@ -144,6 +147,7 @@ export function useSystemIntegration({
 		seekByMs,
 		toggleMute,
 		toggleShowLyrics,
+		toggleQueuePane,
 		isFullscreenOpen,
 		closeFullscreen,
 		toggleFullscreen,

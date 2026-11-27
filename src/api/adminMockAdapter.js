@@ -16,6 +16,7 @@ import {
 	probeTempLyricsForTracks,
 	saveLocalTrackLyrics,
 } from "../services/lyricsStorage.js";
+import { createUuid } from "../utils/id.js";
 
 const CURRENT_ADMIN_ID = "u0000000-0000-0000-0000-000000000001";
 const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -26,16 +27,7 @@ const VALID_ALBUM_TYPES = new Set(["album", "ep", "single", "compilation"]);
 // Вспомогательные утилиты генерации ID, пагинации и чтения локальных файлов
 // ============================================================================
 
-function makeUuid() {
-	if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-		return crypto.randomUUID();
-	}
-	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-		const r = (Math.random() * 16) | 0;
-		const v = c === "x" ? r : (r & 0x3) | 0x8;
-		return v.toString(16);
-	});
-}
+const makeUuid = createUuid;
 
 function nowIso() {
 	return new Date().toISOString();
@@ -154,8 +146,8 @@ function seedUsers() {
 	return [
 		{
 			id: CURRENT_ADMIN_ID,
-			email: "denis@femin.fm",
-			username: "denis",
+			email: "user@femin.fm",
+			username: "user",
 			role: "admin",
 			created_at: "2026-08-01T09:00:00.000Z",
 		},
@@ -170,7 +162,7 @@ function seedUsers() {
 			id: "u0000000-0000-0000-0000-000000000003",
 			email: "listener@example.com",
 			username: "ambient_fan",
-			role: "user",
+			role: "admin",
 			created_at: "2026-09-02T19:45:00.000Z",
 		},
 	];

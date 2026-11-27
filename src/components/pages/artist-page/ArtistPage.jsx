@@ -7,7 +7,7 @@ import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
 import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll.js";
 import { musicApi } from "../../../api/musicApi.js";
 import { handleCoverError } from "../../../utils/cover.js";
-import { usePlayerActions } from "../../../context/playerContexts.js";
+import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
 import CollectionActions from "../../shared/collection-actions/CollectionActions.jsx";
 import MediaCard from "../../shared/media-card/MediaCard.jsx";
 import TrackList from "../../shared/track-list/TrackList.jsx";
@@ -21,9 +21,13 @@ function ArtistPage() {
 	const discographyRef = useHorizontalScroll();
 	const [isBioExpanded, setIsBioExpanded] = useState(false);
 
+	const { catalogTracks } = usePlayerState();
 	const { playQueue } = usePlayerActions();
 
-	const artist = useMemo(() => musicApi.getArtist(id), [id]);
+	const artist = useMemo(
+		() => musicApi.getArtist(id, catalogTracks),
+		[id, catalogTracks],
+	);
 	const topTracks = useMemo(() => artist?.topTracks ?? [], [artist]);
 	const albums = useMemo(() => artist?.albums ?? [], [artist]);
 

@@ -1,0 +1,269 @@
+/* ==========================================================================
+   Меню действий трека: десктопный поповер и мобильный Action Sheet
+   ========================================================================== */
+.track-action-portal {
+	position: fixed;
+	inset: 0;
+	z-index: 65;
+
+	> .track-action-backdrop {
+		position: absolute;
+		inset: 0;
+		background-color: transparent;
+	}
+
+	&.is-mobile > .track-action-backdrop {
+		background-color: rgba(10, 10, 9, 0.58);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		animation: menuFadeIn 0.2s ease both;
+	}
+}
+
+.track-action-menu {
+	position: fixed;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	background-color: rgba(24, 24, 22, 0.94);
+	backdrop-filter: blur(28px) saturate(150%);
+	-webkit-backdrop-filter: blur(28px) saturate(150%);
+	color: var(--text-primary);
+
+	&.is-popover {
+		width: 228px;
+		padding: 6px;
+		border-radius: 14px;
+		border: 1px solid rgba(255, 255, 255, 0.09);
+		box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+		transform-origin: top right;
+		animation: menuPopoverIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+		&.is-up {
+			transform-origin: bottom right;
+		}
+	}
+
+	&.is-sheet {
+		left: 0;
+		right: 0;
+		bottom: 0;
+		padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+		border-radius: 22px 22px 0 0;
+		border-top: 1px solid rgba(255, 255, 255, 0.08);
+		box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.55);
+		animation: menuSheetUp 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+}
+
+.track-action-handle {
+	width: 36px;
+	height: 4px;
+	border-radius: 999px;
+	background-color: rgba(230, 227, 221, 0.22);
+	margin: 2px auto 12px;
+	flex-shrink: 0;
+}
+
+.track-action-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 8px 8px;
+	min-width: 0;
+}
+
+.track-action-menu.is-sheet > .track-action-header {
+	padding: 2px 4px 12px;
+	gap: 12px;
+}
+
+.track-action-cover {
+	width: 34px;
+	height: 34px;
+	border-radius: 7px;
+	overflow: hidden;
+	flex-shrink: 0;
+	background-color: rgba(255, 255, 255, 0.06);
+}
+
+.track-action-menu.is-sheet .track-action-cover {
+	width: 44px;
+	height: 44px;
+	border-radius: 10px;
+}
+
+.track-action-cover-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.track-action-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.track-action-title {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.25;
+	color: var(--text-primary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.track-action-menu.is-sheet .track-action-title {
+	font-size: 15px;
+}
+
+.track-action-artist {
+	font-family: var(--font-mono);
+	font-size: 10.5px;
+	line-height: 1.25;
+	color: var(--text-secondary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.track-action-menu.is-sheet .track-action-artist {
+	font-size: 12px;
+}
+
+.track-action-divider {
+	height: 1px;
+	background-color: rgba(230, 227, 221, 0.08);
+	margin: 2px 4px 4px;
+}
+
+.track-action-menu.is-sheet > .track-action-divider {
+	margin: 0 0 8px;
+}
+
+.track-action-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.track-action-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	height: 36px;
+	padding: 0 10px;
+	border: none;
+	border-radius: 9px;
+	background: transparent;
+	color: var(--text-primary);
+	font-family: var(--font-sans);
+	font-size: 13px;
+	font-weight: 500;
+	text-align: left;
+	cursor: pointer;
+	transition:
+		background-color 0.14s ease,
+		transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+
+	svg {
+		flex-shrink: 0;
+		color: var(--text-secondary);
+		transition: color 0.14s ease;
+	}
+
+	&:hover {
+		background-color: rgba(230, 227, 221, 0.08);
+
+		svg {
+			color: var(--text-primary);
+		}
+	}
+
+	&:active {
+		transform: scale(0.985);
+		background-color: rgba(230, 227, 221, 0.12);
+	}
+
+	&.is-danger {
+		color: #f08a7e;
+
+		svg {
+			color: #f08a7e;
+		}
+	}
+}
+
+.track-action-menu.is-sheet .track-action-item {
+	height: 48px;
+	padding: 0 12px;
+	gap: 12px;
+	border-radius: 12px;
+	font-size: 15px;
+}
+
+.track-action-cancel {
+	margin-top: 10px;
+	height: 46px;
+	width: 100%;
+	border: none;
+	border-radius: 14px;
+	background-color: rgba(230, 227, 221, 0.09);
+	color: var(--text-primary);
+	font-family: var(--font-sans);
+	font-size: 15px;
+	font-weight: 600;
+	cursor: pointer;
+	transition:
+		background-color 0.14s ease,
+		transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+
+	&:active {
+		transform: scale(0.985);
+		background-color: rgba(230, 227, 221, 0.15);
+	}
+}
+
+@keyframes menuFadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes menuPopoverIn {
+	from {
+		opacity: 0;
+		transform: scale(0.94) translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+
+@keyframes menuSheetUp {
+	from {
+		opacity: 0;
+		transform: translate3d(0, 28px, 0);
+	}
+	to {
+		opacity: 1;
+		transform: translate3d(0, 0, 0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.track-action-portal.is-mobile > .track-action-backdrop,
+	.track-action-menu.is-popover,
+	.track-action-menu.is-sheet {
+		animation: none;
+	}
+}

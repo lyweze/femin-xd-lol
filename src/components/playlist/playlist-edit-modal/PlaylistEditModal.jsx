@@ -3,9 +3,10 @@
 // Позволяет сменить обложку (с автообрезкой и сжатием), название, описание,
 // порядок и состав треков или удалить собственный плейлист.
 // ============================================================================
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MOCK_TRACKS } from "../../../services/mockData.js";
+import { usePlayerState } from "../../../context/playerContexts.js";
+import { useEscapeKey } from "../../../hooks/useEscapeKey.js";
 import { processPlaylistCoverFile } from "../../../utils/cover.js";
 import { formatArtistNames } from "../../../utils/format.js";
 import CollectionCover from "../../shared/collection-cover/CollectionCover.jsx";
@@ -25,6 +26,7 @@ function PlaylistEditDialogContent({
 	onClose,
 }) {
 	const fileInputRef = useRef(null);
+	const { catalogTracks } = usePlayerState();
 
 	const [title, setTitle] = useState(playlist?.title ?? "");
 	const [description, setDescription] = useState(playlist?.description ?? "");
@@ -36,18 +38,11 @@ function PlaylistEditDialogContent({
 	const [coverError, setCoverError] = useState(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
 
-	// Закрытие диалога по клавише Escape
-	useEffect(() => {
-		const onKeyDown = (e) => {
-			if (e.key === "Escape") onClose();
-		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [onClose]);
+	useEscapeKey(true, onClose);
 
 	const trackById = useMemo(
-		() => new Map(MOCK_TRACKS.map((t) => [t.id, t])),
-		[],
+		() => new Map(catalogTracks.map((t) => [t.id, t])),
+		[catalogTracks],
 	);
 
 	const selectedTracks = useMemo(
@@ -58,7 +53,7 @@ function PlaylistEditDialogContent({
 	const availableTracks = useMemo(() => {
 		const inPlaylist = new Set(trackIds);
 		const q = trackFilter.trim().toLowerCase();
-		return MOCK_TRACKS.filter((track) => {
+		return catalogTracks.filter((track) => {
 			if (inPlaylist.has(track.id)) return false;
 			if (!q) return true;
 			return (
@@ -66,7 +61,7 @@ function PlaylistEditDialogContent({
 				formatArtistNames(track.artists).toLowerCase().includes(q)
 			);
 		});
-	}, [trackIds, trackFilter]);
+	}, [catalogTracks, trackIds, trackFilter]);
 
 	const handleCoverFile = async (file) => {
 		if (!file) return;
@@ -304,11 +299,11 @@ function PlaylistEditDialogContent({
 							</ul>
 						)}
 
-						{MOCK_TRACKS.length > trackIds.length && (
+						{catalogTracks.length > trackIds.length && (
 							<div className="pl-modal-catalog">
 								<div className="pl-modal-tracks-head">
 									<span>Add from catalog</span>
-									{MOCK_TRACKS.length > 5 && (
+									{catalogTracks.length > 5 && (
 										<input
 											type="text"
 											className="pl-modal-filter"

@@ -141,6 +141,48 @@ export function deleteLocalTrackLyrics(trackId, language) {
 }
 
 /**
+ * Удаляет все сохранённые тексты указанного трека (используется при удалении локального трека).
+ */
+export function clearAllLocalTrackLyrics(trackId) {
+	if (!trackId) return false;
+	const overrides = readStoredOverridesMap();
+	if (!Object.hasOwn(overrides, trackId)) return false;
+	delete overrides[trackId];
+	writeStoredOverridesMap(overrides);
+	notifyLyricsChanged();
+	return true;
+}
+
+/**
+ * Разбирает LRC или обычный текст из формы трека и сохраняет (либо очищает) дорожку.
+ */
+export function syncTrackLyricsDraft(
+	trackId,
+	lyricsText,
+	lyricsLanguage = "ru",
+	clearWhenEmpty = false,
+) {
+	if (!trackId) return;
+	const trimmed = String(lyricsText || "").trim();
+	if (!trimmed) {
+		if (clearWhenEmpty) {
+			clearAllLocalTrackLyrics(trackId);
+		}
+		return;
+	}
+
+	const parsed = parseLrcDocument(trimmed);
+	if (parsed.lines.length > 0) {
+		saveLocalTrackLyrics(trackId, {
+			language: parsed.language || lyricsLanguage || "ru",
+			synced: parsed.synced,
+			offset_ms: parsed.offsetMs || 0,
+			lines: parsed.lines,
+		});
+	}
+}
+
+/**
  * Пытается загрузить статический файл `lyrics.lrc` из папки `public/temp/<folder>/`.
  * Защищено от SPA-фолбэка Vite (`<!doctype html>` при отсутствии файла).
  */

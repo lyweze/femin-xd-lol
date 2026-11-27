@@ -548,3 +548,59 @@ a:focus-visible,
 		gap: 14px;
 	}
 }
+
+/* ==========================================================================
+   7. Плашка уведомления очереди воспроизведения (.queue-toast)
+   ========================================================================== */
+.queue-toast {
+	position: fixed;
+	top: max(18px, calc(16px + var(--titlebar-height, 0px)), env(safe-area-inset-top, 0px));
+	left: 50%;
+	z-index: 70;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	max-width: min(360px, calc(100vw - 32px));
+	padding: 9px 15px;
+	border-radius: 999px;
+	background-color: rgba(24, 24, 22, 0.92);
+	backdrop-filter: blur(22px) saturate(150%);
+	-webkit-backdrop-filter: blur(22px) saturate(150%);
+	border: 1px solid rgba(255, 255, 255, 0.09);
+	box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+	color: var(--text-primary);
+	font-family: var(--font-ui);
+	font-size: 12.5px;
+	font-weight: 500;
+	pointer-events: none;
+	transform: translate3d(-50%, 0, 0);
+	animation: queueToastIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+	> svg {
+		flex-shrink: 0;
+		color: var(--accent-cover);
+	}
+
+	> span {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+}
+
+@keyframes queueToastIn {
+	from {
+		opacity: 0;
+		transform: translate3d(-50%, -10px, 0) scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: translate3d(-50%, 0, 0) scale(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.queue-toast {
+		animation: none;
+	}
+}

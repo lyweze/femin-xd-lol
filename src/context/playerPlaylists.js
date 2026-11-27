@@ -3,6 +3,7 @@
 // ============================================================================
 import { MOCK_PLAYLISTS } from "../services/mockData.js";
 import { DEFAULT_ACCENT } from "../utils/cover.js";
+import { createUuid } from "../utils/id.js";
 import { readStorageJson, writeStorageJson } from "../utils/storage.js";
 
 export const PLAYLISTS_STORAGE_KEY = "matte_obsidian_user_playlists";
@@ -38,16 +39,6 @@ export function writeStoredPlaylists(playlists) {
 	writeStorageJson(PLAYLISTS_STORAGE_KEY, playlists);
 }
 
-function generatePlaylistId() {
-	if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-		return crypto.randomUUID();
-	}
-	return `pl-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-}
-
-/**
- * Создаёт объект нового пользовательского плейлиста.
- */
 export function buildUserPlaylist({
 	title,
 	description = "",
@@ -56,7 +47,7 @@ export function buildUserPlaylist({
 }) {
 	const safeTitle = String(title || "").trim() || "Untitled Playlist";
 	return {
-		id: generatePlaylistId(),
+		id: createUuid(),
 		title: safeTitle.slice(0, 120),
 		type: "playlist",
 		description: String(description || "").trim().slice(0, 300),

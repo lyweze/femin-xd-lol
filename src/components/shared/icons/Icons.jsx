@@ -336,3 +336,79 @@ export function ArrowStepIcon({ direction = "up", size = 12 }) {
 		</svg>
 	);
 }
+
+/** Иконка очереди воспроизведения («Playing Next») */
+export function QueueIcon({ size = 15 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M2.5 4h11M2.5 8h7.5M2.5 12h7.5"
+				stroke="currentColor"
+				strokeWidth="1.4"
+				strokeLinecap="round"
+			/>
+			<path
+				d="M12 7.5l2.8 2.2L12 12V7.5z"
+				fill="currentColor"
+			/>
+		</svg>
+	);
+}
+
+/** Три горизонтальные точки для контекстного меню трека */
+export function MoreIcon({ size = 15 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+			<circle cx="3.5" cy="8" r="1.25" />
+			<circle cx="8" cy="8" r="1.25" />
+			<circle cx="12.5" cy="8" r="1.25" />
+		</svg>
+	);
+}
+
+/** Иконка «Воспроизвести следующим» */
+export function PlayNextIcon({ size = 15 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M2.5 3.5l5.2 3.3-5.2 3.3V3.5z"
+				fill="currentColor"
+			/>
+			<path
+				d="M9.5 4.5h4M9.5 8.5h4M2.5 12.5h11"
+				stroke="currentColor"
+				strokeWidth="1.35"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
+/** Иконка «Добавить в конец очереди» */
+export function AddToQueueIcon({ size = 15 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M2.5 4h8M2.5 8h6M2.5 12h6M12.5 7.5v5M10 10h5"
+				stroke="currentColor"
+				strokeWidth="1.35"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
+/** Иконка истории прослушивания (часы / назад) */
+export function HistoryIcon({ size = 14 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M2.6 8a5.4 5.4 0 1 0 1.4-3.6L2.5 5.8M2.5 3.2v2.7h2.7M8 5.2v3l2 1.2"
+				stroke="currentColor"
+				strokeWidth="1.35"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+}

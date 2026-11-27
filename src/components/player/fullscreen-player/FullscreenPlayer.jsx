@@ -10,18 +10,24 @@ import { musicApi } from "../../../api/musicApi.js";
 import { handleCoverError } from "../../../utils/cover.js";
 import AmbientBackdrop from "../../shared/ambient-backdrop/AmbientBackdrop.jsx";
 import ArtistLinks from "../../shared/artist-links/ArtistLinks.jsx";
-import { ChevronDownIcon, HeartIcon, LyricsIcon } from "../../shared/icons/Icons.jsx";
+import {
+	ChevronDownIcon,
+	HeartIcon,
+	LyricsIcon,
+	QueueIcon,
+} from "../../shared/icons/Icons.jsx";
 import VolumeControl from "../../shared/volume-control/VolumeControl.jsx";
 import PlayerControls from "../player-controls/PlayerControls.jsx";
 import ProgressBar from "../progress-bar/ProgressBar.jsx";
 import FullscreenLyricsPane from "./FullscreenLyricsPane.jsx";
+import FullscreenQueuePane from "./FullscreenQueuePane.jsx";
 import "./FullscreenPlayer.css";
 
 const SWIPE_CLOSE_THRESHOLD_PX = 90;
 
-/** Проверяет, находится ли касание внутри скролла текстов или слайдера */
+/** Проверяет, находится ли касание внутри скролла текста, очереди или слайдера */
 const shouldIgnoreSwipeTarget = (target) =>
-	Boolean(target?.closest?.(".fs-lyrics-scroll, [role='slider']"));
+	Boolean(target?.closest?.(".fs-lyrics-scroll, .fs-queue-scroll, [role='slider']"));
 
 function FullscreenPlayerContent({ isMobile }) {
 	const navigate = useNavigate();
@@ -31,8 +37,8 @@ function FullscreenPlayerContent({ isMobile }) {
 		likedIds,
 		lyricsByTrack,
 		fullscreenPhase,
+		fullscreenPane,
 		isFullscreenOpen,
-		showLyrics,
 		volume,
 		isMuted,
 	} = usePlayerState();
@@ -40,6 +46,8 @@ function FullscreenPlayerContent({ isMobile }) {
 		seekToMs,
 		closeFullscreen,
 		toggleShowLyrics,
+		toggleQueuePane,
+		setFullscreenPane,
 		toggleLike,
 		setVolume,
 		toggleMute,
@@ -52,13 +60,23 @@ function FullscreenPlayerContent({ isMobile }) {
 
 	// Запоминаем выбор языка вместе с trackId, чтобы при смене трека выбор сбрасывался сам
 	const [langSelection, setLangSelection] = useState(null);
-	// Отмечаем ручное переключение «текст ↔ обложка», чтобы проигрывать анимацию смены режима без конфликта с открытием модалки
+	// Отмечаем ручное переключение панелей («текст / очередь ↔ обложка»), чтобы проигрывать анимацию смены вида без конфликта с открытием модалки
 	const [hasToggledView, setHasToggledView] = useState(false);
 
-	const handleToggleView = useCallback(() => {
+	const handleToggleLyricsView = useCallback(() => {
 		setHasToggledView(true);
 		toggleShowLyrics();
 	}, [toggleShowLyrics]);
+
+	const handleToggleQueueView = useCallback(() => {
+		setHasToggledView(true);
+		toggleQueuePane();
+	}, [toggleQueuePane]);
+
+	const handleExpandCover = useCallback(() => {
+		setHasToggledView(true);
+		setFullscreenPane("cover");
+	}, [setFullscreenPane]);
 
 	const handleSwipeDismiss = useCallback(() => {
 		closeFullscreen();
@@ -88,7 +106,13 @@ function FullscreenPlayerContent({ isMobile }) {
 		null;
 
 	const hasLyrics = Boolean(activeLyrics && activeLyrics.lines?.length > 0);
-	const displayLyricsPane = hasLyrics && showLyrics;
+	const activePane =
+		fullscreenPane === "queue"
+			? "queue"
+			: fullscreenPane === "lyrics" && hasLyrics
+				? "lyrics"
+				: "cover";
+	const isSidePaneOpen = activePane !== "cover";
 
 	if (!currentTrack) return null;
 
@@ -146,14 +170,26 @@ function FullscreenPlayerContent({ isMobile }) {
 					{hasLyrics && (
 						<button
 							type="button"
-							className={`fs-pill-btn ${displayLyricsPane ? "is-active" : ""}`}
-							onClick={handleToggleView}
+							className={`fs-pill-btn ${activePane === "lyrics" ? "is-active" : ""}`}
+							onClick={handleToggleLyricsView}
 							title="Toggle lyrics (L)"
-							aria-pressed={displayLyricsPane}
+							aria-pressed={activePane === "lyrics"}
 						>
 							Lyrics
 						</button>
 					)}
+
+					<button
+						type="button"
+						className={`fs-pill-btn fs-queue-pill ${activePane === "queue" ? "is-active" : ""}`}
+						onClick={handleToggleQueueView}
+						title="Toggle queue (Q)"
+						aria-label="Playing Next queue"
+						aria-pressed={activePane === "queue"}
+					>
+						<QueueIcon size={14} />
+						<span className="fs-pill-label">Queue</span>
+					</button>
 
 					<button
 						type="button"
@@ -168,22 +204,22 @@ function FullscreenPlayerContent({ isMobile }) {
 			</header>
 
 			<div
-				className={`fs-stage ${displayLyricsPane ? "has-lyrics" : "is-centered"} ${hasToggledView ? "is-view-switched" : ""}`}
+				className={`fs-stage ${isSidePaneOpen ? "has-pane" : "is-centered"} ${hasToggledView ? "is-view-switched" : ""}`}
 			>
 				<section className="fs-deck">
 					<div
-						className={`fs-artwork-wrap ${isPlaying ? "is-playing" : "is-paused"} ${displayLyricsPane ? "is-interactive" : ""}`}
-						role={displayLyricsPane ? "button" : undefined}
-						tabIndex={displayLyricsPane ? 0 : undefined}
-						title={displayLyricsPane ? "Show full cover" : undefined}
-						aria-label={displayLyricsPane ? "Show full cover" : undefined}
-						onClick={displayLyricsPane ? handleToggleView : undefined}
+						className={`fs-artwork-wrap ${isPlaying ? "is-playing" : "is-paused"} ${isSidePaneOpen ? "is-interactive" : ""}`}
+						role={isSidePaneOpen ? "button" : undefined}
+						tabIndex={isSidePaneOpen ? 0 : undefined}
+						title={isSidePaneOpen ? "Show full cover" : undefined}
+						aria-label={isSidePaneOpen ? "Show full cover" : undefined}
+						onClick={isSidePaneOpen ? handleExpandCover : undefined}
 						onKeyDown={
-							displayLyricsPane
+							isSidePaneOpen
 								? (e) => {
 										if (e.key === "Enter" || e.key === " ") {
 											e.preventDefault();
-											handleToggleView();
+											handleExpandCover();
 										}
 									}
 								: undefined
@@ -222,15 +258,27 @@ function FullscreenPlayerContent({ isMobile }) {
 						</div>
 
 						<div className="fs-track-actions">
-							{hasLyrics && !displayLyricsPane && (
+							{hasLyrics && activePane === "cover" && (
 								<button
 									type="button"
 									className="fs-action-btn fs-lyrics-action-btn"
-									onClick={handleToggleView}
+									onClick={handleToggleLyricsView}
 									title="Show lyrics (L)"
 									aria-label="Show lyrics"
 								>
 									<LyricsIcon />
+								</button>
+							)}
+
+							{activePane === "cover" && (
+								<button
+									type="button"
+									className="fs-action-btn fs-queue-action-btn"
+									onClick={handleToggleQueueView}
+									title="Show queue (Q)"
+									aria-label="Show playing next queue"
+								>
+									<QueueIcon size={16} />
 								</button>
 							)}
 
@@ -269,7 +317,7 @@ function FullscreenPlayerContent({ isMobile }) {
 					)}
 				</section>
 
-				{displayLyricsPane && activeLyrics && (
+				{activePane === "lyrics" && activeLyrics && (
 					<FullscreenLyricsPane
 						lyricsItems={lyricsItems}
 						activeLyrics={activeLyrics}
@@ -280,6 +328,8 @@ function FullscreenPlayerContent({ isMobile }) {
 						onSeekToMs={seekToMs}
 					/>
 				)}
+
+				{activePane === "queue" && <FullscreenQueuePane />}
 			</div>
 		</div>
 	);

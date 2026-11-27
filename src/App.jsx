@@ -9,6 +9,7 @@ import { IS_DESKTOP } from "./platform/env.js";
 import { AppRouter } from "./platform/AppRouter.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { PlayerProvider } from "./context/PlayerContext.jsx";
+import AccountEditModal from "./components/auth/AccountEditModal.jsx";
 import { RequireAdmin } from "./components/auth/RequireAdmin.jsx";
 
 import PlayerLayout from "./components/layout/PlayerLayout.jsx";
@@ -59,6 +60,7 @@ function App() {
 						<Route path="*" element={<Navigate to="/" replace />} />
 					</Routes>
 				</AppRouter>
+				<AccountEditModal />
 			</PlayerProvider>
 		</AuthProvider>
 	);
