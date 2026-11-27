@@ -9,10 +9,10 @@ import {
 	MOCK_TRACKS,
 	getAlbumById,
 	getArtistById,
-	getLyricsByTrackId,
 	getTracksByAlbumId,
 	getTracksByPlaylist,
 } from "../services/mockData.js";
+import { getLocalTrackLyrics } from "../services/lyricsStorage.js";
 
 /**
  * Публичный клиент каталога для пользовательской части плеера.
@@ -108,8 +108,8 @@ export const musicApi = {
 		};
 	},
 
-	/** Возвращает тексты песни на всех доступных языках */
+	/** Возвращает тексты песни из локального хранилища или папки temp */
 	getTrackLyrics(trackId) {
-		return getLyricsByTrackId(trackId);
+		return getLocalTrackLyrics(trackId);
 	},
 };

@@ -65,6 +65,11 @@ function LyricsDrawer({ track, onClose, onSaved }) {
 					</button>
 				</div>
 
+				<p className="admin-text-sub" style={{ margin: 0 }}>
+					Тексты временно сохраняются локально в браузере (сразу видны в плеере)
+					или подхватываются из файла <code>public/temp/&lt;трек&gt;/lyrics.lrc</code>.
+				</p>
+
 				<div className="admin-chip-group">
 					{lyricsList.map((item) => (
 						<button

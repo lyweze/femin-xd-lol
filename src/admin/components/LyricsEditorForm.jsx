@@ -3,6 +3,7 @@
 // Поддерживает ручной построчный ввод таймкодов и быстрый импорт LRC-формата.
 // ============================================================================
 import { useState } from "react";
+import { formatLyricsAsLrc } from "../../utils/lrc.js";
 import { buildInitialLyricsLines, parseLrcText } from "../utils/albumHelpers.js";
 
 function LyricsEditorForm({
@@ -51,6 +52,22 @@ function LyricsEditorForm({
 			})),
 		);
 		setLrcDraft("");
+	};
+
+	const handleDownloadLrc = () => {
+		const content = formatLyricsAsLrc({
+			language: langInput.trim().toLowerCase() || "ru",
+			synced,
+			offset_ms: Number(offsetMs) || 0,
+			lines: lines.filter((l) => String(l.text || "").trim().length > 0),
+		});
+		const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = "lyrics.lrc";
+		link.click();
+		URL.revokeObjectURL(url);
 	};
 
 	const handleSubmit = async (e) => {
@@ -204,6 +221,15 @@ function LyricsEditorForm({
 					disabled={isSaving}
 				>
 					{isSaving ? "Saving..." : `Save (${langInput.toUpperCase()})`}
+				</button>
+
+				<button
+					type="button"
+					className="admin-btn admin-btn-ghost admin-btn-sm"
+					onClick={handleDownloadLrc}
+					title="Скачать файл lyrics.lrc (можно положить в public/temp/<папка_трека>/lyrics.lrc)"
+				>
+					Download .lrc
 				</button>
 
 				{currentLyrics && (

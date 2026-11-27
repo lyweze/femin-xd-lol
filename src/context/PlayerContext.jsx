@@ -1,5 +1,10 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { MOCK_TRACKS } from "../services/mockData.js";
+import {
+	getLyricsSnapshotForTracks,
+	probeTempLyricsForTracks,
+	subscribeLyricsChanges,
+} from "../services/lyricsStorage.js";
 import { useAudioEngine } from "../hooks/useAudioEngine.js";
 import { useSystemIntegration } from "../hooks/useSystemIntegration.js";
 import {
@@ -62,6 +67,9 @@ export function PlayerProvider({ children }) {
 		readStorageJson(LIKED_STORAGE_KEY, DEFAULT_LIKED_IDS, Array.isArray),
 	);
 	const [playlists, setPlaylists] = useState(readStoredPlaylists);
+	const [lyricsByTrack, setLyricsByTrack] = useState(() =>
+		getLyricsSnapshotForTracks(MOCK_TRACKS),
+	);
 	const [fullscreenPhase, setFullscreenPhase] = useState("closed"); // 'closed' | 'open' | 'closing'
 	const [showLyrics, setShowLyrics] = useState(true);
 	const [durationOverrides, setDurationOverrides] = useState({});
@@ -99,6 +107,16 @@ export function PlayerProvider({ children }) {
 	useEffect(() => {
 		writeStoredPlaylists(playlists);
 	}, [playlists]);
+
+	// Подгружаем .lrc из public/temp/ и слушаем обновления текстов из Admin Studio
+	useEffect(() => {
+		const refreshLyrics = () => {
+			setLyricsByTrack(getLyricsSnapshotForTracks(MOCK_TRACKS));
+		};
+		const unsubscribe = subscribeLyricsChanges(refreshLyrics);
+		void probeTempLyricsForTracks(MOCK_TRACKS);
+		return unsubscribe;
+	}, []);
 
 	const handleDurationDetected = useCallback((trackId, detectedMs) => {
 		setDurationOverrides((prev) =>
@@ -294,6 +312,22 @@ export function PlayerProvider({ children }) {
 		setFullscreenPhase("open");
 	}, []);
 
+	/** Включает указанный трек (если ещё не активен) и сразу открывает экран текста */
+	const openTrackLyrics = useCallback(
+		(track, nextQueue = null) => {
+			if (!track) return;
+			if (Array.isArray(nextQueue) && nextQueue.length > 0) {
+				setQueue(nextQueue);
+			}
+			if (currentTrackRef.current?.id !== track.id) {
+				setCurrentTrack(track);
+				setIsPlaying(true);
+			}
+			openFullscreen(true);
+		},
+		[openFullscreen],
+	);
+
 	const closeFullscreen = useCallback(() => {
 		if (fullscreenPhaseRef.current !== "open") return;
 		setFullscreenPhase("closing");
@@ -348,6 +382,7 @@ export function PlayerProvider({ children }) {
 			isMuted,
 			likedIds,
 			playlists,
+			lyricsByTrack,
 			fullscreenPhase,
 			isFullscreenOpen,
 			isFullscreenMounted,
@@ -364,6 +399,7 @@ export function PlayerProvider({ children }) {
 			isMuted,
 			likedIds,
 			playlists,
+			lyricsByTrack,
 			fullscreenPhase,
 			isFullscreenOpen,
 			isFullscreenMounted,
@@ -399,6 +435,7 @@ export function PlayerProvider({ children }) {
 			updatePlaylist,
 			deletePlaylist,
 			openFullscreen,
+			openTrackLyrics,
 			closeFullscreen,
 			toggleFullscreen,
 			toggleShowLyrics,
@@ -420,6 +457,7 @@ export function PlayerProvider({ children }) {
 			updatePlaylist,
 			deletePlaylist,
 			openFullscreen,
+			openTrackLyrics,
 			closeFullscreen,
 			toggleFullscreen,
 			toggleShowLyrics,

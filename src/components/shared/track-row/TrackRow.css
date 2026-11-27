@@ -79,6 +79,12 @@
 	&.is-current {
 		background-color: var(--surface-active);
 
+		> .track-row-right > .track-row-lyrics-btn {
+			opacity: 1;
+			background-color: rgba(var(--accent-cover-rgb), 0.18);
+			color: var(--accent-cover);
+		}
+
 		> .track-row-left > .track-row-index {
 			color: var(--text-primary);
 		}
@@ -273,8 +279,39 @@
 	> .track-row-right {
 		display: flex;
 		align-items: center;
-		gap: 14px;
+		gap: 10px;
 		flex-shrink: 0;
+
+		> .track-row-lyrics-btn {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 28px;
+			height: 28px;
+			padding: 0;
+			border: none;
+			border-radius: 8px;
+			background-color: rgba(230, 227, 221, 0.06);
+			color: var(--text-secondary);
+			cursor: pointer;
+			opacity: 0.78;
+			transition:
+				opacity 0.16s ease,
+				color 0.16s ease,
+				background-color 0.16s ease,
+				transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+			&:hover {
+				opacity: 1;
+				background-color: rgba(var(--accent-cover-rgb), 0.18);
+				color: var(--accent-cover);
+				transform: scale(1.06);
+			}
+
+			&:active {
+				transform: scale(0.9);
+			}
+		}
 
 		> .track-row-like {
 			display: flex;
@@ -347,10 +384,18 @@
 }
 
 @media (hover: none), (max-width: 768px) {
-	.track-row > .track-row-right > .track-row-like {
-		opacity: 0.72;
-		width: 36px;
-		height: 36px;
+	.track-row > .track-row-right {
+		> .track-row-lyrics-btn {
+			width: 34px;
+			height: 34px;
+			opacity: 0.92;
+		}
+
+		> .track-row-like {
+			opacity: 0.72;
+			width: 36px;
+			height: 36px;
+		}
 	}
 }
 

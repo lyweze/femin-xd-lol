@@ -58,14 +58,15 @@ export function makeImageSet(primary, secondary, label = "") {
 }
 
 /**
- * Хелпер под локальную папку `public/temp/<folder>/{cover.jpg, test.mp3}`.
- * Возвращает `{ audio_url, cover }` с автофолбэками на SVG-заглушки.
+ * Хелпер под локальную папку `public/temp/<folder>/{cover.jpg, test.mp3, lyrics.lrc}`.
+ * Возвращает `{ audio_url, cover, lyrics_lrc_url }` с автофолбэками на SVG-заглушки.
  */
 export function makeLocalFolderMedia(
 	folder,
 	{
 		audioFile = "test.mp3",
 		coverFile = "cover.jpg",
+		lyricsFile = "lyrics.lrc",
 		primary = "#7d4231",
 		secondary = "#1e1a18",
 		label = folder,
@@ -76,6 +77,7 @@ export function makeLocalFolderMedia(
 
 	return {
 		audio_url: buildTempUrl(`${folder}/${audioFile}`),
+		lyrics_lrc_url: buildTempUrl(`${folder}/${lyricsFile}`),
 		cover: {
 			small_url: coverUrl,
 			medium_url: coverUrl,
@@ -142,6 +144,7 @@ export const MOCK_TRACKS = [
 		cover: LOCAL_MEDIA["8юля"].cover,
 		accent: "#c56b4e",
 		audio_url: LOCAL_MEDIA["8юля"].audio_url,
+		lyrics_lrc_url: LOCAL_MEDIA["8юля"].lyrics_lrc_url,
 		artists: [
 			{
 				id: "a1000000-0000-0000-0000-000000000001",
@@ -162,6 +165,7 @@ export const MOCK_TRACKS = [
 		cover: LOCAL_MEDIA["дающие"].cover,
 		accent: "#7298b3",
 		audio_url: LOCAL_MEDIA["дающие"].audio_url,
+		lyrics_lrc_url: LOCAL_MEDIA["дающие"].lyrics_lrc_url,
 		artists: [
 			{
 				id: "a1000000-0000-0000-0000-000000000001",

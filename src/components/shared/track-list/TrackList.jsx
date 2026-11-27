@@ -26,8 +26,9 @@ function TrackList({
 	showCover,
 	ariaLabel,
 }) {
-	const { currentTrack, isPlaying, likedIds, durationOverrides } = usePlayerState();
-	const { playTrack, toggleLike } = usePlayerActions();
+	const { currentTrack, isPlaying, likedIds, durationOverrides, lyricsByTrack } =
+		usePlayerState();
+	const { playTrack, toggleLike, openTrackLyrics } = usePlayerActions();
 
 	const likedSet = useMemo(() => new Set(likedIds), [likedIds]);
 	const activeQueue = queueTracks || tracks;
@@ -42,6 +43,8 @@ function TrackList({
 			{tracks.map((track, idx) => {
 				const isCurrent = currentTrack?.id === track.id;
 				const displayIndex = useTrackNumber ? track.track_no || idx + 1 : idx + 1;
+				const hasLyrics =
+					(lyricsByTrack?.[track.id]?.length ?? track.lyrics_languages?.length ?? 0) > 0;
 
 				return (
 					<TrackRow
@@ -54,8 +57,10 @@ function TrackList({
 						isCurrent={isCurrent}
 						isPlaying={isCurrent && isPlaying}
 						isLiked={likedSet.has(track.id)}
+						hasLyrics={hasLyrics}
 						onPlay={playTrack}
 						onToggleLike={toggleLike}
+						onOpenLyrics={openTrackLyrics}
 					/>
 				);
 			})}

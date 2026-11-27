@@ -1,6 +1,7 @@
 // ============================================================================
-// Общие константы и хелперы Admin Studio (типы релизов, статусы, парсер LRC)
+// Общие константы и хелперы Admin Studio (типы релизов, статусы, тексты)
 // ============================================================================
+export { parseLrcText } from "../../utils/lrc.js";
 
 /** Поддерживаемые типы релизов в каталоге */
 export const ALBUM_TYPES = [
@@ -40,36 +41,6 @@ export function getAlbumPublicationStatus(album, referenceMs) {
 				isPublished: true,
 				isScheduled: false,
 			};
-}
-
-/**
- * Парсит текст в формате LRC (`[mm:ss.xx] Строка`) или обычный текст построчно
- * в массив структур `AdminLyricsLine`.
- */
-export function parseLrcText(raw) {
-	const rows = raw.split(/\r?\n/);
-	const parsed = [];
-	const regex = /^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]\s*(.*)$/;
-
-	for (const row of rows) {
-		const trimmed = row.trim();
-		if (!trimmed) continue;
-		const match = trimmed.match(regex);
-		if (match) {
-			const min = Number(match[1]);
-			const sec = Number(match[2]);
-			const frac = match[3] ? Number(match[3].padEnd(3, "0")) : 0;
-			parsed.push({
-				start_ms: min * 60000 + sec * 1000 + frac,
-				end_ms: null,
-				text: match[4],
-			});
-		} else {
-			parsed.push({ start_ms: 0, end_ms: null, text: trimmed });
-		}
-	}
-
-	return parsed;
 }
 
 /**

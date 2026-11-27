@@ -4,6 +4,7 @@
 // порядок и состав треков или удалить собственный плейлист.
 // ============================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MOCK_TRACKS } from "../../../services/mockData.js";
 import { processPlaylistCoverFile } from "../../../utils/cover.js";
 import { formatArtistNames } from "../../../utils/format.js";
@@ -401,7 +402,9 @@ function PlaylistEditDialogContent({
 
 /**
  * Обёртка модального редактора плейлиста: пересоздаёт форму по ключу плейлиста
- * только когда окно открыто.
+ * только когда окно открыто. Рендерится через портал в `document.body`, чтобы
+ * выходить из контекста наложения `.page-transition` / `.page-scroll` и гарантированно
+ * перекрывать мобильный мини-плеер и таб-бар.
  */
 function PlaylistEditModal({
 	isOpen,
@@ -411,9 +414,9 @@ function PlaylistEditModal({
 	onDelete,
 	onClose,
 }) {
-	if (!isOpen) return null;
+	if (!isOpen || typeof document === "undefined") return null;
 
-	return (
+	return createPortal(
 		<PlaylistEditDialogContent
 			key={mode === "edit" ? `edit-${playlist?.id}` : "create-playlist"}
 			mode={mode}
@@ -421,7 +424,8 @@ function PlaylistEditModal({
 			onSave={onSave}
 			onDelete={onDelete}
 			onClose={onClose}
-		/>
+		/>,
+		document.body,
 	);
 }
 

@@ -6,10 +6,16 @@
 import {
 	MOCK_ALBUMS,
 	MOCK_ARTISTS,
-	MOCK_LYRICS,
 	MOCK_TRACKS,
 	makeImageSet,
 } from "../services/mockData.js";
+import {
+	deleteLocalTrackLyrics,
+	ensureTempLyricsLoaded,
+	getLocalTrackLyrics,
+	probeTempLyricsForTracks,
+	saveLocalTrackLyrics,
+} from "../services/lyricsStorage.js";
 
 const CURRENT_ADMIN_ID = "u0000000-0000-0000-0000-000000000001";
 const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -136,7 +142,7 @@ function seedTracks(albums, createdAt) {
 								{ kind: "source", format: "flac", bitrate_kbps: 1024, size_bytes: 28_401_220 },
 								{ kind: "stream", format: "opus", bitrate_kbps: 192, size_bytes: 4_620_410 },
 							],
-				lyrics_languages: [...t.lyrics_languages],
+				lyrics_languages: getLocalTrackLyrics(t.id).map((l) => l.language),
 				created_at: createdAt,
 				updated_at: createdAt,
 			};
@@ -176,12 +182,7 @@ function createInitialState() {
 	const albums = seedAlbums(createdAt);
 	const tracks = seedTracks(albums, createdAt);
 
-	const lyricsByTrack = {};
-	Object.entries(MOCK_LYRICS).forEach(([trackId, list]) => {
-		lyricsByTrack[trackId] = clone(list);
-	});
-
-	return { artists, albums, tracks, lyricsByTrack, users: seedUsers() };
+	return { artists, albums, tracks, users: seedUsers() };
 }
 
 const state = createInitialState();
@@ -261,9 +262,15 @@ export function createAdminMockApi(AdminApiError) {
 		}
 	}
 
+	function syncTrackLyricsLanguages(track) {
+		track.lyrics_languages = getLocalTrackLyrics(track.id).map((l) => l.language);
+		return track;
+	}
+
 	function getAlbumTracksSorted(albumId) {
 		return state.tracks
 			.filter((t) => t.album_id === albumId)
+			.map(syncTrackLyricsLanguages)
 			.sort((a, b) => a.disc_no - b.disc_no || a.track_no - b.track_no);
 	}
 
@@ -439,10 +446,9 @@ export function createAdminMockApi(AdminApiError) {
 			const idx = state.albums.findIndex((a) => a.id === albumId);
 			if (idx === -1) fail(404, "NOT_FOUND", "Album not found.");
 			state.albums.splice(idx, 1);
-			// Удаляем все треки альбома вместе с их текстами
+			// Удаляем все треки альбома
 			for (let i = state.tracks.length - 1; i >= 0; i -= 1) {
 				if (state.tracks[i].album_id === albumId) {
-					delete state.lyricsByTrack[state.tracks[i].id];
 					state.tracks.splice(i, 1);
 				}
 			}
@@ -512,10 +518,12 @@ export function createAdminMockApi(AdminApiError) {
 		// --------------------------------------------------------------------
 		async listTracks(params = {}) {
 			await delay();
-			let items = filterByQuery([...state.tracks], params.q, (t) => [
-				t.title,
-				...t.artists.map((a) => a.name),
-			]);
+			await probeTempLyricsForTracks(MOCK_TRACKS);
+			let items = filterByQuery(
+				state.tracks.map(syncTrackLyricsLanguages),
+				params.q,
+				(t) => [t.title, ...t.artists.map((a) => a.name)],
+			);
 			if (params.album_id) {
 				items = items.filter((t) => t.album_id === params.album_id);
 			}
@@ -528,6 +536,8 @@ export function createAdminMockApi(AdminApiError) {
 		async getTrack(trackId) {
 			await delay();
 			const track = findOrFail(state.tracks, trackId, "Track");
+			await ensureTempLyricsLoaded(MOCK_TRACKS.find((t) => t.id === trackId));
+			syncTrackLyricsLanguages(track);
 			return { track: clone(track) };
 		},
 
@@ -579,7 +589,6 @@ export function createAdminMockApi(AdminApiError) {
 			if (idx === -1) fail(404, "NOT_FOUND", "Track not found.");
 			const albumId = state.tracks[idx].album_id;
 			state.tracks.splice(idx, 1);
-			delete state.lyricsByTrack[trackId];
 			syncAlbumTrackCount(albumId);
 			return null;
 		},
@@ -628,12 +637,13 @@ export function createAdminMockApi(AdminApiError) {
 		},
 
 		// --------------------------------------------------------------------
-		// Тексты песен
+		// Тексты песен (синхронизируются с локальным хранилищем плеера)
 		// --------------------------------------------------------------------
 		async listTrackLyrics(trackId) {
 			await delay();
 			findOrFail(state.tracks, trackId, "Track");
-			return { items: clone(state.lyricsByTrack[trackId] ?? []) };
+			await ensureTempLyricsLoaded(MOCK_TRACKS.find((t) => t.id === trackId));
+			return { items: getLocalTrackLyrics(trackId) };
 		},
 
 		async putTrackLyrics(trackId, language, body) {
@@ -663,26 +673,20 @@ export function createAdminMockApi(AdminApiError) {
 				updated_at: nowIso(),
 			};
 
-			const existing = state.lyricsByTrack[trackId] ?? [];
-			const idx = existing.findIndex((l) => l.language === lang);
-			if (idx >= 0) existing[idx] = lyrics;
-			else existing.push(lyrics);
-			state.lyricsByTrack[trackId] = existing;
-			track.lyrics_languages = existing.map((l) => l.language);
+			const saved = saveLocalTrackLyrics(trackId, lyrics);
+			syncTrackLyricsLanguages(track);
 			track.updated_at = nowIso();
-			return { lyrics: clone(lyrics) };
+			return { lyrics: saved };
 		},
 
 		async deleteTrackLyrics(trackId, language) {
 			await delay();
 			const track = findOrFail(state.tracks, trackId, "Track");
-			const existing = state.lyricsByTrack[trackId] ?? [];
-			const next = existing.filter((l) => l.language !== language);
-			if (next.length === existing.length) {
+			const { deleted, list } = deleteLocalTrackLyrics(trackId, language);
+			if (!deleted) {
 				fail(404, "NOT_FOUND", `Lyrics for '${language}' not found.`);
 			}
-			state.lyricsByTrack[trackId] = next;
-			track.lyrics_languages = next.map((l) => l.language);
+			track.lyrics_languages = list.map((l) => l.language);
 			track.updated_at = nowIso();
 			return null;
 		},

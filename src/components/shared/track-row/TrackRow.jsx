@@ -6,12 +6,13 @@ import { memo } from "react";
 import { formatDuration } from "../../../utils/format.js";
 import ArtistLinks from "../artist-links/ArtistLinks.jsx";
 import CollectionCover from "../collection-cover/CollectionCover.jsx";
-import { HeartIcon, PauseIcon, PlayIcon } from "../icons/Icons.jsx";
+import { HeartIcon, LyricsIcon, PauseIcon, PlayIcon } from "../icons/Icons.jsx";
 import "./TrackRow.css";
 
 /**
  * Рендерит одну строку трека: обложку (или порядковый номер для альбомов),
- * название + бейдж E, ссылки на основных/приглашённых артистов, лайк и длительность.
+ * название + бейдж E, ссылки на основных/приглашённых артистов, кнопку текста (если есть),
+ * лайк и длительность.
  */
 const TrackRow = memo(function TrackRow({
 	track,
@@ -22,8 +23,10 @@ const TrackRow = memo(function TrackRow({
 	isCurrent = false,
 	isPlaying = false,
 	isLiked = false,
+	hasLyrics = false,
 	onPlay,
 	onToggleLike,
+	onOpenLyrics,
 }) {
 	const artists = track.artists ?? [];
 	const mainArtists = artists.filter((a) => a.role !== "feat");
@@ -129,6 +132,21 @@ const TrackRow = memo(function TrackRow({
 			</div>
 
 			<div className="track-row-right">
+				{hasLyrics && (
+					<button
+						type="button"
+						className="track-row-lyrics-btn"
+						onClick={(e) => {
+							e.stopPropagation();
+							onOpenLyrics?.(track, trackList);
+						}}
+						title="Lyrics"
+						aria-label={`Open lyrics for ${track.title}`}
+					>
+						<LyricsIcon />
+					</button>
+				)}
+
 				<button
 					type="button"
 					className={`track-row-like ${isLiked ? "is-liked" : ""}`}

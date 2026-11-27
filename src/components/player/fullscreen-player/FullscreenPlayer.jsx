@@ -29,6 +29,7 @@ function FullscreenPlayerContent({ isMobile }) {
 		currentTrack,
 		isPlaying,
 		likedIds,
+		lyricsByTrack,
 		fullscreenPhase,
 		isFullscreenOpen,
 		showLyrics,
@@ -44,10 +45,10 @@ function FullscreenPlayerContent({ isMobile }) {
 		toggleMute,
 	} = usePlayerActions();
 
-	const lyricsItems = useMemo(
-		() => (currentTrack ? musicApi.getTrackLyrics(currentTrack.id) : []),
-		[currentTrack],
-	);
+	const lyricsItems = useMemo(() => {
+		if (!currentTrack) return [];
+		return lyricsByTrack?.[currentTrack.id] ?? musicApi.getTrackLyrics(currentTrack.id);
+	}, [currentTrack, lyricsByTrack]);
 
 	// Запоминаем выбор языка вместе с trackId, чтобы при смене трека выбор сбрасывался сам
 	const [langSelection, setLangSelection] = useState(null);

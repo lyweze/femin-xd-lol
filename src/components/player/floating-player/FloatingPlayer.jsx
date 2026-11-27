@@ -38,10 +38,11 @@ function MobileMiniProgress() {
 	);
 }
 
-/** Мобильная раскладка мини-плеера: вся зона обложки открывает экран трека + Play/Pause и Next */
+/** Мобильная раскладка мини-плеера: зона обложки открывает экран трека + Lyrics (если есть), Play/Pause и Next */
 function MobileFloatingBar({
 	currentTrack,
 	isPlaying,
+	hasLyrics,
 	isFullscreenOpen,
 	onOpenFullscreen,
 	onTogglePlay,
@@ -78,6 +79,17 @@ function MobileFloatingBar({
 				</button>
 
 				<div className="player-mobile-actions">
+					{hasLyrics && (
+						<button
+							type="button"
+							className="player-mobile-lyrics-btn"
+							onClick={() => onOpenFullscreen(true)}
+							aria-label="Open lyrics"
+						>
+							<LyricsIcon />
+						</button>
+					)}
+
 					<button
 						type="button"
 						className="player-mobile-play-btn"
@@ -210,6 +222,7 @@ function FloatingPlayer({ isMobile = false }) {
 		currentTrack,
 		isPlaying,
 		likedIds,
+		lyricsByTrack,
 		isFullscreenOpen,
 		volume,
 		isMuted,
@@ -226,13 +239,17 @@ function FloatingPlayer({ isMobile = false }) {
 	if (!currentTrack) return null;
 
 	const isLiked = likedIds.includes(currentTrack.id);
-	const hasLyrics = (currentTrack.lyrics_languages?.length ?? 0) > 0;
+	const hasLyrics =
+		(lyricsByTrack?.[currentTrack.id]?.length ??
+			currentTrack.lyrics_languages?.length ??
+			0) > 0;
 
 	if (isMobile) {
 		return (
 			<MobileFloatingBar
 				currentTrack={currentTrack}
 				isPlaying={isPlaying}
+				hasLyrics={hasLyrics}
 				isFullscreenOpen={isFullscreenOpen}
 				onOpenFullscreen={openFullscreen}
 				onTogglePlay={togglePlay}
