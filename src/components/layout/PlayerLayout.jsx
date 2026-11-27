@@ -1,9 +1,10 @@
 // ============================================================================
-// Импорты: роутинг, хук состояния сайдбара, фон, плеер и полноэкранный режим
+// Основной макет плеера: полоса возврата сайдбара + сайдбар + .main + фуллскрин
 // ============================================================================
 import { Outlet, useLocation } from "react-router-dom";
 import { useSidebar } from "../../hooks/useSidebar.js";
 import TitlebarDrag from "../../platform/TitlebarDrag.jsx";
+import { ChevronRightIcon } from "../shared/icons/Icons.jsx";
 import AmbientBg from "./ambient-bg/AmbientBg.jsx";
 import Sidebar from "./sidebar/Sidebar.jsx";
 import FloatingPlayer from "../player/floating-player/FloatingPlayer.jsx";
@@ -26,7 +27,9 @@ function PlayerLayout() {
 						onClick={toggleSidebar}
 						title="Show sidebar (⌘\)"
 						aria-label="Show sidebar"
-					/>
+					>
+						<ChevronRightIcon size={11} />
+					</button>
 				)}
 
 				<Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
@@ -40,7 +43,6 @@ function PlayerLayout() {
 				</main>
 			</div>
 
-			{/* Полноэкранный плеер поверх всего окна (включая сайдбар) */}
 			<FullscreenPlayer />
 		</>
 	);

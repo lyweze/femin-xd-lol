@@ -7,7 +7,7 @@ import {
 	MOCK_PLAYLISTS,
 	MOCK_TRACKS,
 } from "../../../services/mockData.js";
-import { usePlayerActions, usePlayerState } from "../../../context/PlayerContext.jsx";
+import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
 import MediaCard from "../../shared/media-card/MediaCard.jsx";
 import ArtistCard from "../../shared/artist-card/ArtistCard.jsx";
 import TrackRow from "../../shared/track-row/TrackRow.jsx";
@@ -67,48 +67,54 @@ function LibraryPage() {
 			</header>
 
 			<div className="page-scroll" ref={scrollRef}>
-				{activeTab === "collections" && (
-					<div className="library-grid">
-						{collections.map((item) => (
-							<MediaCard
-								key={`${item.type}-${item.id}`}
-								item={item}
-								fluid
-							/>
-						))}
-					</div>
-				)}
-
-				{activeTab === "artists" && (
-					<div className="artists-grid">
-						{MOCK_ARTISTS.map((artist) => (
-							<ArtistCard key={artist.id} artist={artist} fluid />
-						))}
-					</div>
-				)}
-
-				{activeTab === "liked" &&
-					(likedTracks.length === 0 ? (
-						<p className="library-empty-hint">
-							No liked tracks yet. Press ♥ next to any track to save it.
-						</p>
-					) : (
-						<ul className="Library is-embedded">
-							{likedTracks.map((track, idx) => (
-								<TrackRow
-									key={track.id}
-									track={track}
-									index={idx + 1}
-									durationMsOverride={durationOverrides[track.id]}
-									isCurrent={currentTrack?.id === track.id}
-									isPlaying={isPlaying}
-									isLiked
-									onPlay={(t) => playTrack(t, likedTracks)}
-									onToggleLike={toggleLike}
+				<div key={activeTab} className="library-tab-panel">
+					{activeTab === "collections" && (
+						<div className="library-grid">
+							{collections.map((item) => (
+								<MediaCard
+									key={`${item.type}-${item.id}`}
+									item={item}
+									fluid
 								/>
 							))}
-						</ul>
-					))}
+						</div>
+					)}
+
+					{activeTab === "artists" && (
+						<div className="artists-grid">
+							{MOCK_ARTISTS.map((artist) => (
+								<ArtistCard key={artist.id} artist={artist} fluid />
+							))}
+						</div>
+					)}
+
+					{activeTab === "liked" &&
+						(likedTracks.length === 0 ? (
+							<p className="library-empty-hint">
+								No liked tracks yet. Press ♥ next to any track to save it.
+							</p>
+						) : (
+							<ul className="Library is-embedded">
+								{likedTracks.map((track, idx) => {
+									const isCurrent = currentTrack?.id === track.id;
+									return (
+										<TrackRow
+											key={track.id}
+											track={track}
+											trackList={likedTracks}
+											index={idx + 1}
+											durationMsOverride={durationOverrides[track.id]}
+											isCurrent={isCurrent}
+											isPlaying={isCurrent && isPlaying}
+											isLiked
+											onPlay={playTrack}
+											onToggleLike={toggleLike}
+										/>
+									);
+								})}
+							</ul>
+						))}
+				</div>
 			</div>
 		</div>
 	);

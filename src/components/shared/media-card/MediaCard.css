@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Карточка альбома / плейлиста (лента и адаптивная сетка)
+   Карточка альбома / плейлиста (гладкие скругления, мягкий микро-зум обложки)
    ========================================================================== */
 .media-card {
 	display: flex;
@@ -21,15 +21,22 @@
 		width: 100%;
 	}
 
-	&:hover > .media-card-cover-wrap {
-		transform: translate3d(0, -5px, 0) scale(1.018);
-		box-shadow:
-			inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-			0 18px 34px rgba(0, 0, 0, 0.46);
+	&:hover {
+		> .media-card-cover-wrap {
+			transform: translate3d(0, -4px, 0);
+
+			> .media-card-cover {
+				transform: scale(1.045);
+			}
+		}
+
+		> .media-card-title {
+			color: #ffffff;
+		}
 	}
 
 	&:active > .media-card-cover-wrap {
-		transform: translate3d(0, -1px, 0) scale(0.99);
+		transform: translate3d(0, -1px, 0) scale(0.985);
 		transition-duration: 0.1s;
 	}
 
@@ -39,28 +46,21 @@
 		aspect-ratio: 1 / 1;
 		border-radius: var(--radius-cover);
 		background-color: var(--surface-active);
-		outline: 1px solid var(--border-hairline);
-		box-shadow:
-			inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-			var(--shadow-cover);
 		overflow: hidden;
-		backface-visibility: hidden;
-		transform: translateZ(0);
-		transition:
-			transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-			box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+		transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 
 		> .media-card-cover {
 			display: block;
 			width: 100%;
 			height: 100%;
 			object-fit: cover;
+			transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 		}
 	}
 
 	> .media-card-title {
 		width: 100%;
-		margin-top: 10px;
+		margin-top: 11px;
 		font-family: var(--font-editorial);
 		font-size: 15.5px;
 		font-weight: 500;
@@ -70,11 +70,12 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+		transition: color 0.18s ease;
 	}
 
 	> .media-card-subtitle {
 		width: 100%;
-		margin-top: 2px;
+		margin-top: 3px;
 		font-family: var(--font-mono);
 		font-size: 10px;
 		letter-spacing: 0.04em;

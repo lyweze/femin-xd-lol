@@ -1,0 +1,88 @@
+/* ==========================================================================
+   Монолитный слайдер в стиле macOS (без бегунка-точки, капсула с заливкой)
+   ========================================================================== */
+.mono-slider {
+	position: relative;
+	display: flex;
+	align-items: center;
+	flex: 1 1 0%;
+	height: 16px;
+	cursor: pointer;
+	touch-action: none;
+	outline: none;
+	border-radius: 999px;
+
+	> .mono-slider-track {
+		--slider-ratio: 0;
+		position: relative;
+		width: 100%;
+		height: 5px;
+		border-radius: 999px;
+		background-color: rgba(230, 227, 221, 0.16);
+		overflow: hidden;
+		transition:
+			height 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+			background-color 0.18s ease;
+
+		> .mono-slider-fill {
+			width: 100%;
+			height: 100%;
+			background-color: rgba(236, 233, 226, 0.88);
+			transform-origin: left center;
+			transform: scaleX(var(--slider-ratio));
+			transition:
+				transform 0.14s linear,
+				background-color 0.18s ease;
+		}
+	}
+
+	&.is-accent > .mono-slider-track > .mono-slider-fill {
+		background-color: var(--accent-cover);
+	}
+
+	&:hover > .mono-slider-track,
+	&:focus-visible > .mono-slider-track,
+	&.is-dragging > .mono-slider-track {
+		height: 7px;
+		background-color: rgba(230, 227, 221, 0.24);
+	}
+
+	&:hover > .mono-slider-track > .mono-slider-fill,
+	&.is-dragging > .mono-slider-track > .mono-slider-fill {
+		background-color: var(--text-primary);
+	}
+
+	&.is-accent:hover > .mono-slider-track > .mono-slider-fill,
+	&.is-accent.is-dragging > .mono-slider-track > .mono-slider-fill {
+		background-color: var(--accent-cover);
+		filter: brightness(1.08);
+	}
+
+	&.is-dragging > .mono-slider-track > .mono-slider-fill {
+		transition: background-color 0.18s ease;
+	}
+
+	&.is-fullscreen {
+		height: 18px;
+
+		> .mono-slider-track {
+			height: 6px;
+			background-color: rgba(255, 255, 255, 0.18);
+
+			> .mono-slider-fill {
+				background-color: rgba(255, 255, 255, 0.88);
+			}
+		}
+
+		&:hover > .mono-slider-track,
+		&:focus-visible > .mono-slider-track,
+		&.is-dragging > .mono-slider-track {
+			height: 9px;
+			background-color: rgba(255, 255, 255, 0.26);
+
+			> .mono-slider-fill {
+				background-color: #ffffff;
+			}
+		}
+	}
+}

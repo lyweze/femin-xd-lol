@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Универсальная строка трека (Matte Obsidian)
+   Универсальная строка трека (без нижних бордеров, мягкие микро-взаимодействия)
    ========================================================================== */
 .track-row {
 	display: flex;
@@ -8,26 +8,22 @@
 	flex-shrink: 0;
 	gap: 16px;
 	width: 100%;
-	height: 54px;
-	padding: 0 14px;
+	height: 58px;
+	padding: 0 16px;
 	margin: 0;
 	box-sizing: border-box;
 
-	border-radius: var(--radius-item);
-	border-bottom: 1px solid var(--border-hairline);
+	border-radius: 14px;
 	cursor: pointer;
 	-webkit-user-select: none;
 	user-select: none;
 
 	transition:
 		background-color 0.18s ease,
-		transform 0.1s ease;
+		transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
 
-	&:last-child {
-		border-bottom: none;
-	}
-
-	&:hover {
+	&:hover,
+	&:focus-within {
 		background-color: var(--surface-hover);
 
 		> .track-row-right > .track-row-like {
@@ -35,14 +31,26 @@
 		}
 	}
 
+	&:hover {
+		> .track-row-left > .track-row-index {
+			> .track-row-indicator {
+				opacity: 0;
+				transform: scale(0.8);
+			}
+
+			> .track-row-hover-icon {
+				opacity: 1;
+				transform: scale(1);
+			}
+		}
+	}
+
 	&:active {
-		transform: scale(0.997);
+		transform: scale(0.996);
 	}
 
 	&.is-current {
 		background-color: var(--surface-active);
-		border-bottom-color: transparent;
-		box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 
 		> .track-row-left > .track-row-index {
 			color: var(--text-primary);
@@ -56,14 +64,16 @@
 	> .track-row-left {
 		display: flex;
 		align-items: center;
-		gap: 12px;
+		gap: 14px;
 		min-width: 0;
 
 		> .track-row-index {
+			position: relative;
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			width: 24px;
+			height: 24px;
 			flex-shrink: 0;
 			font-family: var(--font-mono);
 			font-variant-numeric: tabular-nums;
@@ -71,40 +81,68 @@
 			color: var(--text-tertiary);
 			transition: color 0.18s ease;
 
-			> .track-row-dot {
-				width: 7px;
-				height: 7px;
-				border-radius: 50%;
-				background-color: var(--accent-cover);
-				box-shadow: 0 0 8px rgba(var(--accent-cover-rgb), 0.7);
-				flex-shrink: 0;
+			> .track-row-indicator {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				transition:
+					opacity 0.15s ease,
+					transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+
+				> .track-row-dot {
+					width: 7px;
+					height: 7px;
+					border-radius: 50%;
+					background-color: var(--accent-cover);
+					flex-shrink: 0;
+				}
+
+				/* Анимированный мини-эквалайзер для играющего трека */
+				> .track-row-eq {
+					display: inline-flex;
+					align-items: flex-end;
+					gap: 2px;
+					height: 12px;
+
+					> i {
+						display: block;
+						width: 2px;
+						height: 100%;
+						border-radius: 999px;
+						background-color: var(--accent-cover);
+						transform-origin: bottom;
+						animation: eqBounce 0.9s ease-in-out infinite;
+
+						&:nth-child(1) {
+							animation-delay: 0s;
+						}
+						&:nth-child(2) {
+							animation-delay: 0.22s;
+						}
+						&:nth-child(3) {
+							animation-delay: 0.44s;
+						}
+					}
+				}
 			}
 
-			/* Анимированный мини-эквалайзер для играющего трека */
-			> .track-row-eq {
-				display: inline-flex;
-				align-items: flex-end;
-				gap: 2px;
-				height: 12px;
+			> .track-row-hover-icon {
+				position: absolute;
+				inset: 0;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: var(--text-primary);
+				opacity: 0;
+				transform: scale(0.75);
+				pointer-events: none;
+				transition:
+					opacity 0.15s ease,
+					transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-				> i {
-					display: block;
-					width: 2px;
-					height: 100%;
-					border-radius: 999px;
-					background-color: var(--accent-cover);
-					transform-origin: bottom;
-					animation: eqBounce 0.9s ease-in-out infinite;
-
-					&:nth-child(1) {
-						animation-delay: 0s;
-					}
-					&:nth-child(2) {
-						animation-delay: 0.22s;
-					}
-					&:nth-child(3) {
-						animation-delay: 0.44s;
-					}
+				svg {
+					width: 12px;
+					height: 12px;
 				}
 			}
 		}
@@ -112,7 +150,7 @@
 		> .track-row-meta {
 			display: flex;
 			flex-direction: column;
-			gap: 2px;
+			gap: 3px;
 			min-width: 0;
 
 			> .track-row-title-line {
@@ -136,9 +174,9 @@
 					align-items: center;
 					justify-content: center;
 					flex-shrink: 0;
-					width: 14px;
-					height: 14px;
-					border-radius: 3px;
+					width: 15px;
+					height: 15px;
+					border-radius: 4px;
 					background-color: rgba(230, 227, 221, 0.13);
 					font-family: var(--font-mono);
 					font-size: 9px;
@@ -180,30 +218,38 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			width: 24px;
-			height: 24px;
+			width: 28px;
+			height: 28px;
 			padding: 0;
 			border: none;
-			border-radius: 6px;
+			border-radius: 8px;
 			background: transparent;
 			color: var(--text-tertiary);
-			font-size: 13px;
-			line-height: 1;
 			cursor: pointer;
 			opacity: 0;
 			transition:
 				opacity 0.16s ease,
 				color 0.16s ease,
-				transform 0.12s ease;
+				background-color 0.16s ease,
+				transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
 
 			&:hover {
+				background-color: rgba(230, 227, 221, 0.08);
 				color: var(--text-primary);
-				transform: scale(1.12);
+				transform: scale(1.1);
+			}
+
+			&:active {
+				transform: scale(0.9);
 			}
 
 			&.is-liked {
 				opacity: 1;
 				color: var(--accent-cover);
+
+				svg {
+					animation: rowHeartPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+				}
 			}
 		}
 
@@ -223,5 +269,24 @@
 	}
 	50% {
 		transform: scaleY(1);
+	}
+}
+
+@keyframes rowHeartPop {
+	0% {
+		transform: scale(0.75);
+	}
+	55% {
+		transform: scale(1.24);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.track-row > .track-row-left > .track-row-index > .track-row-indicator > .track-row-eq > i,
+	.track-row > .track-row-right > .track-row-like.is-liked svg {
+		animation: none;
 	}
 }

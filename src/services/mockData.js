@@ -87,7 +87,6 @@ export function makeLocalFolderMedia(
 	};
 }
 
-// Локальные папки из public/temp/ (добавлять новые треки — просто новая строка)
 const LOCAL_MEDIA = {
 	"8юля": makeLocalFolderMedia("8юля", {
 		primary: "#7d4231",
@@ -98,29 +97,6 @@ const LOCAL_MEDIA = {
 		secondary: "#181d22",
 	}),
 };
-
-// Совместимость со старыми экспортами
-export const LOCAL_TEST_AUDIO_URL = LOCAL_MEDIA["8юля"].audio_url;
-export const LOCAL_TEST_COVER = LOCAL_MEDIA["8юля"].cover;
-
-/**
- * Безопасный обработчик onError для <img>: подменяет отсутствующий локальный файл
- * на встроенную SVG-заглушку (без зацикливания).
- */
-export function handleCoverError(e, image, size = "medium") {
-	const img = e.currentTarget;
-	if (img.dataset.fallbackApplied) return;
-	const fallback =
-		size === "small"
-			? image?.fallback_small_url
-			: size === "large"
-				? image?.fallback_large_url
-				: image?.fallback_medium_url;
-	if (fallback) {
-		img.dataset.fallbackApplied = "1";
-		img.src = fallback;
-	}
-}
 
 // ============================================================================
 // Исполнители
@@ -161,7 +137,7 @@ export const MOCK_TRACKS = [
 		title: "8юля (Local MP3 Test)",
 		disc_no: 1,
 		track_no: 1,
-		duration_ms: 0, // подтянется автоматически из loadedmetadata реального mp3
+		duration_ms: 0,
 		explicit: true,
 		cover: LOCAL_MEDIA["8юля"].cover,
 		accent: "#c56b4e",
@@ -181,7 +157,7 @@ export const MOCK_TRACKS = [
 		title: "дающие (Local MP3 Test)",
 		disc_no: 1,
 		track_no: 2,
-		duration_ms: 0, // подтянется автоматически из loadedmetadata реального mp3
+		duration_ms: 0,
 		explicit: true,
 		cover: LOCAL_MEDIA["дающие"].cover,
 		accent: "#7298b3",
@@ -221,45 +197,8 @@ export const MOCK_PLAYLISTS = [
 export const MOCK_LYRICS = {};
 
 // ============================================================================
-// Утилиты форматирования и поиска по мокам
+// Поисковые хелперы по мок-каталогу
 // ============================================================================
-export function formatDuration(ms) {
-	if (!Number.isFinite(ms) || ms <= 0) return "--:--";
-	const totalSeconds = Math.floor(ms / 1000);
-	const minutes = Math.floor(totalSeconds / 60);
-	const seconds = totalSeconds % 60;
-	return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-export function formatPlaybackTime(ms) {
-	if (!Number.isFinite(ms) || ms < 0) return "00:00";
-	const totalSeconds = Math.floor(ms / 1000);
-	const minutes = Math.floor(totalSeconds / 60);
-	const seconds = totalSeconds % 60;
-	return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-export function formatTotalDuration(ms) {
-	if (!Number.isFinite(ms) || ms <= 0) return "0 min";
-	const totalMinutes = Math.max(1, Math.round(ms / 60000));
-	if (totalMinutes < 60) return `${totalMinutes} min`;
-	const hours = Math.floor(totalMinutes / 60);
-	const mins = totalMinutes % 60;
-	return `${hours} hr ${mins} min`;
-}
-
-export function formatBytes(bytes) {
-	if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-	const units = ["B", "KB", "MB", "GB"];
-	let idx = 0;
-	let value = bytes;
-	while (value >= 1024 && idx < units.length - 1) {
-		value /= 1024;
-		idx += 1;
-	}
-	return `${value.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
-}
-
 export function getArtistById(id) {
 	return MOCK_ARTISTS.find((a) => a.id === id) ?? null;
 }

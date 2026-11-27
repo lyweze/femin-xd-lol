@@ -5,9 +5,11 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
-import { AppRouter, IS_DESKTOP } from "./platform/AppRouter.jsx";
-import { AuthProvider, RequireAdmin } from "./context/AuthContext.jsx";
+import { IS_DESKTOP } from "./platform/env.js";
+import { AppRouter } from "./platform/AppRouter.jsx";
+import { AuthProvider } from "./context/AuthContext.jsx";
 import { PlayerProvider } from "./context/PlayerContext.jsx";
+import { RequireAdmin } from "./components/auth/RequireAdmin.jsx";
 
 import PlayerLayout from "./components/layout/PlayerLayout.jsx";
 import MainPage from "./components/pages/main-page/MainPage.jsx";

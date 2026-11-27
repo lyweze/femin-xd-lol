@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { formatBytes } from "../../services/mockData.js";
+import { formatBytes } from "../../utils/format.js";
 
 const ALLOWED_EXTS = new Set(["flac", "mp3", "wav", "m4a"]);
 

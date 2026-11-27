@@ -1,10 +1,11 @@
 // ============================================================================
 // Парящая стеклянная капсула нижнего плеера (`FloatingPlayer`)
-// Клик по обложке открывает полноэкранный режим в стиле Apple Music
 // ============================================================================
-import { Link } from "react-router-dom";
-import { usePlayerActions, usePlayerState } from "../../../context/PlayerContext.jsx";
-import { handleCoverError } from "../../../services/mockData.js";
+import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
+import { handleCoverError } from "../../../utils/cover.js";
+import ArtistLinks from "../../shared/artist-links/ArtistLinks.jsx";
+import { ExpandIcon, HeartIcon, LyricsIcon } from "../../shared/icons/Icons.jsx";
+import VolumeControl from "../../shared/volume-control/VolumeControl.jsx";
 import PlayerControls from "../player-controls/PlayerControls.jsx";
 import ProgressBar from "../progress-bar/ProgressBar.jsx";
 import "./FloatingPlayer.css";
@@ -19,12 +20,11 @@ function FloatingPlayer() {
 
 	const isLiked = likedIds.includes(currentTrack.id);
 	const hasLyrics = (currentTrack.lyrics_languages?.length ?? 0) > 0;
-	const volumePercent = `${Math.round((isMuted ? 0 : volume) * 100)}%`;
 
 	return (
 		<div className={`player-wrapper ${isFullscreenOpen ? "is-hidden" : ""}`}>
 			<section className="player-capsule" aria-label="Now playing bar">
-				{/* 1. Обложка (клик открывает полноэкранный плеер) + метаданные */}
+				{/* 1. Обложка + метаданные */}
 				<div className="player-track">
 					<button
 						type="button"
@@ -35,6 +35,7 @@ function FloatingPlayer() {
 					>
 						{currentTrack.cover?.small_url && (
 							<img
+								key={currentTrack.id}
 								className="player-cover"
 								src={currentTrack.cover.small_url}
 								alt={currentTrack.title}
@@ -43,19 +44,11 @@ function FloatingPlayer() {
 							/>
 						)}
 						<span className="player-cover-expand" aria-hidden="true">
-							<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-								<path
-									d="M10 2.5h3.5V6M6 13.5H2.5V10M13.5 2.5L9.2 6.8M2.5 13.5l4.3-4.3"
-									stroke="currentColor"
-									strokeWidth="1.4"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								/>
-							</svg>
+							<ExpandIcon />
 						</span>
 					</button>
 
-					<div className="player-meta">
+					<div key={currentTrack.id} className="player-meta">
 						<button
 							type="button"
 							className="player-title-btn"
@@ -65,17 +58,10 @@ function FloatingPlayer() {
 							{currentTrack.title}
 						</button>
 						<div className="player-artists">
-							{currentTrack.artists?.map((artist, idx) => (
-								<span key={artist.id}>
-									{idx > 0 && ", "}
-									<Link
-										to={`/artist/${artist.id}`}
-										className="player-artist-link"
-									>
-										{artist.name}
-									</Link>
-								</span>
-							))}
+							<ArtistLinks
+								artists={currentTrack.artists}
+								linkClassName="player-artist-link"
+							/>
 						</div>
 					</div>
 				</div>
@@ -90,13 +76,13 @@ function FloatingPlayer() {
 				<div className="player-extra">
 					<button
 						type="button"
-						className={`player-icon-btn ${isLiked ? "is-active" : ""}`}
+						className={`player-icon-btn player-like-btn ${isLiked ? "is-active" : ""}`}
 						onClick={() => toggleLike(currentTrack.id)}
 						title={isLiked ? "Remove from Favourites" : "Add to Favourites"}
 						aria-label={isLiked ? "Unlike track" : "Like track"}
 						aria-pressed={isLiked}
 					>
-						♥
+						<HeartIcon filled={isLiked} size={15} />
 					</button>
 
 					<button
@@ -107,58 +93,17 @@ function FloatingPlayer() {
 						title={hasLyrics ? "Open lyrics" : "No lyrics for this track"}
 						aria-label="Open lyrics"
 					>
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-							<path
-								d="M2.5 4h11M2.5 8h8M2.5 12h5.5"
-								stroke="currentColor"
-								strokeWidth="1.4"
-								strokeLinecap="round"
-							/>
-						</svg>
+						<LyricsIcon />
 					</button>
 
-					<div className="player-volume">
-						<button
-							type="button"
-							className="player-icon-btn"
-							onClick={toggleMute}
-							title={isMuted ? "Unmute" : "Mute"}
-							aria-label={isMuted ? "Unmute" : "Mute"}
-						>
-							{isMuted || volume === 0 ? (
-								<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-									<path
-										d="M2.5 6.2h2.4l3.3-2.8v9.2L4.9 9.8H2.5V6.2zm8.5.3l3 3m0-3l-3 3"
-										stroke="currentColor"
-										strokeWidth="1.3"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-								</svg>
-							) : (
-								<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-									<path
-										d="M2.5 6.2h2.4l3.3-2.8v9.2L4.9 9.8H2.5V6.2zm8.2-.2a3 3 0 010 4m2-5.8a5.5 5.5 0 010 7.6"
-										stroke="currentColor"
-										strokeWidth="1.3"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-								</svg>
-							)}
-						</button>
-						<input
-							type="range"
-							className="volume-slider"
-							min="0"
-							max="1"
-							step="0.02"
-							value={isMuted ? 0 : volume}
-							style={{ "--vol": volumePercent }}
-							onChange={(e) => setVolume(Number(e.target.value))}
-							aria-label="Volume"
-						/>
-					</div>
+					<VolumeControl
+						volume={volume}
+						isMuted={isMuted}
+						onToggleMute={toggleMute}
+						onChangeVolume={setVolume}
+						containerClassName="player-volume"
+						buttonClassName="player-icon-btn"
+					/>
 				</div>
 			</section>
 		</div>

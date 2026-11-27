@@ -3,9 +3,10 @@ import { useEffect } from "react";
 /**
  * Интеграция с ОС и глобальными горячими клавишами:
  * 1. Navigator Media Session API (macOS Control Center, клавиши гарнитуры).
- * 2. `Space` — Play / Pause (с защитой при фокусе в полях ввода).
+ * 2. `Space` — Play / Pause.
  * 3. `Escape` — закрытие полноэкранного плеера.
- * 4. `F` — переключение полноэкранного плеера (вне полей ввода).
+ * 4. `F` — переключение полноэкранного плеера, `L` — тексты, `M` — mute.
+ * 5. `ArrowLeft` / `ArrowRight` — перемотка ±5с (`Shift` — пред/след трек).
  */
 export function useSystemIntegration({
 	currentTrack,
@@ -15,6 +16,9 @@ export function useSystemIntegration({
 	nextTrack,
 	prevTrack,
 	seekToMs,
+	seekByMs,
+	toggleMute,
+	toggleShowLyrics,
 	closeFullscreen,
 	toggleFullscreen,
 }) {
@@ -98,18 +102,51 @@ export function useSystemIntegration({
 				return;
 			}
 
+			const isInteractiveControl =
+				tagName === "BUTTON" ||
+				tagName === "A" ||
+				target?.getAttribute?.("role") === "slider";
+
 			if (e.code === "Space") {
-				if (tagName === "BUTTON" || tagName === "A") return;
+				if (isInteractiveControl) return;
 				e.preventDefault();
 				togglePlay();
 			} else if (e.code === "KeyF") {
-				if (tagName === "BUTTON" || tagName === "A") return;
+				if (isInteractiveControl) return;
 				e.preventDefault();
 				toggleFullscreen();
+			} else if (e.code === "KeyM") {
+				if (isInteractiveControl) return;
+				e.preventDefault();
+				toggleMute();
+			} else if (e.code === "KeyL" && isFullscreenOpen) {
+				if (isInteractiveControl) return;
+				e.preventDefault();
+				toggleShowLyrics();
+			} else if (e.code === "ArrowRight") {
+				if (isInteractiveControl) return;
+				e.preventDefault();
+				if (e.shiftKey) nextTrack(false);
+				else seekByMs(5000);
+			} else if (e.code === "ArrowLeft") {
+				if (isInteractiveControl) return;
+				e.preventDefault();
+				if (e.shiftKey) prevTrack();
+				else seekByMs(-5000);
 			}
 		};
 
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [togglePlay, isFullscreenOpen, closeFullscreen, toggleFullscreen]);
+	}, [
+		togglePlay,
+		nextTrack,
+		prevTrack,
+		seekByMs,
+		toggleMute,
+		toggleShowLyrics,
+		isFullscreenOpen,
+		closeFullscreen,
+		toggleFullscreen,
+	]);
 }

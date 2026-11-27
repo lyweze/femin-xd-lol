@@ -1,11 +1,12 @@
 // ============================================================================
-// Импорты: навигационные ссылки React Router, контексты и стили сайдбара
+// Боковая панель навигации и плейлистов (`Sidebar`)
 // ============================================================================
 import { NavLink, useNavigate } from "react-router-dom";
-import { useAuth } from "../../../context/AuthContext.jsx";
-import { usePlayerState } from "../../../context/PlayerContext.jsx";
-import { IS_DESKTOP } from "../../../platform/AppRouter.jsx";
+import { useAuth } from "../../../context/authContext.js";
+import { usePlayerState } from "../../../context/playerContexts.js";
+import { IS_DESKTOP } from "../../../platform/env.js";
 import { MOCK_PLAYLISTS } from "../../../services/mockData.js";
+import { SidebarIcon } from "../../shared/icons/Icons.jsx";
 import "./Sidebar.css";
 
 const MAIN_NAV_ITEMS = [
@@ -41,18 +42,7 @@ function Sidebar({ isOpen = true, onToggle }) {
 					title="Hide sidebar (⌘\)"
 					aria-label="Hide sidebar"
 				>
-					<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-						<rect
-							x="2"
-							y="2.5"
-							width="12"
-							height="11"
-							rx="2.5"
-							stroke="currentColor"
-							strokeWidth="1.4"
-						/>
-						<path d="M6 2.5V13.5" stroke="currentColor" strokeWidth="1.4" />
-					</svg>
+					<SidebarIcon />
 				</button>
 			</div>
 

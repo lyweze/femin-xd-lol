@@ -1,26 +1,22 @@
-import {
-	createContext,
-	useContext,
-	useState,
-	useCallback,
-	useMemo,
-	useRef,
-} from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { MOCK_TRACKS } from "../services/mockData.js";
 import { useAudioEngine } from "../hooks/useAudioEngine.js";
-import { useCoverAccent } from "../hooks/useCoverAccent.js";
 import { useSystemIntegration } from "../hooks/useSystemIntegration.js";
-
-// ============================================================================
-// Split Context: изоляция тиков таймера (Time) от каталога (State) и методов
-// ============================================================================
-const PlayerStateContext = createContext(null);
-const PlayerTimeContext = createContext(null);
-const PlayerActionsContext = createContext(null);
+import {
+	DEFAULT_ACCENT,
+	loadCoverAppearance,
+	setRootAccent,
+} from "../utils/cover.js";
+import {
+	PlayerActionsContext,
+	PlayerStateContext,
+	PlayerTimeContext,
+} from "./playerContexts.js";
 
 const LIKED_STORAGE_KEY = "matte_obsidian_liked_tracks";
 const VOLUME_STORAGE_KEY = "matte_obsidian_volume";
 const RESTART_THRESHOLD_MS = 3000;
+const FULLSCREEN_EXIT_MS = 260;
 
 const DEFAULT_LIKED_IDS = ["d4000000-0000-0000-0000-000000000001"];
 
@@ -64,22 +60,36 @@ export function PlayerProvider({ children }) {
 	const [volume, setVolumeState] = useState(readStoredVolume);
 	const [isMuted, setIsMuted] = useState(false);
 	const [likedIds, setLikedIds] = useState(readStoredLikes);
-	const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
+	const [fullscreenPhase, setFullscreenPhase] = useState("closed"); // 'closed' | 'open' | 'closing'
 	const [showLyrics, setShowLyrics] = useState(true);
 	const [durationOverrides, setDurationOverrides] = useState({});
 
 	const queueRef = useRef(queue);
-	queueRef.current = queue;
 	const currentTrackRef = useRef(currentTrack);
-	currentTrackRef.current = currentTrack;
 	const isShuffleRef = useRef(isShuffle);
-	isShuffleRef.current = isShuffle;
 	const repeatModeRef = useRef(repeatMode);
-	repeatModeRef.current = repeatMode;
+	const fullscreenPhaseRef = useRef(fullscreenPhase);
+	const fullscreenCloseTimerRef = useRef(null);
 	const currentTimeRef = useRef(0);
+	const durationRef = useRef(0);
 	const restartRef = useRef(() => {});
 
-	useCoverAccent(currentTrack?.cover?.small_url, currentTrack?.accent);
+	const coverUrl = currentTrack?.cover?.small_url ?? null;
+	const fallbackAccent = currentTrack?.accent || DEFAULT_ACCENT;
+
+	useEffect(() => {
+		let cancelled = false;
+		if (!coverUrl) {
+			setRootAccent(fallbackAccent);
+			return;
+		}
+		loadCoverAppearance(coverUrl, fallbackAccent).then(({ accentHex }) => {
+			if (!cancelled) setRootAccent(accentHex);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [coverUrl, fallbackAccent]);
 
 	const handleDurationDetected = useCallback((trackId, detectedMs) => {
 		setDurationOverrides((prev) =>
@@ -132,7 +142,6 @@ export function PlayerProvider({ children }) {
 		const active = currentTrackRef.current;
 		if (!list.length) return;
 
-		// Один трек в очереди: при repeat all/one или ручном клике — перезапуск с 00:00
 		if (list.length === 1) {
 			if (!autoAdvanced || repeatModeRef.current !== "off") {
 				restartRef.current(true);
@@ -171,7 +180,6 @@ export function PlayerProvider({ children }) {
 		const active = currentTrackRef.current;
 		if (!list.length) return;
 
-		// Как в Apple Music: если прошло >3 сек или трек один — возвращаемся в начало
 		if (currentTimeRef.current > RESTART_THRESHOLD_MS || list.length === 1) {
 			restartRef.current(true);
 			setIsPlaying(true);
@@ -184,25 +192,53 @@ export function PlayerProvider({ children }) {
 		setIsPlaying(true);
 	}, []);
 
+	const handleTrackEnded = useCallback(() => {
+		nextTrack(true);
+	}, [nextTrack]);
+
 	const { currentTimeMs, durationMs, seekToMs, restart } = useAudioEngine({
 		currentTrack,
 		isPlaying,
 		repeatOne: repeatMode === "one",
 		volume,
 		isMuted,
-		onEnded: () => nextTrack(true),
+		onEnded: handleTrackEnded,
 		onDurationDetected: handleDurationDetected,
 	});
 
-	currentTimeRef.current = currentTimeMs;
-	restartRef.current = restart;
+	useEffect(() => {
+		queueRef.current = queue;
+		currentTrackRef.current = currentTrack;
+		isShuffleRef.current = isShuffle;
+		repeatModeRef.current = repeatMode;
+		fullscreenPhaseRef.current = fullscreenPhase;
+		currentTimeRef.current = currentTimeMs;
+		durationRef.current = durationMs;
+		restartRef.current = restart;
+	});
+
+	useEffect(() => {
+		return () => {
+			if (fullscreenCloseTimerRef.current) {
+				clearTimeout(fullscreenCloseTimerRef.current);
+			}
+		};
+	}, []);
 
 	const seekToRatio = useCallback(
 		(ratio) => {
 			const clamped = Math.max(0, Math.min(1, ratio));
-			seekToMs(clamped * (durationMs || currentTrackRef.current?.duration_ms || 0));
+			const total = durationRef.current || currentTrackRef.current?.duration_ms || 0;
+			seekToMs(clamped * total);
 		},
-		[durationMs, seekToMs],
+		[seekToMs],
+	);
+
+	const seekByMs = useCallback(
+		(deltaMs) => {
+			seekToMs(currentTimeRef.current + deltaMs);
+		},
+		[seekToMs],
 	);
 
 	const setVolume = useCallback((value) => {
@@ -246,21 +282,40 @@ export function PlayerProvider({ children }) {
 	}, []);
 
 	const openFullscreen = useCallback((withLyrics = true) => {
+		if (fullscreenCloseTimerRef.current) {
+			clearTimeout(fullscreenCloseTimerRef.current);
+			fullscreenCloseTimerRef.current = null;
+		}
 		if (withLyrics) setShowLyrics(true);
-		setIsFullscreenOpen(true);
+		setFullscreenPhase("open");
 	}, []);
 
 	const closeFullscreen = useCallback(() => {
-		setIsFullscreenOpen(false);
+		if (fullscreenPhaseRef.current !== "open") return;
+		setFullscreenPhase("closing");
+		if (fullscreenCloseTimerRef.current) {
+			clearTimeout(fullscreenCloseTimerRef.current);
+		}
+		fullscreenCloseTimerRef.current = setTimeout(() => {
+			fullscreenCloseTimerRef.current = null;
+			setFullscreenPhase("closed");
+		}, FULLSCREEN_EXIT_MS);
 	}, []);
 
 	const toggleFullscreen = useCallback(() => {
-		setIsFullscreenOpen((prev) => !prev);
-	}, []);
+		if (fullscreenPhaseRef.current === "open") {
+			closeFullscreen();
+		} else {
+			openFullscreen(false);
+		}
+	}, [closeFullscreen, openFullscreen]);
 
 	const toggleShowLyrics = useCallback(() => {
 		setShowLyrics((prev) => !prev);
 	}, []);
+
+	const isFullscreenOpen = fullscreenPhase === "open";
+	const isFullscreenMounted = fullscreenPhase !== "closed";
 
 	useSystemIntegration({
 		currentTrack,
@@ -270,6 +325,9 @@ export function PlayerProvider({ children }) {
 		nextTrack,
 		prevTrack,
 		seekToMs,
+		seekByMs,
+		toggleMute,
+		toggleShowLyrics,
 		closeFullscreen,
 		toggleFullscreen,
 	});
@@ -284,7 +342,9 @@ export function PlayerProvider({ children }) {
 			volume,
 			isMuted,
 			likedIds,
+			fullscreenPhase,
 			isFullscreenOpen,
+			isFullscreenMounted,
 			showLyrics,
 			durationOverrides,
 		}),
@@ -297,7 +357,9 @@ export function PlayerProvider({ children }) {
 			volume,
 			isMuted,
 			likedIds,
+			fullscreenPhase,
 			isFullscreenOpen,
+			isFullscreenMounted,
 			showLyrics,
 			durationOverrides,
 		],
@@ -360,22 +422,4 @@ export function PlayerProvider({ children }) {
 			</PlayerStateContext.Provider>
 		</PlayerActionsContext.Provider>
 	);
-}
-
-export function usePlayerState() {
-	const ctx = useContext(PlayerStateContext);
-	if (!ctx) throw new Error("usePlayerState must be used inside <PlayerProvider>");
-	return ctx;
-}
-
-export function usePlayerTime() {
-	const ctx = useContext(PlayerTimeContext);
-	if (!ctx) throw new Error("usePlayerTime must be used inside <PlayerProvider>");
-	return ctx;
-}
-
-export function usePlayerActions() {
-	const ctx = useContext(PlayerActionsContext);
-	if (!ctx) throw new Error("usePlayerActions must be used inside <PlayerProvider>");
-	return ctx;
 }

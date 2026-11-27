@@ -2,41 +2,55 @@ import { useState, useEffect, useCallback } from "react";
 import { adminApi } from "../../api/adminApi.js";
 
 export function useTrackLyrics(trackId) {
-	const [lyricsList, setLyricsList] = useState([]);
-	const [activeLang, setActiveLang] = useState("ru");
-	const [isLoading, setIsLoading] = useState(false);
+	const [state, setState] = useState({
+		trackId: null,
+		items: [],
+		error: null,
+	});
+	const [selectedLang, setSelectedLang] = useState({
+		trackId: null,
+		lang: "ru",
+	});
 	const [isSaving, setIsSaving] = useState(false);
-	const [error, setError] = useState(null);
 
 	useEffect(() => {
-		if (!trackId) {
-			setLyricsList([]);
-			setError(null);
-			return;
-		}
+		if (!trackId) return;
 
 		let cancelled = false;
-		setIsLoading(true);
-		setError(null);
-
 		adminApi
 			.listTrackLyrics(trackId)
 			.then((data) => {
 				if (cancelled) return;
-				setLyricsList(data.items ?? []);
-				setActiveLang(data.items?.[0]?.language ?? "ru");
+				const items = data.items ?? [];
+				setState({ trackId, items, error: null });
+				setSelectedLang({
+					trackId,
+					lang: items[0]?.language ?? "ru",
+				});
 			})
 			.catch((err) => {
-				if (!cancelled) setError(err);
-			})
-			.finally(() => {
-				if (!cancelled) setIsLoading(false);
+				if (!cancelled) {
+					setState({ trackId, items: [], error: err });
+				}
 			});
 
 		return () => {
 			cancelled = true;
 		};
 	}, [trackId]);
+
+	const lyricsList = trackId && state.trackId === trackId ? state.items : [];
+	const error = trackId && state.trackId === trackId ? state.error : null;
+	const isLoading = Boolean(trackId) && state.trackId !== trackId;
+	const activeLang =
+		selectedLang.trackId === trackId ? selectedLang.lang : "ru";
+
+	const setActiveLang = useCallback(
+		(lang) => {
+			setSelectedLang({ trackId, lang });
+		},
+		[trackId],
+	);
 
 	const currentLyrics =
 		lyricsList.find((l) => l.language === activeLang) ?? null;
@@ -45,23 +59,26 @@ export function useTrackLyrics(trackId) {
 		async (language, payload) => {
 			if (!trackId) return null;
 			setIsSaving(true);
-			setError(null);
+			setState((prev) => ({ ...prev, error: null }));
 			try {
 				const { lyrics } = await adminApi.putTrackLyrics(
 					trackId,
 					language,
 					payload,
 				);
-				setLyricsList((prev) => {
-					const exists = prev.some((l) => l.language === language);
-					return exists
-						? prev.map((l) => (l.language === language ? lyrics : l))
-						: [...prev, lyrics];
+				setState((prev) => {
+					const exists = prev.items.some((l) => l.language === language);
+					return {
+						...prev,
+						items: exists
+							? prev.items.map((l) => (l.language === language ? lyrics : l))
+							: [...prev.items, lyrics],
+					};
 				});
-				setActiveLang(language);
+				setSelectedLang({ trackId, lang: language });
 				return lyrics;
 			} catch (err) {
-				setError(err);
+				setState((prev) => ({ ...prev, error: err }));
 				throw err;
 			} finally {
 				setIsSaving(false);
@@ -73,18 +90,20 @@ export function useTrackLyrics(trackId) {
 	const removeLyrics = useCallback(
 		async (language) => {
 			if (!trackId) return;
-			setError(null);
+			setState((prev) => ({ ...prev, error: null }));
 			try {
 				await adminApi.deleteTrackLyrics(trackId, language);
-				setLyricsList((prev) => {
-					const next = prev.filter((l) => l.language !== language);
-					setActiveLang((curr) =>
-						curr === language ? (next[0]?.language ?? "ru") : curr,
+				setState((prev) => {
+					const next = prev.items.filter((l) => l.language !== language);
+					setSelectedLang((curr) =>
+						curr.trackId === trackId && curr.lang === language
+							? { trackId, lang: next[0]?.language ?? "ru" }
+							: curr,
 					);
-					return next;
+					return { ...prev, items: next };
 				});
 			} catch (err) {
-				setError(err);
+				setState((prev) => ({ ...prev, error: err }));
 				throw err;
 			}
 		},

@@ -3,7 +3,7 @@
 // ============================================================================
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { handleCoverError } from "../../../services/mockData.js";
+import { handleCoverError } from "../../../utils/cover.js";
 import "./ArtistCard.css";
 
 const ArtistCard = memo(function ArtistCard({ artist, fluid = false }) {

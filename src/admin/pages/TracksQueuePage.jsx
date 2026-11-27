@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTracks } from "../hooks/useTracks.js";
-import { formatDuration } from "../../services/mockData.js";
+import { formatDuration } from "../../utils/format.js";
 import AudioUploader from "../components/AudioUploader.jsx";
 import LyricsDrawer from "../components/LyricsDrawer.jsx";
 

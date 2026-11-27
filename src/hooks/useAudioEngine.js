@@ -2,14 +2,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 /**
  * Аудио-движок на базе единого экземпляра HTML5 `<audio>` в `useRef`.
- *
- * Исправления и возможности:
- * - Нативный и фолбэк-повтор одного трека (`repeatOne`): `audio.loop = true` +
- *   явный сброс `audio.currentTime = 0` и вызов `audio.play()` в `ended`, чтобы
- *   повтор срабатывал мгновенно без зависания в паузе.
- * - Явный метод `restart()` для надёжного перезапуска текущего трека с 00:00.
- * - Передача реальной длительности из `loadedmetadata` в `onDurationDetected`.
- * - Автооткат на таймер симуляции, если `audio_url` отсутствует или не загрузился.
+ * Оптимизирован под минимальную нагрузку на вкладку:
+ * - Не обновляет React-состояние времени, пока вкладка скрыта (`document.hidden`),
+ *   но мгновенно синхронизирует позицию при возврате.
+ * - Стабильные ссылки на `seekToMs` и `restart` через рефы.
  */
 export function useAudioEngine({
 	currentTrack,
@@ -20,27 +16,42 @@ export function useAudioEngine({
 	onEnded,
 	onDurationDetected,
 }) {
+	const trackId = currentTrack?.id ?? null;
+	const trackDurationFallback = currentTrack?.duration_ms ?? 0;
+
+	const [playbackTime, setPlaybackTime] = useState({ trackId: null, ms: 0 });
+	const [detectedDuration, setDetectedDuration] = useState({
+		trackId: null,
+		ms: 0,
+	});
+	const [failedTrackId, setFailedTrackId] = useState(null);
+
+	const currentTimeMs = playbackTime.trackId === trackId ? playbackTime.ms : 0;
+	const durationMs =
+		detectedDuration.trackId === trackId
+			? detectedDuration.ms
+			: trackDurationFallback;
+	const audioFailed = failedTrackId === trackId;
+	const useRealAudio = Boolean(currentTrack?.audio_url) && !audioFailed;
+
 	const audioRef = useRef(null);
 	const onEndedRef = useRef(onEnded);
-	onEndedRef.current = onEnded;
-
 	const onDurationRef = useRef(onDurationDetected);
-	onDurationRef.current = onDurationDetected;
-
 	const repeatOneRef = useRef(repeatOne);
-	repeatOneRef.current = repeatOne;
-
 	const isPlayingRef = useRef(isPlaying);
-	isPlayingRef.current = isPlaying;
+	const trackIdRef = useRef(trackId);
+	const durationMsRef = useRef(durationMs);
+	const useRealAudioRef = useRef(useRealAudio);
 
-	const currentTrackIdRef = useRef(currentTrack?.id ?? null);
-	currentTrackIdRef.current = currentTrack?.id ?? null;
-
-	const [currentTimeMs, setCurrentTimeMs] = useState(0);
-	const [durationMs, setDurationMs] = useState(currentTrack?.duration_ms ?? 0);
-	const [audioFailed, setAudioFailed] = useState(false);
-
-	const useRealAudio = Boolean(currentTrack?.audio_url) && !audioFailed;
+	useEffect(() => {
+		onEndedRef.current = onEnded;
+		onDurationRef.current = onDurationDetected;
+		repeatOneRef.current = repeatOne;
+		isPlayingRef.current = isPlaying;
+		trackIdRef.current = trackId;
+		durationMsRef.current = durationMs;
+		useRealAudioRef.current = useRealAudio;
+	});
 
 	// Инициализация единого <audio> на весь цикл жизни приложения
 	useEffect(() => {
@@ -48,16 +59,32 @@ export function useAudioEngine({
 		audio.preload = "metadata";
 		audioRef.current = audio;
 
+		const syncTimeFromAudio = () => {
+			if (!trackIdRef.current) return;
+			setPlaybackTime({
+				trackId: trackIdRef.current,
+				ms: Math.floor(audio.currentTime * 1000),
+			});
+		};
+
 		const handleTimeUpdate = () => {
-			setCurrentTimeMs(Math.floor(audio.currentTime * 1000));
+			if (document.hidden) return;
+			syncTimeFromAudio();
+		};
+
+		const handleVisibilityChange = () => {
+			if (!document.hidden && useRealAudioRef.current) {
+				syncTimeFromAudio();
+			}
 		};
 
 		const handleLoadedMetadata = () => {
 			if (Number.isFinite(audio.duration) && audio.duration > 0) {
 				const detectedMs = Math.floor(audio.duration * 1000);
-				setDurationMs(detectedMs);
-				if (currentTrackIdRef.current) {
-					onDurationRef.current?.(currentTrackIdRef.current, detectedMs);
+				const activeId = trackIdRef.current;
+				if (activeId) {
+					setDetectedDuration({ trackId: activeId, ms: detectedMs });
+					onDurationRef.current?.(activeId, detectedMs);
 				}
 			}
 		};
@@ -65,10 +92,10 @@ export function useAudioEngine({
 		const handleEnded = () => {
 			if (repeatOneRef.current) {
 				audio.currentTime = 0;
-				setCurrentTimeMs(0);
+				setPlaybackTime({ trackId: trackIdRef.current, ms: 0 });
 				audio.play().catch((err) => {
 					if (err?.name === "NotSupportedError") {
-						setAudioFailed(true);
+						setFailedTrackId(trackIdRef.current);
 					}
 				});
 				return;
@@ -77,13 +104,14 @@ export function useAudioEngine({
 		};
 
 		const handleError = () => {
-			setAudioFailed(true);
+			setFailedTrackId(trackIdRef.current);
 		};
 
 		audio.addEventListener("timeupdate", handleTimeUpdate);
 		audio.addEventListener("loadedmetadata", handleLoadedMetadata);
 		audio.addEventListener("ended", handleEnded);
 		audio.addEventListener("error", handleError);
+		document.addEventListener("visibilitychange", handleVisibilityChange);
 
 		return () => {
 			audio.pause();
@@ -93,6 +121,7 @@ export function useAudioEngine({
 			audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
 			audio.removeEventListener("ended", handleEnded);
 			audio.removeEventListener("error", handleError);
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
 		};
 	}, []);
 
@@ -114,10 +143,6 @@ export function useAudioEngine({
 	// Загрузка нового трека
 	useEffect(() => {
 		const audio = audioRef.current;
-		setCurrentTimeMs(0);
-		setDurationMs(currentTrack?.duration_ms ?? 0);
-		setAudioFailed(false);
-
 		if (!audio) return;
 
 		if (currentTrack?.audio_url) {
@@ -127,7 +152,7 @@ export function useAudioEngine({
 			if (isPlayingRef.current) {
 				audio.play().catch((err) => {
 					if (err?.name === "NotSupportedError") {
-						setAudioFailed(true);
+						setFailedTrackId(currentTrack.id);
 					}
 				});
 			}
@@ -135,7 +160,7 @@ export function useAudioEngine({
 			audio.pause();
 			audio.removeAttribute("src");
 		}
-	}, [currentTrack?.id, currentTrack?.audio_url, currentTrack?.duration_ms]);
+	}, [currentTrack?.id, currentTrack?.audio_url]);
 
 	// Play / Pause для реального <audio>
 	useEffect(() => {
@@ -145,11 +170,11 @@ export function useAudioEngine({
 		if (isPlaying) {
 			if (audio.ended) {
 				audio.currentTime = 0;
-				setCurrentTimeMs(0);
+				setPlaybackTime({ trackId: trackIdRef.current, ms: 0 });
 			}
 			audio.play().catch((err) => {
 				if (err?.name === "NotSupportedError") {
-					setAudioFailed(true);
+					setFailedTrackId(trackIdRef.current);
 				}
 			});
 		} else {
@@ -162,6 +187,7 @@ export function useAudioEngine({
 		if (useRealAudio || !isPlaying || !currentTrack) return;
 
 		const total = currentTrack.duration_ms || 180000;
+		const activeId = currentTrack.id;
 		let lastTick = performance.now();
 
 		const timerId = setInterval(() => {
@@ -169,55 +195,49 @@ export function useAudioEngine({
 			const delta = now - lastTick;
 			lastTick = now;
 
-			setCurrentTimeMs((prev) => {
-				const next = prev + delta;
+			setPlaybackTime((prev) => {
+				const base = prev.trackId === activeId ? prev.ms : 0;
+				const next = base + delta;
 				if (next >= total) {
 					if (repeatOneRef.current) {
-						return 0;
+						return { trackId: activeId, ms: 0 };
 					}
 					setTimeout(() => onEndedRef.current?.(), 0);
-					return total;
+					return { trackId: activeId, ms: total };
 				}
-				return next;
+				return { trackId: activeId, ms: next };
 			});
-		}, 200);
+		}, 500);
 
 		return () => clearInterval(timerId);
 	}, [useRealAudio, isPlaying, currentTrack]);
 
-	const seekToMs = useCallback(
-		(targetMs) => {
-			const safeTotal = durationMs || currentTrack?.duration_ms || 0;
-			const clamped = Math.max(0, Math.min(safeTotal, Math.floor(targetMs)));
-			setCurrentTimeMs(clamped);
+	const seekToMs = useCallback((targetMs) => {
+		const safeTotal = durationMsRef.current || 0;
+		const clamped = Math.max(0, Math.min(safeTotal, Math.floor(targetMs)));
+		setPlaybackTime({ trackId: trackIdRef.current, ms: clamped });
 
-			const audio = audioRef.current;
-			if (audio && useRealAudio && Number.isFinite(audio.duration)) {
-				audio.currentTime = clamped / 1000;
-			}
-		},
-		[durationMs, currentTrack?.duration_ms, useRealAudio],
-	);
+		const audio = audioRef.current;
+		if (audio && useRealAudioRef.current && Number.isFinite(audio.duration)) {
+			audio.currentTime = clamped / 1000;
+		}
+	}, []);
 
-	const restart = useCallback(
-		(autoPlay = true) => {
-			setCurrentTimeMs(0);
-			const audio = audioRef.current;
-			if (audio && useRealAudio) {
-				audio.currentTime = 0;
-				if (autoPlay) {
-					audio.play().catch(() => {});
-				}
+	const restart = useCallback((autoPlay = true) => {
+		setPlaybackTime({ trackId: trackIdRef.current, ms: 0 });
+		const audio = audioRef.current;
+		if (audio && useRealAudioRef.current) {
+			audio.currentTime = 0;
+			if (autoPlay) {
+				audio.play().catch(() => {});
 			}
-		},
-		[useRealAudio],
-	);
+		}
+	}, []);
 
 	return {
 		currentTimeMs,
 		durationMs,
 		seekToMs,
 		restart,
-		isSimulated: !useRealAudio,
 	};
 }

@@ -2,8 +2,11 @@ import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
 import { musicApi } from "../../../api/musicApi.js";
-import { formatTotalDuration, handleCoverError } from "../../../services/mockData.js";
-import { usePlayerActions, usePlayerState } from "../../../context/PlayerContext.jsx";
+import { formatTotalDuration } from "../../../utils/format.js";
+import { handleCoverError } from "../../../utils/cover.js";
+import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
+import ArtistLinks from "../../shared/artist-links/ArtistLinks.jsx";
+import { PlayIcon } from "../../shared/icons/Icons.jsx";
 import TrackRow from "../../shared/track-row/TrackRow.jsx";
 import "./PlaylistPage.css";
 
@@ -23,7 +26,8 @@ function PlaylistPage({ kind = "playlist" }) {
 		[kind, id, likedIds],
 	);
 
-	const tracks = collection?.tracks ?? [];
+	const tracks = useMemo(() => collection?.tracks ?? [], [collection]);
+	const likedSet = useMemo(() => new Set(likedIds), [likedIds]);
 	const hasMultipleDiscs = tracks.some((t) => (t.disc_no || 1) > 1);
 
 	const discGroups = useMemo(() => {
@@ -80,17 +84,10 @@ function PlaylistPage({ kind = "playlist" }) {
 
 					{collection.artists?.length > 0 && (
 						<div className="collection-artists">
-							{collection.artists.map((artist, idx) => (
-								<span key={artist.id}>
-									{idx > 0 && ", "}
-									<Link
-										to={`/artist/${artist.id}`}
-										className="collection-artist-link"
-									>
-										{artist.name}
-									</Link>
-								</span>
-							))}
+							<ArtistLinks
+								artists={collection.artists}
+								linkClassName="collection-artist-link"
+							/>
 						</div>
 					)}
 
@@ -111,7 +108,7 @@ function PlaylistPage({ kind = "playlist" }) {
 							disabled={tracks.length === 0}
 							onClick={() => playQueue(tracks, { shuffle: false })}
 						>
-							<span className="btn-dot" aria-hidden="true" />
+							<PlayIcon />
 							<span>Play</span>
 						</button>
 						<button
@@ -139,19 +136,23 @@ function PlaylistPage({ kind = "playlist" }) {
 							<div className="collection-disc-label">DISC {group.discNo}</div>
 						)}
 						<ul className="Library is-embedded">
-							{group.tracks.map((track, idx) => (
-								<TrackRow
-									key={track.id}
-									track={track}
-									index={kind === "album" ? track.track_no || idx + 1 : idx + 1}
-									durationMsOverride={durationOverrides[track.id]}
-									isCurrent={currentTrack?.id === track.id}
-									isPlaying={isPlaying}
-									isLiked={likedIds.includes(track.id)}
-									onPlay={(t) => playTrack(t, tracks)}
-									onToggleLike={toggleLike}
-								/>
-							))}
+							{group.tracks.map((track, idx) => {
+								const isCurrent = currentTrack?.id === track.id;
+								return (
+									<TrackRow
+										key={track.id}
+										track={track}
+										trackList={tracks}
+										index={kind === "album" ? track.track_no || idx + 1 : idx + 1}
+										durationMsOverride={durationOverrides[track.id]}
+										isCurrent={isCurrent}
+										isPlaying={isCurrent && isPlaying}
+										isLiked={likedSet.has(track.id)}
+										onPlay={playTrack}
+										onToggleLike={toggleLike}
+									/>
+								);
+							})}
 						</ul>
 					</div>
 				))

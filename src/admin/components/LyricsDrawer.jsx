@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTrackLyrics } from "../hooks/useTrackLyrics.js";
 
 /**
@@ -30,54 +30,31 @@ function parseLrcText(raw) {
 	return parsed;
 }
 
-function LyricsDrawer({ track, onClose, onSaved }) {
-	const trackId = track?.id ?? null;
-	const {
-		lyricsList,
-		currentLyrics,
-		activeLang,
-		setActiveLang,
-		isLoading,
-		isSaving,
-		error,
-		saveLyrics,
-		removeLyrics,
-	} = useTrackLyrics(trackId);
+function buildInitialLines(currentLyrics) {
+	if (!currentLyrics?.lines?.length) {
+		return [{ start_ms: 0, end_ms: "", text: "" }];
+	}
+	return currentLyrics.lines.map((l) => ({
+		start_ms: l.start_ms ?? 0,
+		end_ms: l.end_ms ?? "",
+		text: l.text ?? "",
+	}));
+}
 
-	const [langInput, setLangInput] = useState("ru");
-	const [synced, setSynced] = useState(true);
-	const [offsetMs, setOffsetMs] = useState(0);
-	const [source, setSource] = useState("manual");
-	const [lines, setLines] = useState([{ start_ms: 0, end_ms: null, text: "" }]);
+function LyricsEditorForm({
+	initialLang,
+	currentLyrics,
+	isSaving,
+	onSave,
+	onDelete,
+	onValidationError,
+}) {
+	const [langInput, setLangInput] = useState(initialLang);
+	const [synced, setSynced] = useState(Boolean(currentLyrics?.synced));
+	const [offsetMs, setOffsetMs] = useState(currentLyrics?.offset_ms ?? 0);
+	const [source, setSource] = useState(currentLyrics?.source || "manual");
+	const [lines, setLines] = useState(() => buildInitialLines(currentLyrics));
 	const [lrcDraft, setLrcDraft] = useState("");
-	const [localError, setLocalError] = useState(null);
-
-	useEffect(() => {
-		if (!trackId) return;
-		setLangInput(activeLang || "ru");
-		if (currentLyrics) {
-			setSynced(Boolean(currentLyrics.synced));
-			setOffsetMs(currentLyrics.offset_ms ?? 0);
-			setSource(currentLyrics.source || "manual");
-			setLines(
-				currentLyrics.lines?.length
-					? currentLyrics.lines.map((l) => ({
-							start_ms: l.start_ms ?? 0,
-							end_ms: l.end_ms ?? "",
-							text: l.text ?? "",
-						}))
-					: [{ start_ms: 0, end_ms: "", text: "" }],
-			);
-		} else {
-			setSynced(false);
-			setOffsetMs(0);
-			setSource("manual");
-			setLines([{ start_ms: 0, end_ms: "", text: "" }]);
-		}
-		setLocalError(null);
-	}, [trackId, activeLang, currentLyrics]);
-
-	if (!track) return null;
 
 	const updateLine = (idx, patch) => {
 		setLines((prev) =>
@@ -115,11 +92,11 @@ function LyricsDrawer({ track, onClose, onSaved }) {
 		setLrcDraft("");
 	};
 
-	const handleSave = async (e) => {
+	const handleSubmit = async (e) => {
 		e.preventDefault();
 		const lang = langInput.trim().toLowerCase();
 		if (lang.length < 2 || lang.length > 8) {
-			setLocalError("Код языка должен содержать 2..8 символов (например: ru, en).");
+			onValidationError("Код языка должен содержать 2..8 символов (например: ru, en).");
 			return;
 		}
 		const cleanLines = lines
@@ -134,18 +111,173 @@ function LyricsDrawer({ track, onClose, onSaved }) {
 			.filter((l) => l.text.length > 0);
 
 		if (cleanLines.length === 0) {
-			setLocalError("Добавьте хотя бы одну непустую строку текста.");
+			onValidationError("Добавьте хотя бы одну непустую строку текста.");
 			return;
 		}
 
-		setLocalError(null);
+		onValidationError(null);
+		await onSave(lang, {
+			synced,
+			offset_ms: Number(offsetMs) || 0,
+			source: source.trim() || "manual",
+			lines: cleanLines,
+		});
+	};
+
+	return (
+		<form className="admin-page" onSubmit={handleSubmit}>
+			<div className="admin-form-grid">
+				<div className="admin-field">
+					<label>Language code (2–8)</label>
+					<input
+						className="admin-input"
+						value={langInput}
+						onChange={(e) => setLangInput(e.target.value)}
+						placeholder="ru / en"
+						maxLength={8}
+						required
+					/>
+				</div>
+				<div className="admin-field">
+					<label>Offset (ms)</label>
+					<input
+						type="number"
+						className="admin-input"
+						value={offsetMs}
+						onChange={(e) => setOffsetMs(e.target.value)}
+					/>
+				</div>
+				<div className="admin-field">
+					<label>Source</label>
+					<input
+						className="admin-input"
+						value={source}
+						onChange={(e) => setSource(e.target.value)}
+						placeholder="lrc / whisper / manual"
+					/>
+				</div>
+			</div>
+
+			<label className="admin-checkbox-label">
+				<input
+					type="checkbox"
+					checked={synced}
+					onChange={(e) => setSynced(e.target.checked)}
+				/>
+				<span>Synced lyrics (timecodes in ms)</span>
+			</label>
+
+			<div className="admin-field">
+				<label>Quick paste LRC or plain text</label>
+				<textarea
+					className="admin-textarea"
+					placeholder="[00:07.00] Tape reels turning slow in amber light"
+					value={lrcDraft}
+					onChange={(e) => setLrcDraft(e.target.value)}
+				/>
+				{lrcDraft.trim() && (
+					<button
+						type="button"
+						className="admin-btn admin-btn-ghost admin-btn-sm"
+						onClick={handleImportLrc}
+					>
+						Parse lines into editor
+					</button>
+				)}
+			</div>
+
+			<div className="admin-track-list">
+				{lines.map((row, idx) => (
+					<div key={idx} className="admin-lyrics-line-row">
+						<input
+							type="number"
+							className="admin-input"
+							min={0}
+							disabled={!synced}
+							value={synced ? row.start_ms : 0}
+							onChange={(e) => updateLine(idx, { start_ms: e.target.value })}
+							placeholder="start_ms"
+							title="start_ms"
+						/>
+						<input
+							type="number"
+							className="admin-input"
+							min={0}
+							disabled={!synced}
+							value={synced ? row.end_ms : ""}
+							onChange={(e) => updateLine(idx, { end_ms: e.target.value })}
+							placeholder="end_ms"
+							title="end_ms (optional)"
+						/>
+						<input
+							className="admin-input"
+							value={row.text}
+							onChange={(e) => updateLine(idx, { text: e.target.value })}
+							placeholder={`Line ${idx + 1}`}
+						/>
+						<button
+							type="button"
+							className="admin-btn admin-btn-danger admin-btn-sm"
+							onClick={() => removeLine(idx)}
+						>
+							×
+						</button>
+					</div>
+				))}
+			</div>
+
+			<div className="admin-toolbar">
+				<button
+					type="button"
+					className="admin-btn admin-btn-ghost admin-btn-sm"
+					onClick={addLine}
+				>
+					+ Add Line
+				</button>
+
+				<button
+					type="submit"
+					className="admin-btn admin-btn-primary"
+					disabled={isSaving}
+				>
+					{isSaving ? "Saving..." : `Save (${langInput.toUpperCase()})`}
+				</button>
+
+				{currentLyrics && (
+					<button
+						type="button"
+						className="admin-btn admin-btn-danger"
+						onClick={onDelete}
+					>
+						Delete {currentLyrics.language.toUpperCase()}
+					</button>
+				)}
+			</div>
+		</form>
+	);
+}
+
+function LyricsDrawer({ track, onClose, onSaved }) {
+	const trackId = track?.id ?? null;
+	const {
+		lyricsList,
+		currentLyrics,
+		activeLang,
+		setActiveLang,
+		isLoading,
+		isSaving,
+		error,
+		saveLyrics,
+		removeLyrics,
+	} = useTrackLyrics(trackId);
+
+	const [localError, setLocalError] = useState(null);
+
+	if (!track) return null;
+
+	const handleSave = async (lang, payload) => {
 		try {
-			await saveLyrics(lang, {
-				synced,
-				offset_ms: Number(offsetMs) || 0,
-				source: source.trim() || "manual",
-				lines: cleanLines,
-			});
+			await saveLyrics(lang, payload);
 			onSaved?.();
 		} catch (err) {
 			setLocalError(err?.message || "Не удалось сохранить текст.");
@@ -154,6 +286,7 @@ function LyricsDrawer({ track, onClose, onSaved }) {
 
 	const handleDeleteLang = async () => {
 		if (!currentLyrics) return;
+		setLocalError(null);
 		try {
 			await removeLyrics(currentLyrics.language);
 			onSaved?.();
@@ -161,6 +294,9 @@ function LyricsDrawer({ track, onClose, onSaved }) {
 			setLocalError(err?.message || "Не удалось удалить текст.");
 		}
 	};
+
+	const formKey = `${trackId}-${activeLang}-${currentLyrics?.updated_at ?? "empty"}`;
+	const initialLang = activeLang === "__new__" ? "en" : activeLang || "ru";
 
 	return (
 		<div className="admin-drawer-backdrop" onClick={onClose}>
@@ -179,25 +315,26 @@ function LyricsDrawer({ track, onClose, onSaved }) {
 					</button>
 				</div>
 
-				{/* Вкладки существующих языков */}
 				<div className="admin-chip-group">
 					{lyricsList.map((item) => (
 						<button
 							key={item.language}
 							type="button"
 							className={`admin-artist-pill ${activeLang === item.language ? "is-selected" : ""}`}
-							onClick={() => setActiveLang(item.language)}
+							onClick={() => {
+								setLocalError(null);
+								setActiveLang(item.language);
+							}}
 						>
 							{item.language.toUpperCase()} ({item.lines.length})
 						</button>
 					))}
 					<button
 						type="button"
-						className="admin-artist-pill"
+						className={`admin-artist-pill ${activeLang === "__new__" ? "is-selected" : ""}`}
 						onClick={() => {
+							setLocalError(null);
 							setActiveLang("__new__");
-							setLangInput("en");
-							setLines([{ start_ms: 0, end_ms: "", text: "" }]);
 						}}
 					>
 						+ New Language
@@ -213,141 +350,15 @@ function LyricsDrawer({ track, onClose, onSaved }) {
 				{isLoading ? (
 					<p>Loading lyrics...</p>
 				) : (
-					<form className="admin-page" onSubmit={handleSave}>
-						<div className="admin-form-grid">
-							<div className="admin-field">
-								<label>Language code (2–8)</label>
-								<input
-									className="admin-input"
-									value={langInput}
-									onChange={(e) => setLangInput(e.target.value)}
-									placeholder="ru / en"
-									maxLength={8}
-									required
-								/>
-							</div>
-							<div className="admin-field">
-								<label>Offset (ms)</label>
-								<input
-									type="number"
-									className="admin-input"
-									value={offsetMs}
-									onChange={(e) => setOffsetMs(e.target.value)}
-								/>
-							</div>
-							<div className="admin-field">
-								<label>Source</label>
-								<input
-									className="admin-input"
-									value={source}
-									onChange={(e) => setSource(e.target.value)}
-									placeholder="lrc / whisper / manual"
-								/>
-							</div>
-						</div>
-
-						<label className="admin-checkbox-label">
-							<input
-								type="checkbox"
-								checked={synced}
-								onChange={(e) => setSynced(e.target.checked)}
-							/>
-							<span>Synced lyrics (timecodes in ms)</span>
-						</label>
-
-						{/* Быстрый импорт LRC / Plain Text */}
-						<div className="admin-field">
-							<label>Quick paste LRC or plain text</label>
-							<textarea
-								className="admin-textarea"
-								placeholder="[00:07.00] Tape reels turning slow in amber light"
-								value={lrcDraft}
-								onChange={(e) => setLrcDraft(e.target.value)}
-							/>
-							{lrcDraft.trim() && (
-								<button
-									type="button"
-									className="admin-btn admin-btn-ghost admin-btn-sm"
-									onClick={handleImportLrc}
-								>
-									Parse lines into editor
-								</button>
-							)}
-						</div>
-
-						{/* Построчный редактор */}
-						<div className="admin-track-list">
-							{lines.map((row, idx) => (
-								<div key={idx} className="admin-lyrics-line-row">
-									<input
-										type="number"
-										className="admin-input"
-										min={0}
-										disabled={!synced}
-										value={synced ? row.start_ms : 0}
-										onChange={(e) =>
-											updateLine(idx, { start_ms: e.target.value })
-										}
-										placeholder="start_ms"
-										title="start_ms"
-									/>
-									<input
-										type="number"
-										className="admin-input"
-										min={0}
-										disabled={!synced}
-										value={synced ? row.end_ms : ""}
-										onChange={(e) =>
-											updateLine(idx, { end_ms: e.target.value })
-										}
-										placeholder="end_ms"
-										title="end_ms (optional)"
-									/>
-									<input
-										className="admin-input"
-										value={row.text}
-										onChange={(e) => updateLine(idx, { text: e.target.value })}
-										placeholder={`Line ${idx + 1}`}
-									/>
-									<button
-										type="button"
-										className="admin-btn admin-btn-danger admin-btn-sm"
-										onClick={() => removeLine(idx)}
-									>
-										×
-									</button>
-								</div>
-							))}
-						</div>
-
-						<div className="admin-toolbar">
-							<button
-								type="button"
-								className="admin-btn admin-btn-ghost admin-btn-sm"
-								onClick={addLine}
-							>
-								+ Add Line
-							</button>
-
-							<button
-								type="submit"
-								className="admin-btn admin-btn-primary"
-								disabled={isSaving}
-							>
-								{isSaving ? "Saving..." : `Save (${langInput.toUpperCase()})`}
-							</button>
-
-							{currentLyrics && (
-								<button
-									type="button"
-									className="admin-btn admin-btn-danger"
-									onClick={handleDeleteLang}
-								>
-									Delete {currentLyrics.language.toUpperCase()}
-								</button>
-							)}
-						</div>
-					</form>
+					<LyricsEditorForm
+						key={formKey}
+						initialLang={initialLang}
+						currentLyrics={currentLyrics}
+						isSaving={isSaving}
+						onSave={handleSave}
+						onDelete={handleDeleteLang}
+						onValidationError={setLocalError}
+					/>
 				)}
 			</div>
 		</div>

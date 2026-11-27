@@ -3,8 +3,9 @@ import { useParams, Link } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
 import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll.js";
 import { musicApi } from "../../../api/musicApi.js";
-import { handleCoverError } from "../../../services/mockData.js";
-import { usePlayerActions, usePlayerState } from "../../../context/PlayerContext.jsx";
+import { handleCoverError } from "../../../utils/cover.js";
+import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
+import { PlayIcon } from "../../shared/icons/Icons.jsx";
 import TrackRow from "../../shared/track-row/TrackRow.jsx";
 import MediaCard from "../../shared/media-card/MediaCard.jsx";
 import "./ArtistPage.css";
@@ -20,6 +21,9 @@ function ArtistPage() {
 	const { playTrack, playQueue, toggleLike } = usePlayerActions();
 
 	const artist = useMemo(() => musicApi.getArtist(id), [id]);
+	const topTracks = useMemo(() => artist?.topTracks ?? [], [artist]);
+	const albums = useMemo(() => artist?.albums ?? [], [artist]);
+	const likedSet = useMemo(() => new Set(likedIds), [likedIds]);
 
 	if (!artist) {
 		return (
@@ -33,9 +37,6 @@ function ArtistPage() {
 			</div>
 		);
 	}
-
-	const topTracks = artist.topTracks ?? [];
-	const albums = artist.albums ?? [];
 
 	return (
 		<div className="page-scroll artist-page" ref={scrollRef}>
@@ -74,7 +75,7 @@ function ArtistPage() {
 							disabled={topTracks.length === 0}
 							onClick={() => playQueue(topTracks, { shuffle: false })}
 						>
-							<span className="btn-dot" aria-hidden="true" />
+							<PlayIcon />
 							<span>Play Artist</span>
 						</button>
 						<button
@@ -93,19 +94,23 @@ function ArtistPage() {
 				<section className="artist-section">
 					<h2 className="section-title">Popular</h2>
 					<ul className="Library is-embedded">
-						{topTracks.slice(0, 5).map((track, idx) => (
-							<TrackRow
-								key={track.id}
-								track={track}
-								index={idx + 1}
-								durationMsOverride={durationOverrides[track.id]}
-								isCurrent={currentTrack?.id === track.id}
-								isPlaying={isPlaying}
-								isLiked={likedIds.includes(track.id)}
-								onPlay={(t) => playTrack(t, topTracks)}
-								onToggleLike={toggleLike}
-							/>
-						))}
+						{topTracks.slice(0, 5).map((track, idx) => {
+							const isCurrent = currentTrack?.id === track.id;
+							return (
+								<TrackRow
+									key={track.id}
+									track={track}
+									trackList={topTracks}
+									index={idx + 1}
+									durationMsOverride={durationOverrides[track.id]}
+									isCurrent={isCurrent}
+									isPlaying={isCurrent && isPlaying}
+									isLiked={likedSet.has(track.id)}
+									onPlay={playTrack}
+									onToggleLike={toggleLike}
+								/>
+							);
+						})}
 					</ul>
 				</section>
 			)}

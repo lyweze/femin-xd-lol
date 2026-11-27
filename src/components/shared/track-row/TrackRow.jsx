@@ -2,12 +2,14 @@
 // Универсальная строка трека (`TrackRow`) с мемоизацией
 // ============================================================================
 import { memo } from "react";
-import { Link } from "react-router-dom";
-import { formatDuration } from "../../../services/mockData.js";
+import { formatDuration } from "../../../utils/format.js";
+import ArtistLinks from "../artist-links/ArtistLinks.jsx";
+import { HeartIcon, PauseIcon, PlayIcon } from "../icons/Icons.jsx";
 import "./TrackRow.css";
 
 const TrackRow = memo(function TrackRow({
 	track,
+	trackList = null,
 	index,
 	durationMsOverride = null,
 	isCurrent = false,
@@ -25,21 +27,27 @@ const TrackRow = memo(function TrackRow({
 		<li
 			className={`track-row ${isCurrent ? "is-current" : ""} ${isCurrent && isPlaying ? "is-playing" : ""}`}
 			aria-current={isCurrent ? "true" : undefined}
-			onClick={() => onPlay?.(track)}
+			onClick={() => onPlay?.(track, trackList)}
 		>
 			<div className="track-row-left">
 				<div className="track-row-index">
-					{isCurrent && isPlaying ? (
-						<span className="track-row-eq" aria-hidden="true">
-							<i />
-							<i />
-							<i />
-						</span>
-					) : isCurrent ? (
-						<span className="track-row-dot" aria-hidden="true" />
-					) : (
-						<span>{index}</span>
-					)}
+					<span className="track-row-indicator">
+						{isCurrent && isPlaying ? (
+							<span className="track-row-eq" aria-hidden="true">
+								<i />
+								<i />
+								<i />
+							</span>
+						) : isCurrent ? (
+							<span className="track-row-dot" aria-hidden="true" />
+						) : (
+							<span>{index}</span>
+						)}
+					</span>
+
+					<span className="track-row-hover-icon" aria-hidden="true">
+						{isCurrent && isPlaying ? <PauseIcon /> : <PlayIcon />}
+					</span>
 				</div>
 
 				<div className="track-row-meta">
@@ -56,32 +64,18 @@ const TrackRow = memo(function TrackRow({
 						className="track-row-artists"
 						onClick={(e) => e.stopPropagation()}
 					>
-						{mainArtists.map((artist, idx) => (
-							<span key={artist.id}>
-								{idx > 0 && ", "}
-								<Link
-									to={`/artist/${artist.id}`}
-									className="track-row-artist-link"
-								>
-									{artist.name}
-								</Link>
-							</span>
-						))}
+						<ArtistLinks
+							artists={mainArtists}
+							linkClassName="track-row-artist-link"
+						/>
 
 						{featArtists.length > 0 && (
 							<span className="track-row-feat">
 								{" feat. "}
-								{featArtists.map((artist, idx) => (
-									<span key={artist.id}>
-										{idx > 0 && ", "}
-										<Link
-											to={`/artist/${artist.id}`}
-											className="track-row-artist-link"
-										>
-											{artist.name}
-										</Link>
-									</span>
-								))}
+								<ArtistLinks
+									artists={featArtists}
+									linkClassName="track-row-artist-link"
+								/>
 							</span>
 						)}
 					</div>
@@ -99,7 +93,7 @@ const TrackRow = memo(function TrackRow({
 					aria-label={isLiked ? "Remove from liked" : "Add to liked"}
 					aria-pressed={isLiked}
 				>
-					♥
+					<HeartIcon filled={isLiked} size={13.5} />
 				</button>
 				<span className="track-row-duration">
 					{formatDuration(effectiveDuration)}

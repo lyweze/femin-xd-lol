@@ -1,6 +1,6 @@
 import { Routes, Route, NavLink, Navigate, Link } from "react-router-dom";
 import { IS_MOCK_ADMIN_MODE } from "../api/adminApi.js";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from "../context/authContext.js";
 import AlbumsListPage from "./pages/AlbumsListPage.jsx";
 import AlbumEditorPage from "./pages/AlbumEditorPage.jsx";
 import ArtistsPage from "./pages/ArtistsPage.jsx";

@@ -1,36 +1,9 @@
 /* ==========================================================================
-   Каркас главной страницы (общие стили .Playlists и .Library живут в App.css)
+   Каркас главной страницы (общие стили .page-header, .Playlists, .Library в App.css)
    ========================================================================== */
 .main-page {
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 0%;
 	min-height: 0;
-
-	> .main-header {
-		flex-shrink: 0;
-		margin: 0;
-		padding: 0;
-
-		> .main-title {
-			margin: 0;
-			padding: 0;
-			font-family: var(--font-editorial);
-			font-size: 42px;
-			font-weight: 500;
-			letter-spacing: -0.02em;
-			line-height: 1.08;
-			color: var(--text-primary);
-		}
-
-		> .main-subtitle {
-			margin: 6px 0 0;
-			padding: 0;
-			font-family: var(--font-editorial);
-			font-size: 18px;
-			font-weight: 400;
-			line-height: 1.35;
-			color: var(--text-secondary);
-		}
-	}
 }

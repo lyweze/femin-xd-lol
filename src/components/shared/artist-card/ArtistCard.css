@@ -1,11 +1,11 @@
 /* ==========================================================================
-   Карточка исполнителя (круглый аватар + подпись)
+   Карточка исполнителя (чистый круглый аватар и мягкий микро-зум при наведении)
    ========================================================================== */
 .artist-card {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	width: 172px;
+	width: 176px;
 	flex-shrink: 0;
 	box-sizing: border-box;
 	text-decoration: none;
@@ -17,37 +17,42 @@
 		width: 100%;
 	}
 
-	&:hover > .artist-card-avatar-wrap {
-		transform: translate3d(0, -4px, 0) scale(1.025);
-		box-shadow:
-			inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-			0 18px 34px rgba(0, 0, 0, 0.45);
+	&:hover {
+		> .artist-card-avatar-wrap {
+			transform: translate3d(0, -4px, 0);
+
+			> .artist-card-avatar {
+				transform: scale(1.05);
+			}
+		}
+
+		> .artist-card-name {
+			color: #ffffff;
+		}
+	}
+
+	&:active > .artist-card-avatar-wrap {
+		transform: translate3d(0, -1px, 0) scale(0.985);
+		transition-duration: 0.1s;
 	}
 
 	> .artist-card-avatar-wrap {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 146px;
-		height: 146px;
+		width: 148px;
+		height: 148px;
 		border-radius: 50%;
 		background-color: var(--surface-active);
-		outline: 1px solid var(--border-hairline);
-		box-shadow:
-			inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-			var(--shadow-cover);
 		overflow: hidden;
-		backface-visibility: hidden;
-		transform: translateZ(0);
-		transition:
-			transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-			box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+		transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 
 		> .artist-card-avatar {
 			display: block;
 			width: 100%;
 			height: 100%;
 			object-fit: cover;
+			transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 		}
 
 		> .artist-card-initial {
@@ -68,10 +73,11 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+		transition: color 0.18s ease;
 	}
 
 	> .artist-card-label {
-		margin-top: 2px;
+		margin-top: 3px;
 		font-family: var(--font-mono);
 		font-size: 10px;
 		letter-spacing: 0.06em;

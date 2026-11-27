@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/authContext.js";
 import { useUsers } from "../hooks/useUsers.js";
 
 function UsersPage() {
@@ -50,7 +50,6 @@ function UsersPage() {
 		try {
 			await setUserRole(targetUser.id, nextRole);
 		} catch (err) {
-			// API возвращает 409 при попытке снять роль admin с самого себя
 			setActionError(err?.message || "Не удалось изменить роль.");
 		}
 	};

@@ -1,6 +1,5 @@
 /* ==========================================================================
    0. Типизированные CSS-переменные (@property) для плавных масок скролла
-      Вынесены глобально, чтобы работали при прямом заходе на любую страницу
    ========================================================================== */
 @property --fade-left {
 	syntax: "<length>";
@@ -26,11 +25,18 @@
 	initial-value: 0px;
 }
 
+@property --accent-cover {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: #c56b4e;
+}
+
 /* ==========================================================================
-   1. Корневой контейнер документа (внешняя рамка и базовый холст)
+   1. Корневой контейнер документа
    ========================================================================== */
 html {
 	background-color: var(--bg-canvas);
+	transition: --accent-cover 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html.is-desktop {
@@ -83,28 +89,47 @@ body {
 	min-width: 0;
 
 	> .sidebar-reopen-strip {
-		width: 14px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 18px;
 		flex-shrink: 0;
-		height: calc(100dvh - (var(--layout-inset) * 2) - var(--titlebar-height, 0px));
+		height: 100%;
 		padding: 0;
 		margin: 0;
 
-		border: 1px solid var(--border-hairline);
-		border-radius: 10px;
+		border: none;
+		border-radius: var(--radius-item);
 		background-color: var(--surface-sidebar);
-		-webkit-backdrop-filter: var(--blur-sidebar);
-		backdrop-filter: var(--blur-sidebar);
+		color: var(--text-tertiary);
 		cursor: pointer;
+		animation: reopenStripIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 
 		transition:
 			background-color 0.18s ease,
-			border-color 0.18s ease,
-			width 0.18s ease;
+			color 0.18s ease,
+			width 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+
+		svg {
+			opacity: 0.55;
+			transition:
+				opacity 0.18s ease,
+				transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+		}
 
 		&:hover {
-			width: 18px;
+			width: 24px;
 			background-color: var(--surface-hover);
-			border-color: var(--border-strong);
+			color: var(--text-primary);
+
+			svg {
+				opacity: 1;
+				transform: translate3d(1px, 0, 0);
+			}
+		}
+
+		&:active {
+			transform: scale(0.98);
 		}
 	}
 
@@ -115,21 +140,13 @@ body {
 		flex: 1 1 0%;
 		width: 100%;
 		min-width: 0;
-		height: calc(100vh - (var(--layout-inset) * 2) - var(--titlebar-height, 0px));
-		height: calc(100dvh - (var(--layout-inset) * 2) - var(--titlebar-height, 0px));
+		height: 100%;
 		box-sizing: border-box;
-		padding: calc(var(--layout-inset) * 2 + 4px);
+		padding: 28px 32px 0;
 		margin: 0;
 
 		background-color: var(--surface-main);
-		border: 1px solid var(--border-hairline);
-		border-top-color: var(--border-specular);
 		border-radius: var(--radius-window);
-		box-shadow:
-			inset 0 1px 0 0 rgba(255, 255, 255, 0.045),
-			var(--shadow-window);
-		-webkit-backdrop-filter: var(--blur-sidebar);
-		backdrop-filter: var(--blur-sidebar);
 
 		overflow: hidden;
 		overscroll-behavior: none;
@@ -139,7 +156,7 @@ body {
 			flex-direction: column;
 			flex: 1 1 0%;
 			min-height: 0;
-			animation: pageEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+			animation: pageEnter 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 		}
 	}
 }
@@ -147,7 +164,7 @@ body {
 @keyframes pageEnter {
 	from {
 		opacity: 0;
-		transform: translate3d(0, 10px, 0);
+		transform: translate3d(0, 8px, 0);
 	}
 	to {
 		opacity: 1;
@@ -155,14 +172,33 @@ body {
 	}
 }
 
+@keyframes reopenStripIn {
+	from {
+		opacity: 0;
+		transform: translate3d(-6px, 0, 0);
+	}
+	to {
+		opacity: 1;
+		transform: translate3d(0, 0, 0);
+	}
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="slider"]:focus-visible {
+	outline: 2px solid rgba(var(--accent-cover-rgb), 0.72);
+	outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-	.app > .main > .page-transition {
+	.app > .main > .page-transition,
+	.app > .sidebar-reopen-strip {
 		animation: none;
 	}
 }
 
 /* ==========================================================================
-   3. Общая шапка внутренних страниц и скролл-контейнер
+   3. Общая шапка внутренних страниц и заголовки секций
    ========================================================================== */
 .page-header {
 	flex-shrink: 0;
@@ -173,7 +209,7 @@ body {
 		margin: 0;
 		padding: 0;
 		font-family: var(--font-editorial);
-		font-size: 42px;
+		font-size: 40px;
 		font-weight: 500;
 		letter-spacing: -0.02em;
 		line-height: 1.08;
@@ -184,14 +220,29 @@ body {
 		margin: 6px 0 0;
 		padding: 0;
 		font-family: var(--font-editorial);
-		font-size: 18px;
+		font-size: 17px;
 		font-weight: 400;
 		line-height: 1.35;
 		color: var(--text-secondary);
 	}
 }
 
-.page-scroll {
+.section-title {
+	margin: 26px 0 14px;
+	padding: 0;
+	font-family: var(--font-editorial);
+	font-size: 21px;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	color: var(--text-primary);
+}
+
+/* ==========================================================================
+   4. Вертикальные скролл-области (.page-scroll, .Library) и лента (.Playlists)
+   ========================================================================== */
+.page-scroll,
+.Library {
 	--fade-top: 0px;
 	--fade-bottom: 0px;
 
@@ -199,10 +250,10 @@ body {
 	flex-direction: column;
 	flex: 1 1 0%;
 	min-height: 0;
-	width: calc(100% + 8px);
+	width: calc(100% + 20px);
 	box-sizing: border-box;
-	margin-right: -8px;
-	padding: 0 8px 104px 0;
+	margin: 0 -10px;
+	padding: 0 10px 112px 10px;
 
 	overflow-y: auto;
 	overflow-x: hidden;
@@ -227,9 +278,6 @@ body {
 		transparent 100%
 	);
 
-	transform: translateZ(0);
-	will-change: scroll-position;
-
 	&::-webkit-scrollbar {
 		width: 3px;
 	}
@@ -240,12 +288,12 @@ body {
 
 	&::-webkit-scrollbar-button:end:increment {
 		display: block;
-		height: 104px;
+		height: 112px;
 		background: transparent;
 	}
 
 	&::-webkit-scrollbar-thumb {
-		background: rgba(230, 227, 221, 0.01);
+		background: transparent;
 		border-radius: 999px;
 	}
 
@@ -258,20 +306,23 @@ body {
 	}
 }
 
-.section-title {
-	margin: 24px 0 12px;
-	padding: 0;
-	font-family: var(--font-editorial);
-	font-size: 21px;
-	font-weight: 500;
-	letter-spacing: -0.01em;
-	line-height: 1.2;
-	color: var(--text-primary);
+.Library {
+	gap: 4px;
+	margin-top: 12px;
+	padding-top: 4px;
+	list-style: none;
+
+	&.is-embedded {
+		flex: none;
+		width: 100%;
+		margin: 0;
+		padding: 0;
+		overflow: visible;
+		mask-image: none;
+		-webkit-mask-image: none;
+	}
 }
 
-/* ==========================================================================
-   4. Горизонтальная лента карточек (.Playlists) и список треков (.Library)
-   ========================================================================== */
 .Playlists {
 	--fade-left: 0px;
 	--fade-right: 0px;
@@ -279,11 +330,11 @@ body {
 	display: flex;
 	flex-direction: row;
 	flex-shrink: 0;
-	gap: 16px;
-	width: calc(100% + 16px);
+	gap: 20px;
+	width: calc(100% + 20px);
 	box-sizing: border-box;
-	margin: 14px -8px 0;
-	padding: 12px 8px 16px 8px;
+	margin: 14px -10px 0;
+	padding: 12px 10px 18px;
 	list-style: none;
 
 	overflow-x: auto;
@@ -312,9 +363,6 @@ body {
 		transparent 100%
 	);
 
-	transform: translateZ(0);
-	will-change: scroll-position;
-
 	&.is-dragging {
 		cursor: grabbing;
 		scroll-behavior: auto;
@@ -336,12 +384,12 @@ body {
 	&::-webkit-scrollbar-button:start:decrement,
 	&::-webkit-scrollbar-button:end:increment {
 		display: block;
-		width: 8px;
+		width: 10px;
 		background: transparent;
 	}
 
 	&::-webkit-scrollbar-thumb {
-		background: rgba(230, 227, 221, 0.01);
+		background: transparent;
 		border-radius: 999px;
 	}
 
@@ -356,86 +404,6 @@ body {
 	}
 }
 
-.Library {
-	--fade-top: 0px;
-	--fade-bottom: 0px;
-
-	display: flex;
-	flex-direction: column;
-	flex: 1 1 0%;
-	min-height: 0;
-	gap: 2px;
-
-	width: calc(100% + 8px);
-	box-sizing: border-box;
-	margin: 12px -8px 0 0;
-	padding: 4px 8px 104px 0;
-	list-style: none;
-
-	overflow-y: auto;
-	overflow-x: hidden;
-	-webkit-overflow-scrolling: touch;
-
-	transition:
-		--fade-top 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-		--fade-bottom 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-
-	-webkit-mask-image: linear-gradient(
-		to bottom,
-		transparent 0px,
-		#000 var(--fade-top),
-		#000 calc(100% - var(--fade-bottom)),
-		transparent 100%
-	);
-	mask-image: linear-gradient(
-		to bottom,
-		transparent 0px,
-		#000 var(--fade-top),
-		#000 calc(100% - var(--fade-bottom)),
-		transparent 100%
-	);
-
-	transform: translateZ(0);
-	will-change: scroll-position;
-
-	&::-webkit-scrollbar {
-		width: 3px;
-	}
-
-	&::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	&::-webkit-scrollbar-button:end:increment {
-		display: block;
-		height: 104px;
-		background: transparent;
-	}
-
-	&::-webkit-scrollbar-thumb {
-		background: rgba(230, 227, 221, 0.01);
-		border-radius: 999px;
-	}
-
-	&.is-scrolling::-webkit-scrollbar-thumb {
-		background: rgba(230, 227, 221, 0.22);
-	}
-
-	&.is-scrolling::-webkit-scrollbar-thumb:hover {
-		background: rgba(230, 227, 221, 0.4);
-	}
-
-	&.is-embedded {
-		flex: none;
-		width: 100%;
-		margin: 0;
-		padding: 0;
-		overflow: visible;
-		mask-image: none;
-		-webkit-mask-image: none;
-	}
-}
-
 /* ==========================================================================
    5. Общие кнопки действий коллекции / артиста (Play / Shuffle)
    ========================================================================== */
@@ -443,15 +411,16 @@ body {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	margin-top: 16px;
+	margin-top: 18px;
 
 	> .btn-primary,
 	> .btn-secondary {
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		height: 36px;
-		padding: 0 18px;
+		height: 38px;
+		padding: 0 20px;
+		border: none;
 		border-radius: 999px;
 		font-family: var(--font-ui);
 		font-size: 13px;
@@ -461,12 +430,15 @@ body {
 		user-select: none;
 		transition:
 			background-color 0.16s ease,
-			border-color 0.16s ease,
 			color 0.16s ease,
-			transform 0.12s ease;
+			transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+		&:hover:not(:disabled) {
+			transform: translate3d(0, -1px, 0);
+		}
 
 		&:active:not(:disabled) {
-			transform: scale(0.97);
+			transform: scale(0.96);
 		}
 
 		&:disabled {
@@ -476,83 +448,27 @@ body {
 	}
 
 	> .btn-primary {
-		border: 1px solid rgba(255, 255, 255, 0.08);
 		background-color: var(--surface-active);
-		box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 		color: var(--text-primary);
 
 		&:hover:not(:disabled) {
-			background-color: rgba(230, 227, 221, 0.18);
+			background-color: rgba(230, 227, 221, 0.19);
 		}
 
-		> .btn-dot {
-			width: 7px;
-			height: 7px;
-			border-radius: 50%;
-			background-color: var(--accent-cover);
-			box-shadow: 0 0 8px rgba(var(--accent-cover-rgb), 0.7);
+		> svg {
+			width: 13px;
+			height: 13px;
+			color: var(--accent-cover);
 		}
 	}
 
 	> .btn-secondary {
-		border: 1px solid var(--border-hairline);
-		background-color: transparent;
+		background-color: var(--surface-elevated);
 		color: var(--text-secondary);
 
 		&:hover:not(:disabled) {
 			background-color: var(--surface-hover);
-			border-color: var(--border-strong);
 			color: var(--text-primary);
 		}
-	}
-}
-
-/* ==========================================================================
-   6. Кастомный слайдер громкости (для мини-плеера и полноэкранного режима)
-   ========================================================================== */
-.volume-slider {
-	--vol: 80%;
-	-webkit-appearance: none;
-	appearance: none;
-	width: 64px;
-	height: 4px;
-	border-radius: 999px;
-	background: linear-gradient(
-		to right,
-		var(--text-primary) 0%,
-		var(--text-primary) var(--vol),
-		rgba(230, 227, 221, 0.18) var(--vol),
-		rgba(230, 227, 221, 0.18) 100%
-	);
-	outline: none;
-	cursor: pointer;
-
-	&.is-wide {
-		flex: 1 1 0%;
-		width: auto;
-	}
-
-	&::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
-		width: 11px;
-		height: 11px;
-		border-radius: 50%;
-		background-color: var(--text-primary);
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
-		transition: transform 0.12s ease;
-	}
-
-	&:hover::-webkit-slider-thumb {
-		transform: scale(1.18);
-	}
-
-	&::-moz-range-thumb {
-		width: 11px;
-		height: 11px;
-		border: none;
-		border-radius: 50%;
-		background-color: var(--text-primary);
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 	}
 }
