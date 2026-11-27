@@ -1,13 +1,13 @@
 // ============================================================================
-// Адаптивный роутер для Web (BrowserRouter) и Desktop / Tauri (HashRouter)
+// Адаптивный роутер для Web (`BrowserRouter`) и Desktop / Tauri (`HashRouter`)
 // ============================================================================
 import { useEffect } from "react";
 import { BrowserRouter, HashRouter } from "react-router-dom";
 import { IS_DESKTOP } from "./env.js";
 
 /**
- * Проставляет модификатор `.is-desktop` на корневой `<html>`
- * и выбирает подходящий маршрутизатор.
+ * Проставляет модификатор `.is-desktop` на корневой `<html>` (резервирует место под titlebar macOS)
+ * и выбирает маршрутизатор под среду исполнения.
  */
 export function AppRouter({ children }) {
 	useEffect(() => {

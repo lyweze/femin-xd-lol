@@ -1,5 +1,5 @@
 // ============================================================================
-// Импорты: маршрутизатор, провайдеры контекстов и экраны плеера + админки
+// Корневой компонент приложения: провайдеры, роутер и разделение чанка админки
 // ============================================================================
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
@@ -18,6 +18,7 @@ import LibraryPage from "./components/pages/library-page/LibraryPage.jsx";
 import PlaylistPage from "./components/pages/playlist-page/PlaylistPage.jsx";
 import ArtistPage from "./components/pages/artist-page/ArtistPage.jsx";
 
+// Админ-студия загружается ленивым чанком, чтобы не утяжелять основной бандл плеера
 const AdminLayout = lazy(() => import("./admin/AdminLayout.jsx"));
 
 function App() {
@@ -41,6 +42,7 @@ function App() {
 							<Route path="/artist/:id" element={<ArtistPage />} />
 						</Route>
 
+						{/* В десктопном Tauri-приложении админка недоступна */}
 						{!IS_DESKTOP && (
 							<Route
 								path="/admin/*"

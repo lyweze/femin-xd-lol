@@ -1,15 +1,23 @@
 // ============================================================================
 // Монолитный слайдер в стиле macOS (без явного бегунка, GPU transform: scaleX)
-// Используется для прогресса трека и громкости
+// Используется для перемотки трека и регулировки громкости
 // ============================================================================
 import { useCallback, useEffect, useRef, useState } from "react";
+import { clampUnit } from "../../../utils/format.js";
 import "./MonolithicSlider.css";
 
-function clampRatio(value) {
-	if (!Number.isFinite(value)) return 0;
-	return Math.max(0, Math.min(1, value));
-}
-
+/**
+ * Доступный слайдер с перетаскиванием указателем (Pointer Events) и управлением
+ * с клавиатуры (`Arrow*`, `Home`, `End`).
+ *
+ * @param {Object} props
+ * @param {number} [props.ratio=0] - Заполнение от `0` до `1`
+ * @param {(ratio: number) => void} props.onChangeRatio - Коллбэк изменения значения
+ * @param {string} props.ariaLabel - Подпись для скринридера
+ * @param {number} [props.stepRatio=0.05] - Шаг изменения стрелками клавиатуры
+ * @param {"compact" | "fullscreen"} [props.variant="compact"] - Вариант высоты трека
+ * @param {"neutral" | "accent"} [props.tone="neutral"] - Цвет заполнения
+ */
 function MonolithicSlider({
 	ratio = 0,
 	onChangeRatio,
@@ -27,6 +35,7 @@ function MonolithicSlider({
 	const dragCleanupRef = useRef(null);
 	const [isDragging, setIsDragging] = useState(false);
 
+	// Снимаем глобальные слушатели, если компонент размонтирован прямо во время драга
 	useEffect(() => {
 		return () => {
 			dragCleanupRef.current?.();
@@ -39,7 +48,7 @@ function MonolithicSlider({
 			if (!el) return;
 			const rect = el.getBoundingClientRect();
 			if (rect.width <= 0) return;
-			onChangeRatio?.(clampRatio((clientX - rect.left) / rect.width));
+			onChangeRatio?.(clampUnit((clientX - rect.left) / rect.width));
 		},
 		[onChangeRatio],
 	);
@@ -67,23 +76,22 @@ function MonolithicSlider({
 	};
 
 	const handleKeyDown = (e) => {
-		const safeRatio = clampRatio(ratio);
-		if (e.key === "ArrowRight" || e.key === "ArrowUp") {
-			e.preventDefault();
-			onChangeRatio?.(clampRatio(safeRatio + stepRatio));
-		} else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
-			e.preventDefault();
-			onChangeRatio?.(clampRatio(safeRatio - stepRatio));
-		} else if (e.key === "Home") {
-			e.preventDefault();
-			onChangeRatio?.(0);
-		} else if (e.key === "End") {
-			e.preventDefault();
-			onChangeRatio?.(1);
-		}
+		const safeRatio = clampUnit(ratio);
+		const nextMap = {
+			ArrowRight: clampUnit(safeRatio + stepRatio),
+			ArrowUp: clampUnit(safeRatio + stepRatio),
+			ArrowLeft: clampUnit(safeRatio - stepRatio),
+			ArrowDown: clampUnit(safeRatio - stepRatio),
+			Home: 0,
+			End: 1,
+		};
+
+		if (!(e.key in nextMap)) return;
+		e.preventDefault();
+		onChangeRatio?.(nextMap[e.key]);
 	};
 
-	const safeRatio = clampRatio(ratio);
+	const safeRatio = clampUnit(ratio);
 
 	return (
 		<div

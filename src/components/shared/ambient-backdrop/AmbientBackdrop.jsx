@@ -4,6 +4,15 @@
 import { useCoverAppearance } from "../../../hooks/useCoverAppearance.js";
 import "./AmbientBackdrop.css";
 
+/**
+ * Рендерит стек слоёв пре-размытой обложки с радиальным акцентом и затемняющим scrim.
+ * Новые слои плавно проявляются через GPU-композитинг `opacity` (1.15s).
+ *
+ * @param {Object} props
+ * @param {string | null} props.coverUrl - URL маленькой обложки текущего трека
+ * @param {string} [props.fallbackAccent] - Цвет по умолчанию при отсутствии/CORS-ошибке обложки
+ * @param {"main" | "fullscreen"} [props.variant="main"] - Режим подложки
+ */
 function AmbientBackdrop({ coverUrl, fallbackAccent, variant = "main" }) {
 	const { layers, promoteLayer } = useCoverAppearance(coverUrl, fallbackAccent);
 

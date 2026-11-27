@@ -1,14 +1,19 @@
+// ============================================================================
+// Страница исполнителя (`ArtistPage`): шапка, популярные треки и дискография
+// ============================================================================
 import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
 import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll.js";
 import { musicApi } from "../../../api/musicApi.js";
 import { handleCoverError } from "../../../utils/cover.js";
-import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
-import { PlayIcon } from "../../shared/icons/Icons.jsx";
-import TrackRow from "../../shared/track-row/TrackRow.jsx";
+import { usePlayerActions } from "../../../context/playerContexts.js";
+import CollectionActions from "../../shared/collection-actions/CollectionActions.jsx";
 import MediaCard from "../../shared/media-card/MediaCard.jsx";
+import TrackList from "../../shared/track-list/TrackList.jsx";
 import "./ArtistPage.css";
+
+const POPULAR_TRACKS_LIMIT = 5;
 
 function ArtistPage() {
 	const { id } = useParams();
@@ -16,14 +21,11 @@ function ArtistPage() {
 	const discographyRef = useHorizontalScroll();
 	const [isBioExpanded, setIsBioExpanded] = useState(false);
 
-	const { currentTrack, isPlaying, likedIds, durationOverrides } =
-		usePlayerState();
-	const { playTrack, playQueue, toggleLike } = usePlayerActions();
+	const { playQueue } = usePlayerActions();
 
 	const artist = useMemo(() => musicApi.getArtist(id), [id]);
 	const topTracks = useMemo(() => artist?.topTracks ?? [], [artist]);
 	const albums = useMemo(() => artist?.albums ?? [], [artist]);
-	const likedSet = useMemo(() => new Set(likedIds), [likedIds]);
 
 	if (!artist) {
 		return (
@@ -68,50 +70,21 @@ function ArtistPage() {
 						</p>
 					)}
 
-					<div className="collection-actions">
-						<button
-							type="button"
-							className="btn-primary"
-							disabled={topTracks.length === 0}
-							onClick={() => playQueue(topTracks, { shuffle: false })}
-						>
-							<PlayIcon />
-							<span>Play Artist</span>
-						</button>
-						<button
-							type="button"
-							className="btn-secondary"
-							disabled={topTracks.length === 0}
-							onClick={() => playQueue(topTracks, { shuffle: true })}
-						>
-							Shuffle
-						</button>
-					</div>
+					<CollectionActions
+						tracks={topTracks}
+						onPlayQueue={playQueue}
+						playLabel="Play Artist"
+					/>
 				</div>
 			</header>
 
 			{topTracks.length > 0 && (
 				<section className="artist-section">
 					<h2 className="section-title">Popular</h2>
-					<ul className="Library is-embedded">
-						{topTracks.slice(0, 5).map((track, idx) => {
-							const isCurrent = currentTrack?.id === track.id;
-							return (
-								<TrackRow
-									key={track.id}
-									track={track}
-									trackList={topTracks}
-									index={idx + 1}
-									durationMsOverride={durationOverrides[track.id]}
-									isCurrent={isCurrent}
-									isPlaying={isCurrent && isPlaying}
-									isLiked={likedSet.has(track.id)}
-									onPlay={playTrack}
-									onToggleLike={toggleLike}
-								/>
-							);
-						})}
-					</ul>
+					<TrackList
+						tracks={topTracks.slice(0, POPULAR_TRACKS_LIMIT)}
+						queueTracks={topTracks}
+					/>
 				</section>
 			)}
 

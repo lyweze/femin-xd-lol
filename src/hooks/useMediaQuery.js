@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Реактивный медиа-запрос на базе `useSyncExternalStore` (без useEffect и лишних рендеров).
+ * Реактивный медиа-запрос на базе `useSyncExternalStore` (без `useEffect` и лишних ререндеров).
+ * Корректно работает при SSR и изменении ширины окна/ориентации экрана.
  */
 export function useMediaQuery(query) {
 	return useSyncExternalStore(

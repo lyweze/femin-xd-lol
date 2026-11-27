@@ -1,6 +1,12 @@
+// ============================================================================
+// Ограничитель доступа к маршрутам Admin Studio (`RequireAdmin`)
+// ============================================================================
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/authContext.js";
 
+/**
+ * Пропускает пользователей с ролью `admin`, иначе показывает заглушку 403.
+ */
 export function RequireAdmin({ children }) {
 	const { isAdmin, isLoading } = useAuth();
 

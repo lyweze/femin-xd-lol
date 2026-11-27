@@ -1,9 +1,13 @@
+// ============================================================================
+// Страница очереди обработки треков (`TracksQueuePage`)
+// Мониторинг статусов воркера, перезапуск сбойных задач и быстрый доступ к текстам.
+// ============================================================================
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useTracks } from "../hooks/useTracks.js";
-import { formatDuration } from "../../utils/format.js";
+import { formatArtistNames, formatDuration } from "../../utils/format.js";
 import AudioUploader from "../components/AudioUploader.jsx";
 import LyricsDrawer from "../components/LyricsDrawer.jsx";
+import { useTracks } from "../hooks/useTracks.js";
 
 const STATUS_FILTERS = [
 	{ value: "", label: "All" },
@@ -54,8 +58,7 @@ function TracksQueuePage() {
 
 			<div className="admin-toolbar">
 				<input
-					className="admin-input"
-					style={{ maxWidth: 260 }}
+					className="admin-input admin-filter-input"
 					placeholder="Search tracks..."
 					value={params.q || ""}
 					onChange={(e) => updateFilters({ q: e.target.value })}
@@ -89,12 +92,12 @@ function TracksQueuePage() {
 						{tracks.map((track) => (
 							<tr key={track.id}>
 								<td>
-									<div style={{ fontWeight: 500 }}>{track.title}</div>
-									<div style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
-										{track.artists.map((a) => a.name).join(", ")}
+									<div className="admin-title-bold">{track.title}</div>
+									<div className="admin-text-sub">
+										{formatArtistNames(track.artists)}
 									</div>
 								</td>
-								<td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+								<td className="admin-mono">
 									{track.duration_ms ? formatDuration(track.duration_ms) : "—"}
 								</td>
 								<td>
@@ -134,7 +137,7 @@ function TracksQueuePage() {
 
 						{!isLoading && tracks.length === 0 && (
 							<tr>
-								<td colSpan={4} style={{ color: "var(--text-tertiary)" }}>
+								<td colSpan={4} className="admin-text-muted">
 									No tracks match the filter.
 								</td>
 							</tr>

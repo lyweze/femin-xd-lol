@@ -7,10 +7,11 @@ const FADE_LEFT_WIDTH = "44px";
 const FADE_RIGHT_WIDTH = "56px";
 
 /**
- * Хук горизонтальной прокрутки:
- * 1. Вертикальное колесико мыши переводит в горизонтальный скролл (не ломая трекпад).
- * 2. Drag-to-Scroll с временной подпиской на window (только на время перетаскивания).
- * 3. Показ/скрытие скроллбара (.is-scrolling) и мягкие краевые затухания.
+ * Хук горизонтальной прокрутки полок (`.Playlists`):
+ * 1. Конвертирует вертикальное вращение колеса мыши в горизонтальный скролл, не ломая диагональные жесты трекпада.
+ * 2. Поддерживает drag-to-scroll мышью с динамической подпиской на `window` только во время перетаскивания.
+ * 3. Подавляет случайный `click` по карточке сразу после перетаскивания (на этапе capture).
+ * 4. Управляет классом `.is-scrolling` и CSS-переменными краевого затухания `--fade-left` / `--fade-right`.
  */
 export function useHorizontalScroll() {
 	const [slider, setSlider] = useState(null);
@@ -38,6 +39,7 @@ export function useHorizontalScroll() {
 
 		const onWheel = (e) => {
 			if (e.deltaY === 0) return;
+			// Если пользователь скроллит вертикально мышью, переводим дельту в горизонталь
 			if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
 				e.preventDefault();
 				slider.scrollLeft += e.deltaY;
@@ -71,6 +73,7 @@ export function useHorizontalScroll() {
 			slider.classList.remove("is-dragging");
 			detachWindowDrag();
 
+			// Сбрасываем флаг на следующем тике после того, как обработается capture-клик
 			if (moved) {
 				setTimeout(() => {
 					moved = false;
@@ -98,6 +101,7 @@ export function useHorizontalScroll() {
 			}
 		};
 
+		// wheel требует passive: false для вызова e.preventDefault() при конвертации оси
 		slider.addEventListener("wheel", onWheel, { passive: false });
 		slider.addEventListener("mousedown", onMouseDown);
 		slider.addEventListener("click", onClickCapture, true);

@@ -7,6 +7,7 @@ import {
 	setRootAccent,
 } from "../utils/cover.js";
 
+// Страховочный таймер очистки старых слоёв на случай prefers-reduced-motion (когда onAnimationEnd не сработает)
 const CROSSFADE_SAFETY_MS = 1300;
 let nextLayerUid = 1;
 
@@ -15,8 +16,10 @@ function makeLayerKey(coverUrl, accentHex) {
 }
 
 /**
- * Управляет плавным кроссфейдом слоёв ambient-фона (изображение + радиальный тинт)
- * при смене трека или обложки, не допуская резких скачков даже при быстрых кликах.
+ * Управляет стеком слоёв ambient-фона для плавного кроссфейда при смене трека.
+ *
+ * После завершения CSS-анимации появления верхнего слоя (`promoteLayer`)
+ * все предыдущие слои удаляются, чтобы не плодить лишние DOM-элементы и текстуры.
  */
 export function useCoverAppearance(coverUrl, fallbackAccent = DEFAULT_ACCENT) {
 	const [layers, setLayers] = useState(() => {
@@ -32,6 +35,7 @@ export function useCoverAppearance(coverUrl, fallbackAccent = DEFAULT_ACCENT) {
 		];
 	});
 
+	/** Оставляет только верхний завершивший анимацию слой */
 	const promoteLayer = useCallback((uid) => {
 		setLayers((prev) => {
 			if (prev.length <= 1) return prev;
@@ -59,15 +63,14 @@ export function useCoverAppearance(coverUrl, fallbackAccent = DEFAULT_ACCENT) {
 					if (latest?.keyId === keyId && latest?.src === ambientSrc) {
 						return prev;
 					}
-					// Сохраняем базовый непрозрачный слой и максимум 2 свежих входящих слоя
 					const nextLayer = { uid, keyId, src: ambientSrc, accentRgb };
+					// Ограничиваем стек: базовый непрозрачный слой + до 2 свежих входящих при быстрых кликах
 					if (prev.length <= 2) {
 						return [...prev, nextLayer];
 					}
 					return [prev[0], prev[prev.length - 1], nextLayer];
 				});
 
-				// Фолбэк-очистка на случай prefers-reduced-motion (когда onAnimationEnd не срабатывает)
 				fallbackPruneTimer = setTimeout(() => {
 					if (!cancelled) {
 						promoteLayer(uid);

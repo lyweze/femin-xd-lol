@@ -1,13 +1,12 @@
+// ============================================================================
+// Список кликабельных ссылок на страницы исполнителей (`ArtistLinks`)
+// ============================================================================
 import { Link } from "react-router-dom";
 
 /**
- * Список ссылок на страницы исполнителей, разделённый запятой.
+ * Отображает список артистов через запятую со ссылками на `/artist/:id`.
  */
-function ArtistLinks({
-	artists = [],
-	linkClassName,
-	onArtistClick,
-}) {
+function ArtistLinks({ artists = [], linkClassName, onArtistClick }) {
 	return artists.map((artist, idx) => (
 		<span key={artist.id}>
 			{idx > 0 && ", "}

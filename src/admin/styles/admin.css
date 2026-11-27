@@ -749,6 +749,70 @@
 }
 
 /* ==========================================================================
+   Вспомогательные типографические и сеточные классы админ-панели
+   ========================================================================== */
+.admin-back-link {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	color: var(--text-secondary);
+	text-decoration: none;
+
+	&:hover {
+		color: var(--text-primary);
+	}
+}
+
+.admin-stack-compact {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.admin-mono {
+	font-family: var(--font-mono);
+	font-size: 12px;
+}
+
+.admin-mono-sm {
+	font-family: var(--font-mono);
+	font-size: 11px;
+}
+
+.admin-text-muted {
+	font-size: 13px;
+	color: var(--text-tertiary);
+}
+
+.admin-text-sub {
+	font-size: 12px;
+	color: var(--text-secondary);
+}
+
+.admin-title-bold {
+	font-weight: 500;
+}
+
+.admin-filter-input {
+	max-width: 280px;
+}
+
+.admin-filter-select {
+	max-width: 220px;
+}
+
+.admin-col-avatar {
+	width: 124px;
+}
+
+.admin-col-actions {
+	width: 200px;
+}
+
+.admin-self-chip {
+	margin-left: 8px;
+}
+
+/* ==========================================================================
    Адаптив админ-студии под планшеты и телефоны
    ========================================================================== */
 @media (max-width: 900px) {
@@ -861,5 +925,20 @@
 		> input:nth-child(3) {
 			grid-column: 1 / -1;
 		}
+	}
+
+	.admin-input,
+	.admin-select,
+	.admin-textarea {
+		font-size: 16px;
+	}
+
+	.admin-btn {
+		min-height: 38px;
+	}
+
+	.admin-filter-input,
+	.admin-filter-select {
+		max-width: 100%;
 	}
 }

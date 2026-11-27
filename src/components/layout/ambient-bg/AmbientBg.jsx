@@ -1,5 +1,5 @@
 // ============================================================================
-// Адаптивный фон под обложку текущего трека (`AmbientBg`)
+// Адаптивный ambient-фон главного окна под обложку текущего трека (`AmbientBg`)
 // ============================================================================
 import { usePlayerState } from "../../../context/playerContexts.js";
 import AmbientBackdrop from "../../shared/ambient-backdrop/AmbientBackdrop.jsx";

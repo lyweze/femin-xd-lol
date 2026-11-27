@@ -1,3 +1,6 @@
+// ============================================================================
+// Компонент загрузки аудиофайла трека и управления воркером (`AudioUploader`)
+// ============================================================================
 import { useRef, useState } from "react";
 import { formatBytes } from "../../utils/format.js";
 
@@ -14,6 +17,7 @@ function AudioUploader({
 	const [error, setError] = useState(null);
 
 	const isProcessing = track.status === "processing";
+	// Бэкенд запрещает заменять аудио уже опубликованного альбома (409 Conflict)
 	const uploadDisabled = isUploading || isProcessing || isAlbumPublished;
 	const hasSource = (track.files ?? []).some((f) => f.kind === "source");
 
@@ -66,8 +70,7 @@ function AudioUploader({
 							: "Upload Audio"}
 				</button>
 
-				{(track.status === "failed" ||
-					(hasSource && track.status !== "processing")) && (
+				{(track.status === "failed" || (hasSource && !isProcessing)) && (
 					<button
 						type="button"
 						className="admin-btn admin-btn-ghost admin-btn-sm"

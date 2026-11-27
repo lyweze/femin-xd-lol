@@ -184,6 +184,12 @@ body {
 	}
 }
 
+button,
+a,
+[role="slider"] {
+	-webkit-tap-highlight-color: transparent;
+}
+
 button:focus-visible,
 a:focus-visible,
 [role="slider"]:focus-visible {
@@ -506,6 +512,14 @@ a:focus-visible,
 		gap: 16px;
 		margin-top: 10px;
 		padding: 10px 10px 14px;
+
+		&:not(.is-dragging) {
+			scroll-snap-type: x proximity;
+
+			> * {
+				scroll-snap-align: start;
+			}
+		}
 	}
 }
 

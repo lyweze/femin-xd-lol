@@ -5,6 +5,22 @@
 const SCROLL_IDLE_DELAY_MS = 700;
 const SCROLL_EDGE_TOLERANCE_PX = 2;
 
+/**
+ * Подключает к DOM-элементу динамические CSS-переменные краевого затухания
+ * и класс `.is-scrolling` (чтобы показывать скроллбар только при активной прокрутке).
+ *
+ * Геометрия обновляется в `requestAnimationFrame` с кэшированием edge-флагов,
+ * поэтому `style.setProperty` вызывается только при реальном пересечении границ.
+ *
+ * @param {HTMLElement} element - Скролл-контейнер
+ * @param {Object} options
+ * @param {"x" | "y"} [options.axis="y"] - Ось прокрутки
+ * @param {string} options.fadeStartProp - CSS-переменная начального фейда (`--fade-left` / `--fade-top`)
+ * @param {string} options.fadeEndProp - CSS-переменная конечного фейда (`--fade-right` / `--fade-bottom`)
+ * @param {string} options.fadeStartSize - Значение CSS-длины активного начального фейда
+ * @param {string} options.fadeEndSize - Значение CSS-длины активного конечного фейда
+ * @param {boolean} [options.observeSubtree=false] - Отслеживать ли глубокие мутации DOM внутри списка
+ */
 export function attachScrollBehavior(
 	element,
 	{
@@ -31,8 +47,7 @@ export function attachScrollBehavior(
 		const isOverflowing = maxScroll > SCROLL_EDGE_TOLERANCE_PX;
 
 		const hasStart = isOverflowing && scrollPos > SCROLL_EDGE_TOLERANCE_PX;
-		const hasEnd =
-			isOverflowing && maxScroll - scrollPos > SCROLL_EDGE_TOLERANCE_PX;
+		const hasEnd = isOverflowing && maxScroll - scrollPos > SCROLL_EDGE_TOLERANCE_PX;
 
 		if (hasStart !== prevHasStart) {
 			prevHasStart = hasStart;

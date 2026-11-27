@@ -1,17 +1,19 @@
 // ============================================================================
-// Работа с обложками: фолбэк, извлечение матового акцента и пре-блюр ambient
+// Работа с обложками: фолбэки, матовый акцент (--accent-cover) и пре-блюр ambient
 // ============================================================================
+import { clamp } from "./format.js";
 
+/** Базовый акцент темы Matte Obsidian по умолчанию */
 export const DEFAULT_ACCENT = "#c56b4e";
 
-const MATTE_GRAY_RGB = { r: 138, g: 134, b: 126 }; // #8A867E
+const MATTE_GRAY_RGB = { r: 138, g: 134, b: 126 }; // Тёплый серый #8A867E для приглушения кричащих цветов
 const MATTE_MIX_RATIO = 0.22;
-const AMBIENT_SIZE = 64;
+const AMBIENT_SIZE = 64; // Размер пре-размытой текстуры фона (64x64 растягивается GPU бесплатно)
 const BLUR_RADIUS = 6;
-const BLUR_PASSES = 3;
+const BLUR_PASSES = 3; // 3 прохода box-blur математически близки к гауссовому размытию
 const MAX_CACHE_ENTRIES = 24;
 
-// 4x4 матрица Байера для мягкого дизеринга без 8-битного бандинга в Safari
+// 4x4 матрица Байера для микро-дизеринга: убирает "ступеньки" градиента на 8-битных дисплеях Safari
 const BAYER_4X4 = [
 	-7.5, 0.5, -5.5, 2.5,
 	4.5, -3.5, 6.5, -1.5,
@@ -24,9 +26,21 @@ const pendingCache = new Map();
 let lastAppliedAccent = null;
 
 function clampByte(value) {
-	return Math.max(0, Math.min(255, Math.round(value)));
+	return Math.round(clamp(value, 0, 255));
 }
 
+function rgbToHex(r, g, b) {
+	return (
+		"#" +
+		[r, g, b]
+			.map((channel) => clampByte(channel).toString(16).padStart(2, "0"))
+			.join("")
+	);
+}
+
+/**
+ * Конвертирует `#rrggbb` в строку `"r, g, b"` для подстановки в CSS `rgba(var(--accent-cover-rgb), alpha)`.
+ */
 export function hexToRgbTuple(hex) {
 	const clean = String(hex || DEFAULT_ACCENT).replace("#", "");
 	if (clean.length !== 6) return "197, 107, 78";
@@ -37,42 +51,72 @@ export function hexToRgbTuple(hex) {
 	return `${r}, ${g}, ${b}`;
 }
 
-function rgbToHex(r, g, b) {
-	return (
-		"#" +
-		[r, g, b]
-			.map((ch) => clampByte(ch).toString(16).padStart(2, "0"))
-			.join("")
-	);
-}
-
+/**
+ * Обновляет корневые CSS-переменные `--accent-cover` и `--accent-cover-rgb` на `<html>`.
+ * Повторное применение того же цвета пропускается, чтобы не вызывать лишний перерасчёт стилей.
+ */
 export function setRootAccent(hex) {
 	const safeHex = hex || DEFAULT_ACCENT;
 	if (lastAppliedAccent === safeHex || typeof document === "undefined") return;
 	lastAppliedAccent = safeHex;
+
 	const root = document.documentElement;
 	root.style.setProperty("--accent-cover", safeHex);
 	root.style.setProperty("--accent-cover-rgb", hexToRgbTuple(safeHex));
 }
 
+/**
+ * Приводит извлечённый цвет обложки к палитре Matte Obsidian:
+ * приподнимает слишком тёмные оттенки для контраста и примешивает 22% тёплого серого.
+ */
 function applyMatteClamping(r, g, b) {
 	const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 	const lift = luminance < 105 ? (105 - luminance) * 0.78 : 0;
 
-	const lr = clampByte(r + lift);
-	const lg = clampByte(g + lift);
-	const lb = clampByte(b + lift);
+	const liftedR = clampByte(r + lift);
+	const liftedG = clampByte(g + lift);
+	const liftedB = clampByte(b + lift);
 
-	const mixedR = lr * (1 - MATTE_MIX_RATIO) + MATTE_GRAY_RGB.r * MATTE_MIX_RATIO;
-	const mixedG = lg * (1 - MATTE_MIX_RATIO) + MATTE_GRAY_RGB.g * MATTE_MIX_RATIO;
-	const mixedB = lb * (1 - MATTE_MIX_RATIO) + MATTE_GRAY_RGB.b * MATTE_MIX_RATIO;
+	const mixedR = liftedR * (1 - MATTE_MIX_RATIO) + MATTE_GRAY_RGB.r * MATTE_MIX_RATIO;
+	const mixedG = liftedG * (1 - MATTE_MIX_RATIO) + MATTE_GRAY_RGB.g * MATTE_MIX_RATIO;
+	const mixedB = liftedB * (1 - MATTE_MIX_RATIO) + MATTE_GRAY_RGB.b * MATTE_MIX_RATIO;
 
 	return rgbToHex(mixedR, mixedG, mixedB);
 }
 
 /**
- * Извлекает акцентный цвет и подготавливает мягкую пре-размытую 64x64 текстуру
- * за один проход, чтобы исключить тяжёлый CSS filter: blur(78px) и SVG-шум в рантайме.
+ * Один проход 1D box-blur по квадратному RGB-буферу (горизонтальный или вертикальный).
+ */
+function runBoxBlurPass(src, dst, size, isHorizontal) {
+	const windowSize = BLUR_RADIUS * 2 + 1;
+
+	for (let y = 0; y < size; y += 1) {
+		for (let x = 0; x < size; x += 1) {
+			let sumR = 0;
+			let sumG = 0;
+			let sumB = 0;
+
+			for (let k = -BLUR_RADIUS; k <= BLUR_RADIUS; k += 1) {
+				const sx = isHorizontal ? Math.max(0, Math.min(size - 1, x + k)) : x;
+				const sy = isHorizontal ? y : Math.max(0, Math.min(size - 1, y + k));
+				const srcIdx = (sy * size + sx) * 3;
+				sumR += src[srcIdx];
+				sumG += src[srcIdx + 1];
+				sumB += src[srcIdx + 2];
+			}
+
+			const outIdx = (y * size + x) * 3;
+			dst[outIdx] = sumR / windowSize;
+			dst[outIdx + 1] = sumG / windowSize;
+			dst[outIdx + 2] = sumB / windowSize;
+		}
+	}
+}
+
+/**
+ * За один проход по уменьшенной обложке 64×64:
+ * 1) вычисляет доминирующий матовый акцент с весом по насыщенности пикселей;
+ * 2) формирует пре-размытую текстуру с дизерингом вместо тяжёлого CSS `filter: blur(78px)`.
  */
 function buildAmbientFromPixels(srcData, size) {
 	const total = size * size;
@@ -90,6 +134,7 @@ function buildAmbientFromPixels(srcData, size) {
 		const b = srcData[i + 2];
 		const a = srcData[i + 3];
 
+		// Учитываем только непрозрачные пиксели; более насыщенные дают больший вклад
 		if (a >= 128) {
 			const max = Math.max(r, g, b);
 			const min = Math.min(r, g, b);
@@ -101,13 +146,13 @@ function buildAmbientFromPixels(srcData, size) {
 			weightSum += weight;
 		}
 
-		// Лёгкое усиление насыщенности и мягкое затемнение прямо в пикселях ambient-текстуры
+		// Умеренно усиливаем цветность и слегка затемняем фон до размытия
 		const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 		const satBoost = 1.38;
 		const bright = 0.88;
-		bufA[p] = Math.max(0, Math.min(255, (lum + (r - lum) * satBoost) * bright));
-		bufA[p + 1] = Math.max(0, Math.min(255, (lum + (g - lum) * satBoost) * bright));
-		bufA[p + 2] = Math.max(0, Math.min(255, (lum + (b - lum) * satBoost) * bright));
+		bufA[p] = clamp((lum + (r - lum) * satBoost) * bright, 0, 255);
+		bufA[p + 1] = clamp((lum + (g - lum) * satBoost) * bright, 0, 255);
+		bufA[p + 2] = clamp((lum + (b - lum) * satBoost) * bright, 0, 255);
 	}
 
 	const accentHex =
@@ -115,52 +160,12 @@ function buildAmbientFromPixels(srcData, size) {
 			? applyMatteClamping(rSum / weightSum, gSum / weightSum, bSum / weightSum)
 			: null;
 
-	// 3 прохода сепарабельного бокс-блюра (аппроксимирует гауссово размытие на GPU бесплатно)
-	const windowSize = BLUR_RADIUS * 2 + 1;
 	for (let pass = 0; pass < BLUR_PASSES; pass += 1) {
-		// Горизонталь: bufA -> bufB
-		for (let y = 0; y < size; y += 1) {
-			const rowBase = y * size;
-			for (let x = 0; x < size; x += 1) {
-				let sr = 0;
-				let sg = 0;
-				let sb = 0;
-				for (let k = -BLUR_RADIUS; k <= BLUR_RADIUS; k += 1) {
-					const sx = Math.max(0, Math.min(size - 1, x + k));
-					const idx = (rowBase + sx) * 3;
-					sr += bufA[idx];
-					sg += bufA[idx + 1];
-					sb += bufA[idx + 2];
-				}
-				const outIdx = (rowBase + x) * 3;
-				bufB[outIdx] = sr / windowSize;
-				bufB[outIdx + 1] = sg / windowSize;
-				bufB[outIdx + 2] = sb / windowSize;
-			}
-		}
-
-		// Вертикаль: bufB -> bufA
-		for (let y = 0; y < size; y += 1) {
-			for (let x = 0; x < size; x += 1) {
-				let sr = 0;
-				let sg = 0;
-				let sb = 0;
-				for (let k = -BLUR_RADIUS; k <= BLUR_RADIUS; k += 1) {
-					const sy = Math.max(0, Math.min(size - 1, y + k));
-					const idx = (sy * size + x) * 3;
-					sr += bufB[idx];
-					sg += bufB[idx + 1];
-					sb += bufB[idx + 2];
-				}
-				const outIdx = (y * size + x) * 3;
-				bufA[outIdx] = sr / windowSize;
-				bufA[outIdx + 1] = sg / windowSize;
-				bufA[outIdx + 2] = sb / windowSize;
-			}
-		}
+		runBoxBlurPass(bufA, bufB, size, true);
+		runBoxBlurPass(bufB, bufA, size, false);
 	}
 
-	// Запись с микро-дизерингом
+	// Переносим результат обратно в RGBA ImageData с микро-дизерингом
 	for (let y = 0; y < size; y += 1) {
 		for (let x = 0; x < size; x += 1) {
 			const px = y * size + x;
@@ -185,10 +190,26 @@ function storeInCache(key, value) {
 	appearanceCache.set(key, value);
 }
 
+function makeFallbackAppearance(fallbackAccent) {
+	const safeFallback = fallbackAccent || DEFAULT_ACCENT;
+	return {
+		accentHex: safeFallback,
+		accentRgb: hexToRgbTuple(safeFallback),
+		ambientSrc: null,
+	};
+}
+
+/**
+ * Возвращает заранее вычисленный внешний вид обложки из LRU-кэша (или `null`).
+ */
 export function getCachedCoverAppearance(coverUrl) {
 	return coverUrl ? (appearanceCache.get(coverUrl) ?? null) : null;
 }
 
+/**
+ * Дожидается декодирования сгенерированной data-URI текстуры до старта CSS-анимации,
+ * чтобы браузер не мигал пустым слоем на первом кадре кроссфейда.
+ */
 function preDecodeImage(src) {
 	if (!src || typeof Image === "undefined") return Promise.resolve();
 	return new Promise((resolve) => {
@@ -203,16 +224,15 @@ function preDecodeImage(src) {
 	});
 }
 
+/**
+ * Асинхронно загружает обложку, вычисляет её матовый акцент и пре-размытый ambient-фон.
+ * Параллельные вызовы для одного URL дедуплицируются через `pendingCache`.
+ */
 export function loadCoverAppearance(coverUrl, fallbackAccent = DEFAULT_ACCENT) {
-	const safeFallback = fallbackAccent || DEFAULT_ACCENT;
-	const fallbackRgb = hexToRgbTuple(safeFallback);
+	const fallback = makeFallbackAppearance(fallbackAccent);
 
 	if (!coverUrl) {
-		return Promise.resolve({
-			accentHex: safeFallback,
-			accentRgb: fallbackRgb,
-			ambientSrc: null,
-		});
+		return Promise.resolve(fallback);
 	}
 
 	const cached = appearanceCache.get(coverUrl);
@@ -238,23 +258,16 @@ export function loadCoverAppearance(coverUrl, fallbackAccent = DEFAULT_ACCENT) {
 				canvas.height = AMBIENT_SIZE;
 				const ctx = canvas.getContext("2d", { willReadFrequently: true });
 				if (!ctx) {
-					resolve({
-						accentHex: safeFallback,
-						accentRgb: fallbackRgb,
-						ambientSrc: null,
-					});
+					resolve(fallback);
 					return;
 				}
 
 				ctx.drawImage(img, 0, 0, AMBIENT_SIZE, AMBIENT_SIZE);
 				const imageData = ctx.getImageData(0, 0, AMBIENT_SIZE, AMBIENT_SIZE);
-				const computedAccent = buildAmbientFromPixels(
-					imageData.data,
-					AMBIENT_SIZE,
-				);
+				const computedAccent = buildAmbientFromPixels(imageData.data, AMBIENT_SIZE);
 				ctx.putImageData(imageData, 0, 0);
 
-				const accentHex = computedAccent || safeFallback;
+				const accentHex = computedAccent || fallback.accentHex;
 				const ambientSrc = canvas.toDataURL("image/png");
 				await preDecodeImage(ambientSrc);
 
@@ -266,11 +279,8 @@ export function loadCoverAppearance(coverUrl, fallbackAccent = DEFAULT_ACCENT) {
 				storeInCache(coverUrl, result);
 				resolve(result);
 			} catch {
-				resolve({
-					accentHex: safeFallback,
-					accentRgb: fallbackRgb,
-					ambientSrc: null,
-				});
+				// На случай tainted-canvas (CORS) безопасно откатываемся к fallback-акценту
+				resolve(fallback);
 			} finally {
 				pendingCache.delete(coverUrl);
 			}
@@ -278,11 +288,7 @@ export function loadCoverAppearance(coverUrl, fallbackAccent = DEFAULT_ACCENT) {
 
 		img.onerror = () => {
 			pendingCache.delete(coverUrl);
-			resolve({
-				accentHex: safeFallback,
-				accentRgb: fallbackRgb,
-				ambientSrc: null,
-			});
+			resolve(fallback);
 		};
 
 		img.src = coverUrl;
@@ -293,20 +299,81 @@ export function loadCoverAppearance(coverUrl, fallbackAccent = DEFAULT_ACCENT) {
 }
 
 /**
- * Безопасный обработчик onError для <img>: подменяет отсутствующий локальный файл
- * на встроенную SVG-заглушку (без зацикливания).
+ * Безопасный обработчик `onError` для `<img>`: подменяет отсутствующий локальный файл
+ * на встроенную SVG-заглушку соответствующего размера (с защитой от зацикливания).
  */
 export function handleCoverError(e, image, size = "medium") {
 	const img = e.currentTarget;
 	if (img.dataset.fallbackApplied) return;
+
 	const fallback =
 		size === "small"
 			? image?.fallback_small_url
 			: size === "large"
 				? image?.fallback_large_url
 				: image?.fallback_medium_url;
+
 	if (fallback) {
 		img.dataset.fallbackApplied = "1";
 		img.src = fallback;
+	}
+}
+
+const ALLOWED_COVER_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const PLAYLIST_COVER_MAX_SIZE = 640;
+
+/**
+ * Проверяет, декодирует, кадрирует по центру в квадрат (до 640×640) и сжимает
+ * загруженный файл обложки плейлиста в компактный `data:`-URI для сохранения
+ * в состоянии и `localStorage` без переполнения квоты.
+ *
+ * @param {File} file - Файл изображения (JPEG, PNG или WebP)
+ * @returns {Promise<{ small_url: string, medium_url: string, large_url: string }>}
+ */
+export async function processPlaylistCoverFile(file) {
+	if (!file || !ALLOWED_COVER_MIMES.has(file.type)) {
+		throw new Error("Поддерживаются только изображения JPEG, PNG или WebP.");
+	}
+
+	const objectUrl = URL.createObjectURL(file);
+	try {
+		const img = await new Promise((resolve, reject) => {
+			const el = new Image();
+			el.onload = () => resolve(el);
+			el.onerror = () => reject(new Error("Не удалось прочитать изображение."));
+			el.src = objectUrl;
+		});
+
+		const srcWidth = img.naturalWidth || img.width;
+		const srcHeight = img.naturalHeight || img.height;
+		const cropSide = Math.min(srcWidth, srcHeight);
+		const targetSize = Math.max(1, Math.min(PLAYLIST_COVER_MAX_SIZE, cropSide));
+
+		const sx = Math.floor((srcWidth - cropSide) / 2);
+		const sy = Math.floor((srcHeight - cropSide) / 2);
+
+		const canvas = document.createElement("canvas");
+		canvas.width = targetSize;
+		canvas.height = targetSize;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) {
+			throw new Error("Браузер не смог подготовить холст для обложки.");
+		}
+
+		ctx.drawImage(img, sx, sy, cropSide, cropSide, 0, 0, targetSize, targetSize);
+
+		// WebP даёт наименьший размер при отличном качестве; для старых движков — JPEG
+		let dataUrl = canvas.toDataURL("image/webp", 0.86);
+		if (!dataUrl.startsWith("data:image/webp")) {
+			dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+		}
+
+		return {
+			small_url: dataUrl,
+			medium_url: dataUrl,
+			large_url: dataUrl,
+		};
+	} finally {
+		URL.revokeObjectURL(objectUrl);
 	}
 }

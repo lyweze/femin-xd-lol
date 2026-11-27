@@ -1,13 +1,18 @@
 // ============================================================================
-// Основной макет плеера (адаптивный: Desktop Sidebar + Mobile Drawer & TabBar)
+// Основной макет плеера (`PlayerLayout`)
+// Десктоп/планшет (> 768px): боковой Sidebar + плавающий нижний плеер
+// Мобильные (<= 768px): нижний MobileTabBar + MobileMenuSheet + компактный мини-плеер
 // ============================================================================
-import { useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { usePlayerActions } from "../../context/playerContexts.js";
 import { useMediaQuery } from "../../hooks/useMediaQuery.js";
 import { useSidebar } from "../../hooks/useSidebar.js";
 import TitlebarDrag from "../../platform/TitlebarDrag.jsx";
+import PlaylistEditModal from "../playlist/playlist-edit-modal/PlaylistEditModal.jsx";
 import { ChevronRightIcon } from "../shared/icons/Icons.jsx";
 import AmbientBg from "./ambient-bg/AmbientBg.jsx";
+import MobileMenuSheet from "./mobile-menu-sheet/MobileMenuSheet.jsx";
 import MobileTabBar from "./mobile-tab-bar/MobileTabBar.jsx";
 import Sidebar from "./sidebar/Sidebar.jsx";
 import FloatingPlayer from "../player/floating-player/FloatingPlayer.jsx";
@@ -15,20 +20,21 @@ import FullscreenPlayer from "../player/fullscreen-player/FullscreenPlayer.jsx";
 
 function PlayerLayout() {
 	const location = useLocation();
+	const navigate = useNavigate();
 	const isMobile = useMediaQuery("(max-width: 768px)");
 	const { isOpen: isSidebarOpen, toggle: toggleSidebar } = useSidebar(true);
+	const { createPlaylist } = usePlayerActions();
+
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+	const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
 
-	useEffect(() => {
-		if (!isMobile || !isMobileMenuOpen) return;
-		const onKeyDown = (e) => {
-			if (e.key === "Escape") setIsMobileMenuOpen(false);
-		};
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [isMobile, isMobileMenuOpen]);
+	const closeMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
+	const openCreatePlaylist = useCallback(() => setIsCreatePlaylistOpen(true), []);
 
-	const closeMobileMenu = () => setIsMobileMenuOpen(false);
+	const outletContext = useMemo(
+		() => ({ openCreatePlaylist }),
+		[openCreatePlaylist],
+	);
 
 	return (
 		<>
@@ -48,25 +54,18 @@ function PlayerLayout() {
 					</button>
 				)}
 
-				{isMobile && isMobileMenuOpen && (
-					<div
-						className="sidebar-mobile-backdrop"
-						onClick={closeMobileMenu}
-						aria-hidden="true"
+				{!isMobile && (
+					<Sidebar
+						isOpen={isSidebarOpen}
+						onToggle={toggleSidebar}
+						onCreatePlaylist={openCreatePlaylist}
 					/>
 				)}
 
-				<Sidebar
-					isOpen={isSidebarOpen}
-					isMobile={isMobile}
-					isMobileOpen={isMobileMenuOpen}
-					onToggle={toggleSidebar}
-					onCloseMobile={closeMobileMenu}
-				/>
-
 				<main className="main">
+					{/* Ключ по pathname перезапускает лёгкий вход страницы при навигации */}
 					<div className="page-transition" key={location.pathname}>
-						<Outlet />
+						<Outlet context={outletContext} />
 					</div>
 
 					<FloatingPlayer isMobile={isMobile} />
@@ -74,14 +73,31 @@ function PlayerLayout() {
 			</div>
 
 			{isMobile && (
-				<MobileTabBar
-					isMenuOpen={isMobileMenuOpen}
-					onToggleMenu={() => setIsMobileMenuOpen((v) => !v)}
-					onNavigate={closeMobileMenu}
-				/>
+				<>
+					<MobileTabBar
+						isMenuOpen={isMobileMenuOpen}
+						onToggleMenu={() => setIsMobileMenuOpen((v) => !v)}
+						onNavigate={closeMobileMenu}
+					/>
+					<MobileMenuSheet
+						isOpen={isMobileMenuOpen}
+						onClose={closeMobileMenu}
+						onCreatePlaylist={openCreatePlaylist}
+					/>
+				</>
 			)}
 
-			<FullscreenPlayer />
+			<FullscreenPlayer isMobile={isMobile} />
+
+			<PlaylistEditModal
+				isOpen={isCreatePlaylistOpen}
+				mode="create"
+				onSave={(payload) => {
+					const created = createPlaylist(payload);
+					navigate(`/playlist/${created.id}`);
+				}}
+				onClose={() => setIsCreatePlaylistOpen(false)}
+			/>
 		</>
 	);
 }

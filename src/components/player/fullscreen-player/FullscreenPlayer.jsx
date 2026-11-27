@@ -1,10 +1,11 @@
 // ============================================================================
 // Полноэкранный плеер (`FullscreenPlayer`)
-// Полностью размонтирован, пока закрыт; использует пре-размытый фон без дрифта
+// Полностью размонтирован, пока закрыт; на мобильных закрывается свайпом вниз.
 // ============================================================================
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
+import { useSwipeToDismiss } from "../../../hooks/useSwipeToDismiss.js";
 import { musicApi } from "../../../api/musicApi.js";
 import { handleCoverError } from "../../../utils/cover.js";
 import AmbientBackdrop from "../../shared/ambient-backdrop/AmbientBackdrop.jsx";
@@ -16,7 +17,13 @@ import ProgressBar from "../progress-bar/ProgressBar.jsx";
 import FullscreenLyricsPane from "./FullscreenLyricsPane.jsx";
 import "./FullscreenPlayer.css";
 
-function FullscreenPlayerContent() {
+const SWIPE_CLOSE_THRESHOLD_PX = 90;
+
+/** Проверяет, находится ли касание внутри скролла текстов или слайдера */
+const shouldIgnoreSwipeTarget = (target) =>
+	Boolean(target?.closest?.(".fs-lyrics-scroll, [role='slider']"));
+
+function FullscreenPlayerContent({ isMobile }) {
 	const navigate = useNavigate();
 	const {
 		currentTrack,
@@ -42,7 +49,19 @@ function FullscreenPlayerContent() {
 		[currentTrack],
 	);
 
+	// Запоминаем выбор языка вместе с trackId, чтобы при смене трека выбор сбрасывался сам
 	const [langSelection, setLangSelection] = useState(null);
+
+	const handleSwipeDismiss = useCallback(() => {
+		closeFullscreen();
+	}, [closeFullscreen]);
+
+	const { dragOffsetY, isSwiping, touchHandlers } = useSwipeToDismiss({
+		enabled: isMobile,
+		thresholdPx: SWIPE_CLOSE_THRESHOLD_PX,
+		onDismiss: handleSwipeDismiss,
+		shouldIgnoreTarget: shouldIgnoreSwipeTarget,
+	});
 
 	const activeLang = useMemo(() => {
 		if (lyricsItems.length === 0) return "";
@@ -72,12 +91,21 @@ function FullscreenPlayerContent() {
 		navigate(path);
 	};
 
+	const swipeInlineStyle = isSwiping
+		? {
+				transform: `translate3d(0, ${dragOffsetY}px, 0)`,
+				opacity: Math.max(0.45, 1 - dragOffsetY / 520),
+			}
+		: undefined;
+
 	return (
 		<div
-			className={`fs-player ${fullscreenPhase === "closing" ? "is-closing" : "is-open"}`}
+			className={`fs-player ${fullscreenPhase === "closing" ? "is-closing" : "is-open"} ${isSwiping ? "is-swiping" : ""}`}
 			role="dialog"
 			aria-modal="true"
 			aria-label="Fullscreen player"
+			style={swipeInlineStyle}
+			{...touchHandlers}
 		>
 			<AmbientBackdrop
 				coverUrl={currentTrack?.cover?.small_url ?? null}
@@ -187,16 +215,19 @@ function FullscreenPlayerContent() {
 						<PlayerControls size="large" />
 					</div>
 
-					<VolumeControl
-						volume={volume}
-						isMuted={isMuted}
-						onToggleMute={toggleMute}
-						onChangeVolume={setVolume}
-						containerClassName="fs-volume-row"
-						buttonClassName="fs-vol-icon"
-						variant="fullscreen"
-						iconSize={15}
-					/>
+					{/* На мобильных громкость регулируется аппаратными кнопками устройства */}
+					{!isMobile && (
+						<VolumeControl
+							volume={volume}
+							isMuted={isMuted}
+							onToggleMute={toggleMute}
+							onChangeVolume={setVolume}
+							containerClassName="fs-volume-row"
+							buttonClassName="fs-vol-icon"
+							variant="fullscreen"
+							iconSize={15}
+						/>
+					)}
 				</section>
 
 				{displayLyricsPane && activeLyrics && (
@@ -215,10 +246,14 @@ function FullscreenPlayerContent() {
 	);
 }
 
-function FullscreenPlayer() {
+/**
+ * Обёртка-предохранитель: держит тяжёлое дерево полноэкранного плеера
+ * размонтированным, пока модалка полностью закрыта.
+ */
+function FullscreenPlayer({ isMobile = false }) {
 	const { currentTrack, isFullscreenMounted } = usePlayerState();
 	if (!currentTrack || !isFullscreenMounted) return null;
-	return <FullscreenPlayerContent />;
+	return <FullscreenPlayerContent isMobile={isMobile} />;
 }
 
 export default FullscreenPlayer;

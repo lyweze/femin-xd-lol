@@ -1,6 +1,11 @@
+// ============================================================================
+// Страница справочника исполнителей (`ArtistsPage`)
+// Поддерживает создание, inline-редактирование, загрузку аватара и удаление.
+// ============================================================================
 import { useState } from "react";
-import { useArtists } from "../hooks/useArtists.js";
 import CoverUploader from "../components/CoverUploader.jsx";
+import { useActionError } from "../hooks/useActionError.js";
+import { useArtists } from "../hooks/useArtists.js";
 
 function ArtistsPage() {
 	const {
@@ -23,18 +28,15 @@ function ArtistsPage() {
 	const [editingId, setEditingId] = useState(null);
 	const [editName, setEditName] = useState("");
 	const [editBio, setEditBio] = useState("");
-	const [actionError, setActionError] = useState(null);
+	const { actionError, setActionError, runAction } = useActionError();
 
 	const handleCreate = async (e) => {
 		e.preventDefault();
-		setActionError(null);
-		try {
+		await runAction(async () => {
 			await createArtist({ name: name.trim(), bio: bio.trim() });
 			setName("");
 			setBio("");
-		} catch (err) {
-			setActionError(err?.message || "Не удалось создать артиста.");
-		}
+		}, "Не удалось создать артиста.");
 	};
 
 	const startEdit = (artist) => {
@@ -44,28 +46,18 @@ function ArtistsPage() {
 		setActionError(null);
 	};
 
-	const handleUpdate = async (artistId) => {
-		setActionError(null);
-		try {
+	const handleUpdate = (artistId) =>
+		runAction(async () => {
 			await updateArtist(artistId, {
 				name: editName.trim(),
 				bio: editBio.trim(),
 			});
 			setEditingId(null);
-		} catch (err) {
-			setActionError(err?.message || "Не удалось сохранить изменения.");
-		}
-	};
+		}, "Не удалось сохранить изменения.");
 
-	const handleDelete = async (artistId) => {
-		setActionError(null);
-		try {
-			await deleteArtist(artistId);
-		} catch (err) {
-			// Пока у артиста есть альбомы, API вернёт 409 Conflict
-			setActionError(err?.message || "Не удалось удалить артиста.");
-		}
-	};
+	// Пока у артиста есть альбомы, API вернёт 409 Conflict с понятным текстом
+	const handleDelete = (artistId) =>
+		runAction(() => deleteArtist(artistId), "Не удалось удалить артиста.");
 
 	return (
 		<div className="admin-page">
@@ -77,9 +69,7 @@ function ArtistsPage() {
 			</header>
 
 			{(error || actionError) && (
-				<div className="admin-banner-error">
-					{actionError || error?.message}
-				</div>
+				<div className="admin-banner-error">{actionError || error?.message}</div>
 			)}
 
 			<form className="admin-card admin-page" onSubmit={handleCreate}>
@@ -114,8 +104,7 @@ function ArtistsPage() {
 
 			<div className="admin-toolbar">
 				<input
-					className="admin-input"
-					style={{ maxWidth: 280 }}
+					className="admin-input admin-filter-input"
 					placeholder="Search artists..."
 					value={params.q || ""}
 					onChange={(e) => updateFilters({ q: e.target.value })}
@@ -136,7 +125,7 @@ function ArtistsPage() {
 							const isEditing = editingId === artist.id;
 							return (
 								<tr key={artist.id}>
-									<td style={{ width: 124 }}>
+									<td className="admin-col-avatar">
 										<CoverUploader
 											image={artist.avatar}
 											label="Avatar"
@@ -147,7 +136,7 @@ function ArtistsPage() {
 									</td>
 									<td>
 										{isEditing ? (
-											<div className="admin-page" style={{ gap: 8, paddingBottom: 0 }}>
+											<div className="admin-stack-compact">
 												<input
 													className="admin-input"
 													value={editName}
@@ -161,16 +150,14 @@ function ArtistsPage() {
 											</div>
 										) : (
 											<div>
-												<div style={{ fontWeight: 500, marginBottom: 4 }}>
-													{artist.name}
-												</div>
-												<div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+												<div className="admin-title-bold">{artist.name}</div>
+												<div className="admin-text-sub">
 													{artist.bio || "No bio yet"}
 												</div>
 											</div>
 										)}
 									</td>
-									<td style={{ width: 200 }}>
+									<td className="admin-col-actions">
 										<div className="admin-row-actions">
 											{isEditing ? (
 												<>
@@ -215,7 +202,7 @@ function ArtistsPage() {
 
 						{!isLoading && artists.length === 0 && (
 							<tr>
-								<td colSpan={3} style={{ color: "var(--text-tertiary)" }}>
+								<td colSpan={3} className="admin-text-muted">
 									No artists found.
 								</td>
 							</tr>

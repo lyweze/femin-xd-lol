@@ -21,17 +21,19 @@
 		width: 100%;
 	}
 
-	&:hover {
-		> .media-card-cover-wrap {
-			transform: translate3d(0, -4px, 0);
+	@media (hover: hover) {
+		&:hover {
+			> .media-card-cover-wrap {
+				transform: translate3d(0, -4px, 0);
 
-			> .media-card-cover {
-				transform: scale(1.045);
+				> .media-card-cover {
+					transform: scale(1.045);
+				}
 			}
-		}
 
-		> .media-card-title {
-			color: #ffffff;
+			> .media-card-title {
+				color: #ffffff;
+			}
 		}
 	}
 

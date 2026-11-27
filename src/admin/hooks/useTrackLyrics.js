@@ -1,6 +1,13 @@
+// ============================================================================
+// Хук управления мультиязычными текстами трека (`useTrackLyrics`)
+// ============================================================================
 import { useState, useEffect, useCallback } from "react";
 import { adminApi } from "../../api/adminApi.js";
 
+/**
+ * Загружает, сохраняет и удаляет языковые версии текста трека в `LyricsDrawer`.
+ * Выбранный язык и загруженный список привязаны к `trackId` во избежание гонок при переключении.
+ */
 export function useTrackLyrics(trackId) {
 	const [state, setState] = useState({
 		trackId: null,
@@ -42,8 +49,7 @@ export function useTrackLyrics(trackId) {
 	const lyricsList = trackId && state.trackId === trackId ? state.items : [];
 	const error = trackId && state.trackId === trackId ? state.error : null;
 	const isLoading = Boolean(trackId) && state.trackId !== trackId;
-	const activeLang =
-		selectedLang.trackId === trackId ? selectedLang.lang : "ru";
+	const activeLang = selectedLang.trackId === trackId ? selectedLang.lang : "ru";
 
 	const setActiveLang = useCallback(
 		(lang) => {
@@ -52,8 +58,7 @@ export function useTrackLyrics(trackId) {
 		[trackId],
 	);
 
-	const currentLyrics =
-		lyricsList.find((l) => l.language === activeLang) ?? null;
+	const currentLyrics = lyricsList.find((l) => l.language === activeLang) ?? null;
 
 	const saveLyrics = useCallback(
 		async (language, payload) => {
@@ -61,11 +66,7 @@ export function useTrackLyrics(trackId) {
 			setIsSaving(true);
 			setState((prev) => ({ ...prev, error: null }));
 			try {
-				const { lyrics } = await adminApi.putTrackLyrics(
-					trackId,
-					language,
-					payload,
-				);
+				const { lyrics } = await adminApi.putTrackLyrics(trackId, language, payload);
 				setState((prev) => {
 					const exists = prev.items.some((l) => l.language === language);
 					return {

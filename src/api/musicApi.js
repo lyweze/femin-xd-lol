@@ -1,5 +1,6 @@
 // ============================================================================
 // Клиентская прослойка каталога плеера (сейчас моки, позже fetch /api/v1/*)
+// Поддерживает динамический список пользовательских плейлистов из PlayerContext.
 // ============================================================================
 import {
 	MOCK_ALBUMS,
@@ -9,12 +10,15 @@ import {
 	getAlbumById,
 	getArtistById,
 	getLyricsByTrackId,
-	getPlaylistById,
 	getTracksByAlbumId,
 	getTracksByPlaylist,
 } from "../services/mockData.js";
 
+/**
+ * Публичный клиент каталога для пользовательской части плеера.
+ */
 export const musicApi = {
+	/** Возвращает базовые витрины и треки для главной страницы */
 	getHomeData() {
 		return {
 			albums: MOCK_ALBUMS,
@@ -23,6 +27,7 @@ export const musicApi = {
 		};
 	},
 
+	/** Возвращает альбом с отсортированным треклистом */
 	getAlbum(albumId) {
 		const album = getAlbumById(albumId);
 		if (!album) return null;
@@ -32,7 +37,11 @@ export const musicApi = {
 		};
 	},
 
-	getPlaylist(playlistId, likedIds = []) {
+	/**
+	 * Возвращает плейлист из переданного списка (или динамический `favourites`
+	 * на основе `likedIds`), разворачивая `track_ids` в массив объектов треков.
+	 */
+	getPlaylist(playlistId, likedIds = [], playlists = MOCK_PLAYLISTS) {
 		if (playlistId === "favourites") {
 			const likedSet = new Set(likedIds);
 			const tracks = MOCK_TRACKS.filter((t) => likedSet.has(t.id));
@@ -41,19 +50,23 @@ export const musicApi = {
 				title: "Favourites",
 				type: "playlist",
 				description: "Tracks you marked with a heart across the catalog.",
-				cover: tracks[0]?.cover ?? MOCK_PLAYLISTS[0].cover,
+				cover: null,
+				track_count: tracks.length,
 				tracks,
 			};
 		}
 
-		const playlist = getPlaylistById(playlistId);
+		const playlist = playlists.find((pl) => pl.id === playlistId) ?? null;
 		if (!playlist) return null;
+		const tracks = getTracksByPlaylist(playlist);
 		return {
 			...playlist,
-			tracks: getTracksByPlaylist(playlist),
+			track_count: tracks.length,
+			tracks,
 		};
 	},
 
+	/** Возвращает профиль артиста, его популярные треки и релизы */
 	getArtist(artistId) {
 		const artist = getArtistById(artistId);
 		if (!artist) return null;
@@ -70,7 +83,8 @@ export const musicApi = {
 		};
 	},
 
-	searchCatalog(rawQuery) {
+	/** Выполняет регистронезависимый поиск по артистам, трекам, альбомам и плейлистам */
+	searchCatalog(rawQuery, playlists = MOCK_PLAYLISTS) {
 		const q = String(rawQuery || "").trim().toLowerCase();
 		if (!q) {
 			return { artists: [], tracks: [], albums: [], playlists: [] };
@@ -88,12 +102,13 @@ export const musicApi = {
 					al.title.toLowerCase().includes(q) ||
 					al.artists.some((a) => a.name.toLowerCase().includes(q)),
 			),
-			playlists: MOCK_PLAYLISTS.filter((pl) =>
+			playlists: playlists.filter((pl) =>
 				pl.title.toLowerCase().includes(q),
 			),
 		};
 	},
 
+	/** Возвращает тексты песни на всех доступных языках */
 	getTrackLyrics(trackId) {
 		return getLyricsByTrackId(trackId);
 	},

@@ -1,3 +1,6 @@
+/* ==========================================================================
+   Медиатека пользователя (табы-фильтры, адаптивные сетки и вкладка лайков)
+   ========================================================================== */
 .library-page {
 	display: flex;
 	flex-direction: column;
@@ -43,6 +46,19 @@
 				&.is-active {
 					background-color: var(--surface-active);
 					color: var(--text-primary);
+				}
+
+				&.is-create {
+					display: inline-flex;
+					align-items: center;
+					gap: 6px;
+					margin-left: auto;
+					background-color: rgba(var(--accent-cover-rgb), 0.16);
+					color: var(--text-primary);
+
+					&:hover {
+						background-color: rgba(var(--accent-cover-rgb), 0.26);
+					}
 				}
 			}
 		}
@@ -100,6 +116,10 @@
 				height: 32px;
 				padding: 0 13px;
 				font-size: 12px;
+
+				&.is-create {
+					margin-left: 0;
+				}
 			}
 		}
 

@@ -24,17 +24,19 @@
 		}
 	}
 
-	&:hover {
-		> .artist-card-avatar-wrap {
-			transform: translate3d(0, -4px, 0);
+	@media (hover: hover) {
+		&:hover {
+			> .artist-card-avatar-wrap {
+				transform: translate3d(0, -4px, 0);
 
-			> .artist-card-avatar {
-				transform: scale(1.05);
+				> .artist-card-avatar {
+					transform: scale(1.05);
+				}
 			}
-		}
 
-		> .artist-card-name {
-			color: #ffffff;
+			> .artist-card-name {
+				color: #ffffff;
+			}
 		}
 	}
 

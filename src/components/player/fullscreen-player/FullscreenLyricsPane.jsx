@@ -1,11 +1,27 @@
 // ============================================================================
 // Панель синхронизированных/статичных текстов внутри FullscreenPlayer
-// Изолирована по подписке `usePlayerTime()`, не мешает ручному скроллу
+// Изолирована по подписке `usePlayerTime()`, уважает ручную прокрутку пользователя
 // ============================================================================
 import { useEffect, useMemo, useRef } from "react";
 import { usePlayerTime } from "../../../context/playerContexts.js";
 
+// Пауза автоскролла после ручного пролистывания текста (3.5 секунды)
 const MANUAL_SCROLL_COOLDOWN_MS = 3500;
+
+/** Находит индекс активной строки по текущему времени воспроизведения с учётом offset_ms */
+function findActiveLineIndex(activeLyrics, currentTimeMs) {
+	if (!activeLyrics?.synced || !activeLyrics.lines?.length) return -1;
+	const adjustedMs = currentTimeMs + (activeLyrics.offset_ms || 0);
+	let found = -1;
+	for (let i = 0; i < activeLyrics.lines.length; i += 1) {
+		if (adjustedMs >= activeLyrics.lines[i].start_ms) {
+			found = i;
+		} else {
+			break;
+		}
+	}
+	return found;
+}
 
 function FullscreenLyricsPane({
 	lyricsItems,
@@ -18,20 +34,12 @@ function FullscreenLyricsPane({
 	const activeLineRef = useRef(null);
 	const manualScrollUntilRef = useRef(0);
 
-	const activeLineIndex = useMemo(() => {
-		if (!activeLyrics?.synced || !activeLyrics.lines?.length) return -1;
-		const adjustedMs = currentTimeMs + (activeLyrics.offset_ms || 0);
-		let found = -1;
-		for (let i = 0; i < activeLyrics.lines.length; i += 1) {
-			if (adjustedMs >= activeLyrics.lines[i].start_ms) {
-				found = i;
-			} else {
-				break;
-			}
-		}
-		return found;
-	}, [activeLyrics, currentTimeMs]);
+	const activeLineIndex = useMemo(
+		() => findActiveLineIndex(activeLyrics, currentTimeMs),
+		[activeLyrics, currentTimeMs],
+	);
 
+	// Плавно центрируем активную строку, только если пользователь не скроллил сам
 	useEffect(() => {
 		if (!isFullscreenOpen || activeLineIndex < 0) return;
 		if (Date.now() < manualScrollUntilRef.current) return;

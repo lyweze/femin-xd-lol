@@ -1,7 +1,9 @@
 // ============================================================================
-// Общие SVG-иконки плеера и навигации
+// Набор векторных SVG-иконок плеера, навигации и заглушек обложек
+// Все иконки используют `currentColor` для мгновенного наследования цвета темы
 // ============================================================================
 
+/** Иконка переключения боковой панели */
 export function SidebarIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -19,6 +21,7 @@ export function SidebarIcon() {
 	);
 }
 
+/** Иконка раскрытия полноэкранного плеера */
 export function ExpandIcon() {
 	return (
 		<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -33,6 +36,7 @@ export function ExpandIcon() {
 	);
 }
 
+/** Иконка панели текстов песен */
 export function LyricsIcon() {
 	return (
 		<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -46,6 +50,7 @@ export function LyricsIcon() {
 	);
 }
 
+/** Иконка динамика (с волнами или перечёркнутая при mute) */
 export function VolumeIcon({ muted = false, size = 14 }) {
 	return (
 		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -70,6 +75,7 @@ export function VolumeIcon({ muted = false, size = 14 }) {
 	);
 }
 
+/** Иконка перемешивания очереди (Shuffle) */
 export function ShuffleIcon() {
 	return (
 		<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -84,6 +90,7 @@ export function ShuffleIcon() {
 	);
 }
 
+/** Иконка предыдущего трека */
 export function PrevIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -92,6 +99,7 @@ export function PrevIcon() {
 	);
 }
 
+/** Иконка Play */
 export function PlayIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -100,6 +108,7 @@ export function PlayIcon() {
 	);
 }
 
+/** Иконка Pause */
 export function PauseIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -109,6 +118,7 @@ export function PauseIcon() {
 	);
 }
 
+/** Иконка следующего трека */
 export function NextIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -117,6 +127,7 @@ export function NextIcon() {
 	);
 }
 
+/** Иконка повтора (Repeat) */
 export function RepeatIcon() {
 	return (
 		<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -131,6 +142,7 @@ export function RepeatIcon() {
 	);
 }
 
+/** Стрелка вниз (сворачивание полноэкранного плеера) */
 export function ChevronDownIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -145,6 +157,7 @@ export function ChevronDownIcon() {
 	);
 }
 
+/** Иконка лупы для поиска */
 export function SearchIcon({ className }) {
 	return (
 		<svg
@@ -166,6 +179,7 @@ export function SearchIcon({ className }) {
 	);
 }
 
+/** Сердце для Избранного и градиентных обложек (контурное или залитое) */
 export function HeartIcon({ filled = false, size = 14 }) {
 	return (
 		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -181,6 +195,7 @@ export function HeartIcon({ filled = false, size = 14 }) {
 	);
 }
 
+/** Стрелка вправо (полоса повторного открытия сайдбара) */
 export function ChevronRightIcon({ size = 12 }) {
 	return (
 		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -195,6 +210,7 @@ export function ChevronRightIcon({ size = 12 }) {
 	);
 }
 
+/** Домик для мобильной вкладки Home */
 export function HomeIcon({ size = 18 }) {
 	return (
 		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -208,6 +224,7 @@ export function HomeIcon({ size = 18 }) {
 	);
 }
 
+/** Стопка книг/пластинок для мобильной вкладки Library */
 export function LibraryIcon({ size = 18 }) {
 	return (
 		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -221,6 +238,7 @@ export function LibraryIcon({ size = 18 }) {
 	);
 }
 
+/** Иконка списка для открытия шторки плейлистов */
 export function MenuIcon({ size = 18 }) {
 	return (
 		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -234,6 +252,7 @@ export function MenuIcon({ size = 18 }) {
 	);
 }
 
+/** Крестик закрытия */
 export function CloseIcon({ size = 16 }) {
 	return (
 		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -242,6 +261,77 @@ export function CloseIcon({ size = 16 }) {
 				stroke="currentColor"
 				strokeWidth="1.5"
 				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
+/** Музыкальная нота (для градиентных обложек плейлистов по умолчанию) */
+export function MusicNoteIcon({ size = 28 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+			<path
+				d="M9 17.5a2.5 2.5 0 1 1-1.5-2.3V6.8l10-2.1v8.8a2.5 2.5 0 1 1-1.5-2.3V7.9l-7 1.5v8.1z"
+				fill="currentColor"
+			/>
+		</svg>
+	);
+}
+
+/** Иконка «+» (создание плейлиста или добавление трека) */
+export function PlusIcon({ size = 14 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M8 3v10M3 8h10"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
+/** Иконка карандаша (редактирование плейлиста) */
+export function EditIcon({ size = 14 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M11.4 2.6a1.4 1.4 0 0 1 2 2L5.6 12.4 2.5 13.5l1.1-3.1 7.8-7.8z"
+				stroke="currentColor"
+				strokeWidth="1.35"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+}
+
+/** Иконка камеры (смена обложки) */
+export function CameraIcon({ size = 18 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d="M2.2 5.4a1.2 1.2 0 0 1 1.2-1.2h1.4l1-1.4h4.4l1 1.4h1.4a1.2 1.2 0 0 1 1.2 1.2v6.4a1.2 1.2 0 0 1-1.2 1.2H3.4a1.2 1.2 0 0 1-1.2-1.2V5.4z"
+				stroke="currentColor"
+				strokeWidth="1.3"
+				strokeLinejoin="round"
+			/>
+			<circle cx="8" cy="8.4" r="2.1" stroke="currentColor" strokeWidth="1.3" />
+		</svg>
+	);
+}
+
+/** Стрелка вверх / вниз для сортировки треков */
+export function ArrowStepIcon({ direction = "up", size = 12 }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path
+				d={direction === "up" ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4"}
+				stroke="currentColor"
+				strokeWidth="1.6"
+				strokeLinecap="round"
+				strokeLinejoin="round"
 			/>
 		</svg>
 	);

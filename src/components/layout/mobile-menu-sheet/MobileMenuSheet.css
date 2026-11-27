@@ -1,0 +1,288 @@
+/* ==========================================================================
+   Мобильная нижняя шторка плейлистов и аккаунта (`MobileMenuSheet`)
+   ========================================================================== */
+.mobile-sheet-root {
+	position: fixed;
+	inset: 0;
+	z-index: 45;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+}
+
+.mobile-sheet-backdrop {
+	position: absolute;
+	inset: 0;
+	background-color: rgba(10, 10, 9, 0.62);
+	animation: sheetBackdropIn 0.22s ease both;
+}
+
+.mobile-sheet {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	max-width: 560px;
+	max-height: 78dvh;
+	padding: 10px 16px max(18px, env(safe-area-inset-bottom, 0px));
+	box-sizing: border-box;
+
+	border-radius: 26px 26px 0 0;
+	background-color: var(--surface-drawer);
+	-webkit-backdrop-filter: var(--blur-player);
+	backdrop-filter: var(--blur-player);
+	box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.42);
+	animation: sheetSlideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+	&.is-dragging {
+		animation: none;
+		transition: none;
+	}
+
+	> .mobile-sheet-drag-zone {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		flex-shrink: 0;
+		touch-action: none;
+
+		> .mobile-sheet-handle {
+			width: 40px;
+			height: 4px;
+			margin-bottom: 12px;
+			border-radius: 999px;
+			background-color: rgba(230, 227, 221, 0.24);
+		}
+
+		> .mobile-sheet-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			width: 100%;
+			margin-bottom: 12px;
+
+			> .mobile-sheet-title {
+				margin: 0;
+				padding-left: 4px;
+				font-family: var(--font-editorial);
+				font-size: 22px;
+				font-weight: 500;
+				color: var(--text-primary);
+			}
+
+			> .mobile-sheet-head-actions {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+
+				> .mobile-sheet-new-btn {
+					display: inline-flex;
+					align-items: center;
+					gap: 5px;
+					height: 36px;
+					padding: 0 13px;
+					border: none;
+					border-radius: 999px;
+					background-color: var(--surface-active);
+					color: var(--text-primary);
+					font-family: var(--font-ui);
+					font-size: 12.5px;
+					font-weight: 500;
+					cursor: pointer;
+
+					&:active {
+						transform: scale(0.94);
+					}
+				}
+
+				> .mobile-sheet-close {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					width: 36px;
+					height: 36px;
+					padding: 0;
+					border: none;
+					border-radius: 999px;
+					background-color: var(--surface-elevated);
+					color: var(--text-secondary);
+					cursor: pointer;
+
+					&:active {
+						transform: scale(0.92);
+					}
+				}
+			}
+		}
+	}
+
+	> .mobile-sheet-list {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+
+		> .mobile-sheet-playlist {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			padding: 8px 10px;
+			border-radius: 14px;
+			background-color: var(--surface-elevated);
+			text-decoration: none;
+			transition:
+				background-color 0.16s ease,
+				transform 0.12s ease;
+
+			&:active {
+				transform: scale(0.985);
+				background-color: var(--surface-hover);
+			}
+
+			&.active {
+				background-color: var(--surface-active);
+			}
+
+			> .mobile-sheet-thumb {
+				width: 44px;
+				height: 44px;
+				flex-shrink: 0;
+				border-radius: 10px;
+				overflow: hidden;
+				background-color: var(--surface-active);
+			}
+
+			> .mobile-sheet-playlist-meta {
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+				min-width: 0;
+				flex: 1;
+
+				> .mobile-sheet-playlist-name {
+					font-family: var(--font-editorial);
+					font-size: 16px;
+					font-weight: 500;
+					color: var(--text-primary);
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
+
+				> .mobile-sheet-playlist-sub {
+					font-family: var(--font-mono);
+					font-size: 11px;
+					color: var(--text-secondary);
+				}
+			}
+		}
+	}
+
+	> .mobile-sheet-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		flex-shrink: 0;
+		margin-top: 14px;
+		padding: 10px 12px;
+		border-radius: 16px;
+		background-color: var(--surface-elevated);
+
+		> .mobile-sheet-account {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			min-width: 0;
+
+			> .mobile-sheet-avatar {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 36px;
+				height: 36px;
+				flex-shrink: 0;
+				border-radius: 10px;
+				background: linear-gradient(
+					145deg,
+					rgba(var(--accent-cover-rgb), 0.55),
+					rgba(230, 227, 221, 0.08)
+				);
+				font-family: var(--font-editorial);
+				font-size: 15px;
+				color: var(--text-primary);
+			}
+
+			> .mobile-sheet-account-meta {
+				display: flex;
+				flex-direction: column;
+				gap: 1px;
+				min-width: 0;
+
+				> .mobile-sheet-account-name {
+					font-family: var(--font-editorial);
+					font-size: 15px;
+					color: var(--text-primary);
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
+
+				> .mobile-sheet-account-sub {
+					font-family: var(--font-mono);
+					font-size: 9.5px;
+					color: var(--text-secondary);
+				}
+			}
+		}
+
+		> .mobile-sheet-admin-btn {
+			flex-shrink: 0;
+			height: 36px;
+			padding: 0 14px;
+			border: none;
+			border-radius: 999px;
+			background-color: rgba(var(--accent-cover-rgb), 0.22);
+			color: var(--text-primary);
+			font-family: var(--font-ui);
+			font-size: 12px;
+			font-weight: 500;
+			cursor: pointer;
+
+			&:active {
+				transform: scale(0.95);
+			}
+		}
+	}
+}
+
+@keyframes sheetBackdropIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes sheetSlideUp {
+	from {
+		opacity: 0;
+		transform: translate3d(0, 36px, 0);
+	}
+	to {
+		opacity: 1;
+		transform: translate3d(0, 0, 0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mobile-sheet-backdrop,
+	.mobile-sheet {
+		animation: none;
+	}
+}

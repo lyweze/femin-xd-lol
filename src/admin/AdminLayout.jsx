@@ -1,3 +1,6 @@
+// ============================================================================
+// Корневой макет Admin Studio (`/admin/*`): боковая навигация и вложенные маршруты
+// ============================================================================
 import { Routes, Route, NavLink, Navigate, Link } from "react-router-dom";
 import { IS_MOCK_ADMIN_MODE } from "../api/adminApi.js";
 import { useAuth } from "../context/authContext.js";
@@ -33,11 +36,7 @@ function AdminLayout() {
 
 				<nav className="admin-nav">
 					{ADMIN_NAV.map((item) => (
-						<NavLink
-							key={item.to}
-							to={item.to}
-							className="admin-nav-link"
-						>
+						<NavLink key={item.to} to={item.to} className="admin-nav-link">
 							<span>{item.label}</span>
 						</NavLink>
 					))}

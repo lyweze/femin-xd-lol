@@ -1,16 +1,20 @@
+// ============================================================================
+// Медиатека пользователя (`LibraryPage`): альбомы/плейлисты, артисты и лайки
+// ============================================================================
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
+import { musicApi } from "../../../api/musicApi.js";
 import {
 	MOCK_ALBUMS,
 	MOCK_ARTISTS,
-	MOCK_PLAYLISTS,
 	MOCK_TRACKS,
 } from "../../../services/mockData.js";
-import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
-import MediaCard from "../../shared/media-card/MediaCard.jsx";
+import { usePlayerState } from "../../../context/playerContexts.js";
 import ArtistCard from "../../shared/artist-card/ArtistCard.jsx";
-import TrackRow from "../../shared/track-row/TrackRow.jsx";
+import { PlusIcon } from "../../shared/icons/Icons.jsx";
+import MediaCard from "../../shared/media-card/MediaCard.jsx";
+import TrackList from "../../shared/track-list/TrackList.jsx";
 import "./LibraryPage.css";
 
 const FILTER_TABS = [
@@ -23,12 +27,15 @@ function LibraryPage() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const activeTab = searchParams.get("tab") || "collections";
 	const scrollRef = useVerticalScroll();
+	const outletCtx = useOutletContext();
 
-	const { currentTrack, isPlaying, likedIds, durationOverrides } =
-		usePlayerState();
-	const { playTrack, toggleLike } = usePlayerActions();
+	const { likedIds, playlists } = usePlayerState();
 
-	const collections = useMemo(() => [...MOCK_ALBUMS, ...MOCK_PLAYLISTS], []);
+	const collections = useMemo(() => {
+		const favourites = musicApi.getPlaylist("favourites", likedIds);
+		return [favourites, ...MOCK_ALBUMS, ...playlists].filter(Boolean);
+	}, [likedIds, playlists]);
+
 	const likedTracks = useMemo(() => {
 		const likedSet = new Set(likedIds);
 		return MOCK_TRACKS.filter((t) => likedSet.has(t.id));
@@ -63,10 +70,22 @@ function LibraryPage() {
 							</button>
 						);
 					})}
+
+					{activeTab === "collections" && outletCtx?.openCreatePlaylist && (
+						<button
+							type="button"
+							className="pill-btn is-create"
+							onClick={outletCtx.openCreatePlaylist}
+						>
+							<PlusIcon size={12} />
+							<span>New Playlist</span>
+						</button>
+					)}
 				</div>
 			</header>
 
 			<div className="page-scroll" ref={scrollRef}>
+				{/* Ключ по вкладке запускает плавное переключение содержимого */}
 				<div key={activeTab} className="library-tab-panel">
 					{activeTab === "collections" && (
 						<div className="library-grid">
@@ -94,25 +113,7 @@ function LibraryPage() {
 								No liked tracks yet. Press ♥ next to any track to save it.
 							</p>
 						) : (
-							<ul className="Library is-embedded">
-								{likedTracks.map((track, idx) => {
-									const isCurrent = currentTrack?.id === track.id;
-									return (
-										<TrackRow
-											key={track.id}
-											track={track}
-											trackList={likedTracks}
-											index={idx + 1}
-											durationMsOverride={durationOverrides[track.id]}
-											isCurrent={isCurrent}
-											isPlaying={isCurrent && isPlaying}
-											isLiked
-											onPlay={playTrack}
-											onToggleLike={toggleLike}
-										/>
-									);
-								})}
-							</ul>
+							<TrackList tracks={likedTracks} />
 						))}
 				</div>
 			</div>

@@ -1,15 +1,13 @@
+// ============================================================================
+// Страница списка альбомов (`AlbumsListPage`): создание черновиков и фильтрация
+// ============================================================================
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { formatArtistNames } from "../../utils/format.js";
+import { useActionError } from "../hooks/useActionError.js";
 import { useAlbums } from "../hooks/useAlbums.js";
 import { useArtists } from "../hooks/useArtists.js";
-
-function getAlbumStatus(album) {
-	if (!album.published_at) return { key: "draft", label: "DRAFT" };
-	const isFuture = new Date(album.published_at).getTime() > Date.now();
-	return isFuture
-		? { key: "scheduled", label: "SCHEDULED" }
-		: { key: "published", label: "PUBLISHED" };
-}
+import { ALBUM_TYPES, getAlbumPublicationStatus } from "../utils/albumHelpers.js";
 
 function AlbumsListPage() {
 	const navigate = useNavigate();
@@ -32,8 +30,8 @@ function AlbumsListPage() {
 	const [type, setType] = useState("album");
 	const [releaseDate, setReleaseDate] = useState("");
 	const [selectedArtistIds, setSelectedArtistIds] = useState([]);
-	const [actionError, setActionError] = useState(null);
 	const [isCreating, setIsCreating] = useState(false);
+	const { actionError, setActionError, runAction } = useActionError();
 
 	const toggleArtistId = (id) => {
 		setSelectedArtistIds((prev) =>
@@ -48,34 +46,27 @@ function AlbumsListPage() {
 			return;
 		}
 		setIsCreating(true);
-		setActionError(null);
 		try {
-			const album = await createAlbum({
-				title: title.trim(),
-				type,
-				release_date: releaseDate || undefined,
-				artist_ids: selectedArtistIds,
-			});
-			setTitle("");
-			setReleaseDate("");
-			setSelectedArtistIds([]);
-			setShowForm(false);
-			navigate(`/admin/albums/${album.id}`);
-		} catch (err) {
-			setActionError(err?.message || "Не удалось создать альбом.");
+			await runAction(async () => {
+				const album = await createAlbum({
+					title: title.trim(),
+					type,
+					release_date: releaseDate || undefined,
+					artist_ids: selectedArtistIds,
+				});
+				setTitle("");
+				setReleaseDate("");
+				setSelectedArtistIds([]);
+				setShowForm(false);
+				navigate(`/admin/albums/${album.id}`);
+			}, "Не удалось создать альбом.");
 		} finally {
 			setIsCreating(false);
 		}
 	};
 
-	const handleDelete = async (album) => {
-		setActionError(null);
-		try {
-			await deleteAlbum(album.id);
-		} catch (err) {
-			setActionError(err?.message || "Не удалось удалить альбом.");
-		}
-	};
+	const handleDelete = (album) =>
+		runAction(() => deleteAlbum(album.id), "Не удалось удалить альбом.");
 
 	return (
 		<div className="admin-page">
@@ -95,9 +86,7 @@ function AlbumsListPage() {
 			</header>
 
 			{(error || actionError) && (
-				<div className="admin-banner-error">
-					{actionError || error?.message}
-				</div>
+				<div className="admin-banner-error">{actionError || error?.message}</div>
 			)}
 
 			{showForm && (
@@ -121,10 +110,11 @@ function AlbumsListPage() {
 								value={type}
 								onChange={(e) => setType(e.target.value)}
 							>
-								<option value="album">Album</option>
-								<option value="ep">EP</option>
-								<option value="single">Single</option>
-								<option value="compilation">Compilation</option>
+								{ALBUM_TYPES.map((option) => (
+									<option key={option.value} value={option.value}>
+										{option.label}
+									</option>
+								))}
 							</select>
 						</div>
 						<div className="admin-field">
@@ -166,18 +156,15 @@ function AlbumsListPage() {
 				</form>
 			)}
 
-			{/* Фильтры q и artist_id */}
 			<div className="admin-toolbar">
 				<input
-					className="admin-input"
-					style={{ maxWidth: 280 }}
+					className="admin-input admin-filter-input"
 					placeholder="Search albums..."
 					value={params.q || ""}
 					onChange={(e) => updateFilters({ q: e.target.value })}
 				/>
 				<select
-					className="admin-select"
-					style={{ maxWidth: 220 }}
+					className="admin-select admin-filter-select"
 					value={params.artist_id || ""}
 					onChange={(e) => updateFilters({ artist_id: e.target.value })}
 				>
@@ -204,7 +191,7 @@ function AlbumsListPage() {
 					</thead>
 					<tbody>
 						{albums.map((album) => {
-							const st = getAlbumStatus(album);
+							const status = getAlbumPublicationStatus(album);
 							return (
 								<tr key={album.id}>
 									<td>
@@ -220,22 +207,18 @@ function AlbumsListPage() {
 											)}
 											<div>
 												<div>{album.title}</div>
-												<small style={{ color: "var(--text-tertiary)" }}>
+												<small className="admin-text-muted">
 													{album.release_date || "No release date"}
 												</small>
 											</div>
 										</div>
 									</td>
-									<td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
-										{album.type.toUpperCase()}
-									</td>
-									<td>{album.artists.map((a) => a.name).join(", ")}</td>
-									<td style={{ fontFamily: "var(--font-mono)" }}>
-										{album.track_count}
-									</td>
+									<td className="admin-mono-sm">{album.type.toUpperCase()}</td>
+									<td>{formatArtistNames(album.artists)}</td>
+									<td className="admin-mono">{album.track_count}</td>
 									<td>
-										<span className={`admin-status-badge is-${st.key}`}>
-											{st.label}
+										<span className={`admin-status-badge is-${status.key}`}>
+											{status.shortLabel ?? status.label}
 										</span>
 									</td>
 									<td>
@@ -261,7 +244,7 @@ function AlbumsListPage() {
 
 						{!isLoading && albums.length === 0 && (
 							<tr>
-								<td colSpan={6} style={{ color: "var(--text-tertiary)" }}>
+								<td colSpan={6} className="admin-text-muted">
 									No albums found.
 								</td>
 							</tr>

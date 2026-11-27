@@ -1,7 +1,11 @@
+// ============================================================================
+// Хук управления справочником артистов и загрузкой аватаров
+// ============================================================================
 import { useState, useCallback } from "react";
 import { adminApi } from "../../api/adminApi.js";
 import { useCursorList } from "./useCursorList.js";
 
+/** Подключает CRUD-операции над артистами и индикатор загрузки аватара по ID */
 export function useArtists(initialFilters = {}) {
 	const list = useCursorList(adminApi.listArtists, initialFilters);
 	const { setItems } = list;
@@ -19,9 +23,7 @@ export function useArtists(initialFilters = {}) {
 	const updateArtist = useCallback(
 		async (artistId, payload) => {
 			const { artist } = await adminApi.updateArtist(artistId, payload);
-			setItems((prev) =>
-				prev.map((a) => (a.id === artistId ? artist : a)),
-			);
+			setItems((prev) => prev.map((a) => (a.id === artistId ? artist : a)));
 			return artist;
 		},
 		[setItems],
@@ -32,9 +34,7 @@ export function useArtists(initialFilters = {}) {
 			setUploadingAvatarId(artistId);
 			try {
 				const { artist } = await adminApi.uploadArtistAvatar(artistId, file);
-				setItems((prev) =>
-					prev.map((a) => (a.id === artistId ? artist : a)),
-				);
+				setItems((prev) => prev.map((a) => (a.id === artistId ? artist : a)));
 				return artist;
 			} finally {
 				setUploadingAvatarId(null);

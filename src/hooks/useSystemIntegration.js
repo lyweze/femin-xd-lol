@@ -1,12 +1,30 @@
 import { useEffect } from "react";
+import { formatArtistNames } from "../utils/format.js";
+
+const SEEK_STEP_MS = 5000;
 
 /**
- * Интеграция с ОС и глобальными горячими клавишами:
- * 1. Navigator Media Session API (macOS Control Center, клавиши гарнитуры).
- * 2. `Space` — Play / Pause.
- * 3. `Escape` — закрытие полноэкранного плеера.
- * 4. `F` — переключение полноэкранного плеера, `L` — тексты, `M` — mute.
- * 5. `ArrowLeft` / `ArrowRight` — перемотка ±5с (`Shift` — пред/след трек).
+ * Формирует массив `MediaImage` доступных размеров обложки для Navigator MediaMetadata.
+ */
+function buildMediaArtwork(cover) {
+	if (!cover) return [];
+	const artwork = [];
+	if (cover.small_url) artwork.push({ src: cover.small_url, sizes: "96x96" });
+	if (cover.medium_url) artwork.push({ src: cover.medium_url, sizes: "300x300" });
+	if (cover.large_url) artwork.push({ src: cover.large_url, sizes: "640x640" });
+	return artwork;
+}
+
+/**
+ * Интеграция плеера с ОС и глобальными горячими клавишами:
+ * 1. `Navigator Media Session API` — отображение трека в macOS Control Center / шторке iOS и обработка клавиш гарнитуры.
+ * 2. Горячие клавиши:
+ *    - `Space` — Play / Pause;
+ *    - `Escape` — закрытие полноэкранного плеера;
+ *    - `F` — переключение полноэкранного плеера;
+ *    - `L` — показать/скрыть текст песни (в полноэкранном режиме);
+ *    - `M` — Mute / Unmute;
+ *    - `ArrowLeft` / `ArrowRight` — перемотка ±5 с (`Shift` + стрелка — предыдущий/следующий трек).
  */
 export function useSystemIntegration({
 	currentTrack,
@@ -22,6 +40,7 @@ export function useSystemIntegration({
 	closeFullscreen,
 	toggleFullscreen,
 }) {
+	// 1. Обновление метаданных и статуса воспроизведения для ОС
 	useEffect(() => {
 		if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
 			return;
@@ -29,28 +48,17 @@ export function useSystemIntegration({
 
 		const ms = navigator.mediaSession;
 		if (currentTrack && typeof window.MediaMetadata !== "undefined") {
-			const artistText = currentTrack.artists?.map((a) => a.name).join(", ") || "";
-			const artwork = [];
-			if (currentTrack.cover?.small_url) {
-				artwork.push({ src: currentTrack.cover.small_url, sizes: "96x96" });
-			}
-			if (currentTrack.cover?.medium_url) {
-				artwork.push({ src: currentTrack.cover.medium_url, sizes: "300x300" });
-			}
-			if (currentTrack.cover?.large_url) {
-				artwork.push({ src: currentTrack.cover.large_url, sizes: "640x640" });
-			}
-
 			ms.metadata = new window.MediaMetadata({
 				title: currentTrack.title,
-				artist: artistText,
-				artwork,
+				artist: formatArtistNames(currentTrack.artists),
+				artwork: buildMediaArtwork(currentTrack.cover),
 			});
 		}
 
 		ms.playbackState = isPlaying ? "playing" : "paused";
 	}, [currentTrack, isPlaying]);
 
+	// 2. Подписка на медиа-кнопки клавиатуры и гарнитуры
 	useEffect(() => {
 		if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
 			return;
@@ -60,7 +68,7 @@ export function useSystemIntegration({
 			try {
 				ms.setActionHandler(action, handler);
 			} catch {
-				// ignore unsupported actions
+				// Отдельные браузеры могут не поддерживать конкретный action
 			}
 		};
 
@@ -83,6 +91,7 @@ export function useSystemIntegration({
 		};
 	}, [togglePlay, prevTrack, nextTrack, seekToMs]);
 
+	// 3. Глобальные шорткаты клавиатуры
 	useEffect(() => {
 		const onKeyDown = (e) => {
 			const target = e.target;
@@ -98,42 +107,32 @@ export function useSystemIntegration({
 				return;
 			}
 
+			// Не перехватываем клавиши во время ввода текста и при нажатых модификаторах ОС
 			if (isEditable || e.metaKey || e.ctrlKey || e.altKey) {
 				return;
 			}
 
+			// Не мешаем нативному взаимодействию с фокусируемыми контролами и ползунками
 			const isInteractiveControl =
 				tagName === "BUTTON" ||
 				tagName === "A" ||
 				target?.getAttribute?.("role") === "slider";
+			if (isInteractiveControl) return;
 
-			if (e.code === "Space") {
-				if (isInteractiveControl) return;
-				e.preventDefault();
-				togglePlay();
-			} else if (e.code === "KeyF") {
-				if (isInteractiveControl) return;
-				e.preventDefault();
-				toggleFullscreen();
-			} else if (e.code === "KeyM") {
-				if (isInteractiveControl) return;
-				e.preventDefault();
-				toggleMute();
-			} else if (e.code === "KeyL" && isFullscreenOpen) {
-				if (isInteractiveControl) return;
-				e.preventDefault();
-				toggleShowLyrics();
-			} else if (e.code === "ArrowRight") {
-				if (isInteractiveControl) return;
-				e.preventDefault();
-				if (e.shiftKey) nextTrack(false);
-				else seekByMs(5000);
-			} else if (e.code === "ArrowLeft") {
-				if (isInteractiveControl) return;
-				e.preventDefault();
-				if (e.shiftKey) prevTrack();
-				else seekByMs(-5000);
-			}
+			const keyHandlers = {
+				Space: () => togglePlay(),
+				KeyF: () => toggleFullscreen(),
+				KeyM: () => toggleMute(),
+				KeyL: isFullscreenOpen ? () => toggleShowLyrics() : null,
+				ArrowRight: () => (e.shiftKey ? nextTrack(false) : seekByMs(SEEK_STEP_MS)),
+				ArrowLeft: () => (e.shiftKey ? prevTrack() : seekByMs(-SEEK_STEP_MS)),
+			};
+
+			const action = keyHandlers[e.code];
+			if (!action) return;
+
+			e.preventDefault();
+			action();
 		};
 
 		window.addEventListener("keydown", onKeyDown);

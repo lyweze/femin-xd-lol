@@ -1,3 +1,7 @@
+// ============================================================================
+// Треклист альбома в студии (`AlbumTracklistCard`)
+// Включает форму добавления черновика трека, drag-and-drop сортировку и загрузку аудио.
+// ============================================================================
 import { useState } from "react";
 import { formatDuration } from "../../utils/format.js";
 import AudioUploader from "./AudioUploader.jsx";
@@ -165,10 +169,8 @@ function AlbumTracklistCard({
 										D{track.disc_no} • #{idx + 1}
 									</span>
 									<strong>{track.title}</strong>
-									{track.explicit && (
-										<span className="admin-file-chip">E</span>
-									)}
-									{track.duration_ms && (
+									{track.explicit && <span className="admin-file-chip">E</span>}
+									{track.duration_ms > 0 && (
 										<span className="admin-track-pos">
 											{formatDuration(track.duration_ms)}
 										</span>
@@ -215,7 +217,7 @@ function AlbumTracklistCard({
 					))}
 
 					{tracks.length === 0 && (
-						<p style={{ color: "var(--text-tertiary)", fontSize: 13 }}>
+						<p className="admin-text-muted">
 							No tracks yet. Add the first draft above.
 						</p>
 					)}

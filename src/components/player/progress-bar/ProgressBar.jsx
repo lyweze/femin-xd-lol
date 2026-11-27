@@ -1,5 +1,6 @@
 // ============================================================================
 // Интерактивная полоса прогресса (`ProgressBar`) на базе MonolithicSlider
+// Подписана только на `usePlayerTime()`, не нагружая остальной UI при тиках таймера
 // ============================================================================
 import { usePlayerActions, usePlayerTime } from "../../../context/playerContexts.js";
 import { formatPlaybackTime } from "../../../utils/format.js";

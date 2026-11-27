@@ -6,6 +6,9 @@ import { Link } from "react-router-dom";
 import { handleCoverError } from "../../../utils/cover.js";
 import "./ArtistCard.css";
 
+/**
+ * Круглая карточка артиста для горизонтальной полки поиска и сетки библиотеки.
+ */
 const ArtistCard = memo(function ArtistCard({ artist, fluid = false }) {
 	return (
 		<Link

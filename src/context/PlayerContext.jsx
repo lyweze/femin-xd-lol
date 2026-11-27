@@ -7,63 +7,66 @@ import {
 	loadCoverAppearance,
 	setRootAccent,
 } from "../utils/cover.js";
+import { clampUnit } from "../utils/format.js";
+import {
+	readStorageJson,
+	readStorageNumber,
+	writeStorageJson,
+	writeStorageValue,
+} from "../utils/storage.js";
 import {
 	PlayerActionsContext,
 	PlayerStateContext,
 	PlayerTimeContext,
 } from "./playerContexts.js";
+import {
+	applyPlaylistPatch,
+	buildUserPlaylist,
+	readStoredPlaylists,
+	writeStoredPlaylists,
+} from "./playerPlaylists.js";
+import {
+	pickNextTrackOutcome,
+	pickPrevTrackOutcome,
+	shuffleList,
+} from "./playerQueue.js";
 
+// ============================================================================
+// Провайдер состояния аудиоплеера (Split Context: Actions / State / Time)
+// ============================================================================
 const LIKED_STORAGE_KEY = "matte_obsidian_liked_tracks";
 const VOLUME_STORAGE_KEY = "matte_obsidian_volume";
-const RESTART_THRESHOLD_MS = 3000;
-const FULLSCREEN_EXIT_MS = 260;
-
+const RESTART_THRESHOLD_MS = 3000; // После 3 секунд кнопка «Назад» перезапускает трек с 00:00
+const FULLSCREEN_EXIT_MS = 260; // Синхронизировано с CSS-анимацией fsModalExit (240ms)
+const DEFAULT_VOLUME = 0.8;
 const DEFAULT_LIKED_IDS = ["d4000000-0000-0000-0000-000000000001"];
 
-function readStoredLikes() {
-	try {
-		const raw = localStorage.getItem(LIKED_STORAGE_KEY);
-		if (!raw) return DEFAULT_LIKED_IDS;
-		const parsed = JSON.parse(raw);
-		return Array.isArray(parsed) ? parsed : DEFAULT_LIKED_IDS;
-	} catch {
-		return DEFAULT_LIKED_IDS;
-	}
-}
+const REPEAT_CYCLE = { off: "all", all: "one", one: "off" };
 
-function readStoredVolume() {
-	try {
-		const raw = localStorage.getItem(VOLUME_STORAGE_KEY);
-		if (!raw) return 0.8;
-		const num = Number(raw);
-		return Number.isFinite(num) ? Math.max(0, Math.min(1, num)) : 0.8;
-	} catch {
-		return 0.8;
-	}
-}
-
-function shuffleArray(list) {
-	const copy = [...list];
-	for (let i = copy.length - 1; i > 0; i -= 1) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[copy[i], copy[j]] = [copy[j], copy[i]];
-	}
-	return copy;
-}
-
+/**
+ * Центральный провайдер плеера.
+ * Разделён на 3 контекста, чтобы тики `currentTimeMs` (2–4 раза/с) перерисовывали
+ * только полосы прогресса и текст песни, а не таблицы каталога и сайдбар.
+ */
 export function PlayerProvider({ children }) {
 	const [queue, setQueue] = useState(MOCK_TRACKS);
 	const [currentTrack, setCurrentTrack] = useState(MOCK_TRACKS[0] ?? null);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [isShuffle, setIsShuffle] = useState(false);
 	const [repeatMode, setRepeatMode] = useState("off"); // 'off' | 'all' | 'one'
-	const [volume, setVolumeState] = useState(readStoredVolume);
+	const [volume, setVolumeState] = useState(() =>
+		readStorageNumber(VOLUME_STORAGE_KEY, DEFAULT_VOLUME, 0, 1),
+	);
 	const [isMuted, setIsMuted] = useState(false);
-	const [likedIds, setLikedIds] = useState(readStoredLikes);
+	const [likedIds, setLikedIds] = useState(() =>
+		readStorageJson(LIKED_STORAGE_KEY, DEFAULT_LIKED_IDS, Array.isArray),
+	);
+	const [playlists, setPlaylists] = useState(readStoredPlaylists);
 	const [fullscreenPhase, setFullscreenPhase] = useState("closed"); // 'closed' | 'open' | 'closing'
 	const [showLyrics, setShowLyrics] = useState(true);
 	const [durationOverrides, setDurationOverrides] = useState({});
 
+	// Рефы дублируют состояние, чтобы экшены (playTrack, nextTrack, prevTrack...) оставались стабильными
 	const queueRef = useRef(queue);
 	const currentTrackRef = useRef(currentTrack);
 	const isShuffleRef = useRef(isShuffle);
@@ -77,6 +80,7 @@ export function PlayerProvider({ children }) {
 	const coverUrl = currentTrack?.cover?.small_url ?? null;
 	const fallbackAccent = currentTrack?.accent || DEFAULT_ACCENT;
 
+	// Обновляем глобальный --accent-cover даже если компонент AmbientBg временно не смонтирован
 	useEffect(() => {
 		let cancelled = false;
 		if (!coverUrl) {
@@ -91,12 +95,18 @@ export function PlayerProvider({ children }) {
 		};
 	}, [coverUrl, fallbackAccent]);
 
+	// Сохраняем пользовательские плейлисты в localStorage при каждом изменении
+	useEffect(() => {
+		writeStoredPlaylists(playlists);
+	}, [playlists]);
+
 	const handleDurationDetected = useCallback((trackId, detectedMs) => {
 		setDurationOverrides((prev) =>
 			prev[trackId] === detectedMs ? prev : { ...prev, [trackId]: detectedMs },
 		);
 	}, []);
 
+	/** Запускает указанный трек (или ставит на паузу, если кликнули по уже активному) */
 	const playTrack = useCallback((track, nextQueue = null) => {
 		if (!track) return;
 		if (Array.isArray(nextQueue) && nextQueue.length > 0) {
@@ -112,9 +122,10 @@ export function PlayerProvider({ children }) {
 		setIsPlaying(true);
 	}, []);
 
+	/** Заменяет очередь коллекцией (альбомом или плейлистом) и сразу запускает воспроизведение */
 	const playQueue = useCallback((tracks, { shuffle = false } = {}) => {
 		if (!Array.isArray(tracks) || tracks.length === 0) return;
-		const ordered = shuffle ? shuffleArray(tracks) : [...tracks];
+		const ordered = shuffle ? shuffleList(tracks) : [...tracks];
 		setIsShuffle(shuffle);
 		setQueue(ordered);
 
@@ -128,6 +139,7 @@ export function PlayerProvider({ children }) {
 		setIsPlaying(true);
 	}, []);
 
+	/** Переключает Play / Pause, подхватывая первый трек очереди при первом запуске */
 	const togglePlay = useCallback(() => {
 		if (!currentTrackRef.current && queueRef.current.length > 0) {
 			setCurrentTrack(queueRef.current[0]);
@@ -137,59 +149,43 @@ export function PlayerProvider({ children }) {
 		setIsPlaying((prev) => !prev);
 	}, []);
 
+	/** Переход к следующему треку (ручной клик или авто-переключение в конце трека) */
 	const nextTrack = useCallback((autoAdvanced = false) => {
-		const list = queueRef.current;
-		const active = currentTrackRef.current;
-		if (!list.length) return;
+		const outcome = pickNextTrackOutcome({
+			queue: queueRef.current,
+			currentTrackId: currentTrackRef.current?.id,
+			isShuffle: isShuffleRef.current,
+			repeatMode: repeatModeRef.current,
+			autoAdvanced,
+		});
 
-		if (list.length === 1) {
-			if (!autoAdvanced || repeatModeRef.current !== "off") {
-				restartRef.current(true);
-				setIsPlaying(true);
-			} else {
-				setIsPlaying(false);
-			}
-			return;
-		}
-
-		const currentIdx = list.findIndex((t) => t.id === active?.id);
-		if (isShuffleRef.current) {
-			let randIdx = currentIdx;
-			while (randIdx === currentIdx) {
-				randIdx = Math.floor(Math.random() * list.length);
-			}
-			setCurrentTrack(list[randIdx]);
+		if (outcome.action === "restart") {
+			restartRef.current(true);
 			setIsPlaying(true);
-			return;
-		}
-
-		const nextIdx = currentIdx + 1;
-		if (nextIdx < list.length) {
-			setCurrentTrack(list[nextIdx]);
+		} else if (outcome.action === "select") {
+			setCurrentTrack(outcome.track);
 			setIsPlaying(true);
-		} else if (repeatModeRef.current === "all" || !autoAdvanced) {
-			setCurrentTrack(list[0]);
-			setIsPlaying(true);
-		} else {
+		} else if (outcome.action === "stop") {
 			setIsPlaying(false);
 		}
 	}, []);
 
+	/** Возврат к началу трека (> 3 с) или переход к предыдущему в очереди */
 	const prevTrack = useCallback(() => {
-		const list = queueRef.current;
-		const active = currentTrackRef.current;
-		if (!list.length) return;
+		const outcome = pickPrevTrackOutcome({
+			queue: queueRef.current,
+			currentTrackId: currentTrackRef.current?.id,
+			currentTimeMs: currentTimeRef.current,
+			restartThresholdMs: RESTART_THRESHOLD_MS,
+		});
 
-		if (currentTimeRef.current > RESTART_THRESHOLD_MS || list.length === 1) {
+		if (outcome.action === "restart") {
 			restartRef.current(true);
 			setIsPlaying(true);
-			return;
+		} else if (outcome.action === "select") {
+			setCurrentTrack(outcome.track);
+			setIsPlaying(true);
 		}
-
-		const currentIdx = list.findIndex((t) => t.id === active?.id);
-		const prevIdx = currentIdx > 0 ? currentIdx - 1 : list.length - 1;
-		setCurrentTrack(list[prevIdx]);
-		setIsPlaying(true);
 	}, []);
 
 	const handleTrackEnded = useCallback(() => {
@@ -206,6 +202,7 @@ export function PlayerProvider({ children }) {
 		onDurationDetected: handleDurationDetected,
 	});
 
+	// Поддерживаем актуальность рефов после каждого рендера
 	useEffect(() => {
 		queueRef.current = queue;
 		currentTrackRef.current = currentTrack;
@@ -227,7 +224,7 @@ export function PlayerProvider({ children }) {
 
 	const seekToRatio = useCallback(
 		(ratio) => {
-			const clamped = Math.max(0, Math.min(1, ratio));
+			const clamped = clampUnit(ratio);
 			const total = durationRef.current || currentTrackRef.current?.duration_ms || 0;
 			seekToMs(clamped * total);
 		},
@@ -242,14 +239,10 @@ export function PlayerProvider({ children }) {
 	);
 
 	const setVolume = useCallback((value) => {
-		const clamped = Math.max(0, Math.min(1, value));
+		const clamped = clampUnit(value);
 		setVolumeState(clamped);
 		if (clamped > 0) setIsMuted(false);
-		try {
-			localStorage.setItem(VOLUME_STORAGE_KEY, String(clamped));
-		} catch {
-			// ignore
-		}
+		writeStorageValue(VOLUME_STORAGE_KEY, clamped);
 	}, []);
 
 	const toggleMute = useCallback(() => {
@@ -261,9 +254,7 @@ export function PlayerProvider({ children }) {
 	}, []);
 
 	const cycleRepeat = useCallback(() => {
-		setRepeatMode((prev) =>
-			prev === "off" ? "all" : prev === "all" ? "one" : "off",
-		);
+		setRepeatMode((prev) => REPEAT_CYCLE[prev] ?? "off");
 	}, []);
 
 	const toggleLike = useCallback((trackId) => {
@@ -272,13 +263,26 @@ export function PlayerProvider({ children }) {
 			const next = exists
 				? prev.filter((id) => id !== trackId)
 				: [trackId, ...prev];
-			try {
-				localStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify(next));
-			} catch {
-				// ignore
-			}
+			writeStorageJson(LIKED_STORAGE_KEY, next);
 			return next;
 		});
+	}, []);
+
+	/** Создаёт новый пользовательский плейлист и возвращает его объект */
+	const createPlaylist = useCallback((payload) => {
+		const created = buildUserPlaylist(payload);
+		setPlaylists((prev) => [...prev, created]);
+		return created;
+	}, []);
+
+	/** Обновляет поля плейлиста (`title`, `description`, `cover`, `track_ids`) */
+	const updatePlaylist = useCallback((playlistId, patch) => {
+		setPlaylists((prev) => applyPlaylistPatch(prev, playlistId, patch));
+	}, []);
+
+	/** Удаляет пользовательский плейлист по ID */
+	const deletePlaylist = useCallback((playlistId) => {
+		setPlaylists((prev) => prev.filter((pl) => pl.id !== playlistId));
 	}, []);
 
 	const openFullscreen = useCallback((withLyrics = true) => {
@@ -296,6 +300,7 @@ export function PlayerProvider({ children }) {
 		if (fullscreenCloseTimerRef.current) {
 			clearTimeout(fullscreenCloseTimerRef.current);
 		}
+		// Размонтируем FullscreenPlayer только после завершения анимации ухода
 		fullscreenCloseTimerRef.current = setTimeout(() => {
 			fullscreenCloseTimerRef.current = null;
 			setFullscreenPhase("closed");
@@ -342,6 +347,7 @@ export function PlayerProvider({ children }) {
 			volume,
 			isMuted,
 			likedIds,
+			playlists,
 			fullscreenPhase,
 			isFullscreenOpen,
 			isFullscreenMounted,
@@ -357,6 +363,7 @@ export function PlayerProvider({ children }) {
 			volume,
 			isMuted,
 			likedIds,
+			playlists,
 			fullscreenPhase,
 			isFullscreenOpen,
 			isFullscreenMounted,
@@ -388,6 +395,9 @@ export function PlayerProvider({ children }) {
 			toggleShuffle,
 			cycleRepeat,
 			toggleLike,
+			createPlaylist,
+			updatePlaylist,
+			deletePlaylist,
 			openFullscreen,
 			closeFullscreen,
 			toggleFullscreen,
@@ -406,6 +416,9 @@ export function PlayerProvider({ children }) {
 			toggleShuffle,
 			cycleRepeat,
 			toggleLike,
+			createPlaylist,
+			updatePlaylist,
+			deletePlaylist,
 			openFullscreen,
 			closeFullscreen,
 			toggleFullscreen,

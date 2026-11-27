@@ -1,3 +1,6 @@
+// ============================================================================
+// Зона загрузки обложек и аватаров с drag-and-drop (`CoverUploader`)
+// ============================================================================
 import { useRef, useState } from "react";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);

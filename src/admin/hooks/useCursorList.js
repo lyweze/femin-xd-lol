@@ -1,10 +1,18 @@
+// ============================================================================
+// Универсальный хук курсорной пагинации для списков Admin Studio
+// ============================================================================
 import { useState, useCallback, useEffect } from "react";
 
+/**
+ * Управляет загрузкой первой страницы по фильтрам, догрузкой через `next_cursor`,
+ * принудительным обновлением (`refresh`) и локальным обновлением элементов без рефетча.
+ */
 export function useCursorList(fetcher, initialParams = {}) {
 	const [params, setParams] = useState(initialParams);
 	const [refreshTick, setRefreshTick] = useState(0);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+	// Ключ запроса однозначно связывает результат fetch с текущими фильтрами
 	const activeKey = JSON.stringify({ params, refreshTick });
 	const [state, setState] = useState({
 		items: [],
@@ -47,6 +55,7 @@ export function useCursorList(fetcher, initialParams = {}) {
 		}));
 	}, []);
 
+	/** Догружает следующую страницу, добавляя записи в конец текущего списка */
 	const loadMore = useCallback(async () => {
 		if (!state.nextCursor || isLoadingMore) return;
 		setIsLoadingMore(true);

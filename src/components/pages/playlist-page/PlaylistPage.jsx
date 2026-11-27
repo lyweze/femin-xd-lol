@@ -1,47 +1,59 @@
-import { useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+// ============================================================================
+// Детальная страница альбома, плейлиста или Избранного (`PlaylistPage`)
+// Для пользовательских плейлистов поддерживает редактирование обложки, названия,
+// описания, состава/порядка треков и удаление через `PlaylistEditModal`.
+// ============================================================================
+import { useMemo, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
 import { musicApi } from "../../../api/musicApi.js";
-import { formatTotalDuration } from "../../../utils/format.js";
-import { handleCoverError } from "../../../utils/cover.js";
+import { formatTotalDuration, formatTrackCount } from "../../../utils/format.js";
 import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
+import PlaylistEditModal from "../../playlist/playlist-edit-modal/PlaylistEditModal.jsx";
 import ArtistLinks from "../../shared/artist-links/ArtistLinks.jsx";
-import { PlayIcon } from "../../shared/icons/Icons.jsx";
-import TrackRow from "../../shared/track-row/TrackRow.jsx";
+import CollectionActions from "../../shared/collection-actions/CollectionActions.jsx";
+import CollectionCover from "../../shared/collection-cover/CollectionCover.jsx";
+import { CameraIcon } from "../../shared/icons/Icons.jsx";
+import TrackList from "../../shared/track-list/TrackList.jsx";
 import "./PlaylistPage.css";
+
+/** Группирует треки многодискового альбома по `disc_no` в порядке возрастания */
+function groupTracksByDisc(tracks, hasMultipleDiscs) {
+	if (!hasMultipleDiscs) return [{ discNo: 1, tracks }];
+	const map = new Map();
+	tracks.forEach((t) => {
+		const disc = t.disc_no || 1;
+		if (!map.has(disc)) map.set(disc, []);
+		map.get(disc).push(t);
+	});
+	return Array.from(map.entries())
+		.sort((a, b) => a[0] - b[0])
+		.map(([discNo, list]) => ({ discNo, tracks: list }));
+}
 
 function PlaylistPage({ kind = "playlist" }) {
 	const { id } = useParams();
+	const navigate = useNavigate();
 	const scrollRef = useVerticalScroll();
+	const [isEditing, setIsEditing] = useState(false);
 
-	const { currentTrack, isPlaying, likedIds, durationOverrides } =
-		usePlayerState();
-	const { playTrack, playQueue, toggleLike } = usePlayerActions();
+	const { likedIds, playlists, durationOverrides } = usePlayerState();
+	const { playQueue, updatePlaylist, deletePlaylist } = usePlayerActions();
 
 	const collection = useMemo(
 		() =>
 			kind === "album"
 				? musicApi.getAlbum(id)
-				: musicApi.getPlaylist(id, likedIds),
-		[kind, id, likedIds],
+				: musicApi.getPlaylist(id, likedIds, playlists),
+		[kind, id, likedIds, playlists],
 	);
 
 	const tracks = useMemo(() => collection?.tracks ?? [], [collection]);
-	const likedSet = useMemo(() => new Set(likedIds), [likedIds]);
 	const hasMultipleDiscs = tracks.some((t) => (t.disc_no || 1) > 1);
-
-	const discGroups = useMemo(() => {
-		if (!hasMultipleDiscs) return [{ discNo: 1, tracks }];
-		const map = new Map();
-		tracks.forEach((t) => {
-			const d = t.disc_no || 1;
-			if (!map.has(d)) map.set(d, []);
-			map.get(d).push(t);
-		});
-		return Array.from(map.entries())
-			.sort((a, b) => a[0] - b[0])
-			.map(([discNo, list]) => ({ discNo, tracks: list }));
-	}, [hasMultipleDiscs, tracks]);
+	const discGroups = useMemo(
+		() => groupTracksByDisc(tracks, hasMultipleDiscs),
+		[hasMultipleDiscs, tracks],
+	);
 
 	if (!collection) {
 		return (
@@ -56,6 +68,7 @@ function PlaylistPage({ kind = "playlist" }) {
 		);
 	}
 
+	const isEditablePlaylist = kind === "playlist" && id !== "favourites";
 	const totalMs = tracks.reduce(
 		(acc, t) => acc + (durationOverrides[t.id] || t.duration_ms || 0),
 		0,
@@ -66,13 +79,18 @@ function PlaylistPage({ kind = "playlist" }) {
 		<div className="page-scroll playlist-page" ref={scrollRef}>
 			<header className="collection-hero">
 				<div className="collection-cover">
-					{collection.cover?.medium_url && (
-						<img
-							src={collection.cover.medium_url}
-							alt={collection.title}
-							draggable={false}
-							onError={(e) => handleCoverError(e, collection.cover, "medium")}
-						/>
+					<CollectionCover item={collection} size="medium" className="is-hero" />
+
+					{isEditablePlaylist && (
+						<button
+							type="button"
+							className="collection-cover-edit-overlay"
+							onClick={() => setIsEditing(true)}
+							aria-label="Edit playlist details and cover"
+						>
+							<CameraIcon size={20} />
+							<span>Edit cover</span>
+						</button>
 					)}
 				</div>
 
@@ -97,29 +115,15 @@ function PlaylistPage({ kind = "playlist" }) {
 
 					<span className="collection-stats">
 						{releaseYear ? `${releaseYear} • ` : ""}
-						{tracks.length} {tracks.length === 1 ? "TRACK" : "TRACKS"}
+						{formatTrackCount(tracks.length, { uppercase: true })}
 						{totalMs > 0 ? ` • ${formatTotalDuration(totalMs)}` : ""}
 					</span>
 
-					<div className="collection-actions">
-						<button
-							type="button"
-							className="btn-primary"
-							disabled={tracks.length === 0}
-							onClick={() => playQueue(tracks, { shuffle: false })}
-						>
-							<PlayIcon />
-							<span>Play</span>
-						</button>
-						<button
-							type="button"
-							className="btn-secondary"
-							disabled={tracks.length === 0}
-							onClick={() => playQueue(tracks, { shuffle: true })}
-						>
-							Shuffle
-						</button>
-					</div>
+					<CollectionActions
+						tracks={tracks}
+						onPlayQueue={playQueue}
+						onEdit={isEditablePlaylist ? () => setIsEditing(true) : undefined}
+					/>
 				</div>
 			</header>
 
@@ -127,7 +131,9 @@ function PlaylistPage({ kind = "playlist" }) {
 				<p className="collection-empty-hint">
 					{id === "favourites"
 						? "No favourite tracks yet. Click ♥ on any track to save it here."
-						: "This collection has no tracks yet."}
+						: isEditablePlaylist
+							? "This playlist is empty. Click Edit to add tracks from the catalog."
+							: "This collection has no tracks yet."}
 				</p>
 			) : (
 				discGroups.map((group) => (
@@ -135,27 +141,27 @@ function PlaylistPage({ kind = "playlist" }) {
 						{hasMultipleDiscs && (
 							<div className="collection-disc-label">DISC {group.discNo}</div>
 						)}
-						<ul className="Library is-embedded">
-							{group.tracks.map((track, idx) => {
-								const isCurrent = currentTrack?.id === track.id;
-								return (
-									<TrackRow
-										key={track.id}
-										track={track}
-										trackList={tracks}
-										index={kind === "album" ? track.track_no || idx + 1 : idx + 1}
-										durationMsOverride={durationOverrides[track.id]}
-										isCurrent={isCurrent}
-										isPlaying={isCurrent && isPlaying}
-										isLiked={likedSet.has(track.id)}
-										onPlay={playTrack}
-										onToggleLike={toggleLike}
-									/>
-								);
-							})}
-						</ul>
+						<TrackList
+							tracks={group.tracks}
+							queueTracks={tracks}
+							useTrackNumber={kind === "album"}
+						/>
 					</div>
 				))
+			)}
+
+			{isEditablePlaylist && (
+				<PlaylistEditModal
+					isOpen={isEditing}
+					mode="edit"
+					playlist={collection}
+					onSave={(payload) => updatePlaylist(collection.id, payload)}
+					onDelete={() => {
+						deletePlaylist(collection.id);
+						navigate("/library");
+					}}
+					onClose={() => setIsEditing(false)}
+				/>
 			)}
 		</div>
 	);

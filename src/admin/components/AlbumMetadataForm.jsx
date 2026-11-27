@@ -1,4 +1,8 @@
+// ============================================================================
+// Форма редактирования метаданных альбома в студии (`AlbumMetadataForm`)
+// ============================================================================
 import { useState } from "react";
+import { ALBUM_TYPES } from "../utils/albumHelpers.js";
 
 function AlbumMetadataForm({ album, allArtists, onSave, onError }) {
 	const [title, setTitle] = useState(album.title || "");
@@ -9,6 +13,7 @@ function AlbumMetadataForm({ album, allArtists, onSave, onError }) {
 	);
 	const [isSaving, setIsSaving] = useState(false);
 
+	// Сохраняем минимум одного выбранного артиста (требование OpenAPI для альбома)
 	const toggleAlbumArtist = (id) => {
 		setArtistIds((prev) =>
 			prev.includes(id)
@@ -56,10 +61,11 @@ function AlbumMetadataForm({ album, allArtists, onSave, onError }) {
 					value={type}
 					onChange={(e) => setType(e.target.value)}
 				>
-					<option value="album">Album</option>
-					<option value="ep">EP</option>
-					<option value="single">Single</option>
-					<option value="compilation">Compilation</option>
+					{ALBUM_TYPES.map((option) => (
+						<option key={option.value} value={option.value}>
+							{option.label}
+						</option>
+					))}
 				</select>
 			</div>
 			<div className="admin-field">

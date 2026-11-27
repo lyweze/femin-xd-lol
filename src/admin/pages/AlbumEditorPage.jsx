@@ -1,10 +1,15 @@
+// ============================================================================
+// Страница студии альбома (`AlbumEditorPage`)
+// Объединяет обложку, метаданные, чеклист публикации, треклист и редактор текстов.
+// ============================================================================
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useActionError } from "../hooks/useActionError.js";
 import { useAlbumStudio } from "../hooks/useAlbumStudio.js";
 import { useArtists } from "../hooks/useArtists.js";
-import CoverUploader from "../components/CoverUploader.jsx";
 import AlbumMetadataForm from "../components/AlbumMetadataForm.jsx";
 import AlbumTracklistCard from "../components/AlbumTracklistCard.jsx";
+import CoverUploader from "../components/CoverUploader.jsx";
 import LyricsDrawer from "../components/LyricsDrawer.jsx";
 
 function AlbumEditorPage() {
@@ -16,8 +21,8 @@ function AlbumEditorPage() {
 		isUploadingCover,
 		uploadingTrackIds,
 		isPublishing,
+		publicationStatus,
 		isPublished,
-		isScheduled,
 		error,
 		publishChecklist,
 		refresh,
@@ -35,7 +40,7 @@ function AlbumEditorPage() {
 
 	const { items: allArtists } = useArtists({ limit: 100 });
 	const [scheduleDate, setScheduleDate] = useState("");
-	const [actionError, setActionError] = useState(null);
+	const { actionError, setActionError, runAction } = useActionError();
 	const [lyricsTrack, setLyricsTrack] = useState(null);
 
 	if (isLoading && !album) {
@@ -55,58 +60,32 @@ function AlbumEditorPage() {
 		);
 	}
 
-	const handlePublish = async (withSchedule = false) => {
-		setActionError(null);
-		try {
+	const handlePublish = (withSchedule = false) =>
+		runAction(async () => {
 			await publish(withSchedule && scheduleDate ? scheduleDate : null);
 			setScheduleDate("");
-		} catch (err) {
-			setActionError(err?.message || "Не удалось опубликовать альбом.");
-		}
-	};
+		}, "Не удалось опубликовать альбом.");
 
-	const handleUnpublish = async () => {
-		setActionError(null);
-		try {
-			await unpublish();
-		} catch (err) {
-			setActionError(err?.message || "Не удалось снять альбом с публикации.");
-		}
-	};
+	const handleUnpublish = () =>
+		runAction(() => unpublish(), "Не удалось снять альбом с публикации.");
 
 	return (
 		<div className="admin-page">
 			<header className="admin-page-head">
 				<div>
-					<Link
-						to="/admin/albums"
-						style={{
-							fontFamily: "var(--font-mono)",
-							fontSize: 11,
-							color: "var(--text-secondary)",
-							textDecoration: "none",
-						}}
-					>
+					<Link to="/admin/albums" className="admin-back-link">
 						← ALL ALBUMS
 					</Link>
 					<h1>{album.title}</h1>
 				</div>
 
-				<span
-					className={`admin-status-badge is-${isPublished ? (isScheduled ? "scheduled" : "published") : "draft"}`}
-				>
-					{isPublished
-						? isScheduled
-							? `SCHEDULED • ${album.published_at.slice(0, 10)}`
-							: "PUBLISHED"
-						: "DRAFT"}
+				<span className={`admin-status-badge is-${publicationStatus.key}`}>
+					{publicationStatus.label}
 				</span>
 			</header>
 
 			{(error || actionError) && (
-				<div className="admin-banner-error">
-					{actionError || error?.message}
-				</div>
+				<div className="admin-banner-error">{actionError || error?.message}</div>
 			)}
 
 			<div className="admin-studio-grid">
@@ -156,7 +135,7 @@ function AlbumEditorPage() {
 								{isPublishing ? "Updating..." : "Unpublish Album"}
 							</button>
 						) : (
-							<div className="admin-page" style={{ gap: 10, paddingBottom: 0 }}>
+							<div className="admin-stack-compact">
 								<button
 									type="button"
 									className="admin-btn admin-btn-primary"
@@ -175,6 +154,7 @@ function AlbumEditorPage() {
 										onChange={(e) => setScheduleDate(e.target.value)}
 									/>
 								</div>
+
 								{scheduleDate && (
 									<button
 										type="button"

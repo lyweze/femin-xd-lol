@@ -1,0 +1,89 @@
+/* ==========================================================================
+   Градиентные обложки для Избранного и плейлистов без кастомной обложки
+   ========================================================================== */
+.collection-cover-media {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.collection-cover-gradient {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	color: rgba(244, 240, 234, 0.88);
+
+	> .collection-cover-sheen {
+		position: absolute;
+		inset: 0;
+		background:
+			radial-gradient(
+				circle at 20% 18%,
+				rgba(255, 255, 255, 0.2) 0%,
+				transparent 52%
+			),
+			radial-gradient(
+				circle at 84% 86%,
+				rgba(10, 10, 10, 0.36) 0%,
+				transparent 60%
+			);
+		pointer-events: none;
+	}
+
+	> .collection-cover-glyph {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		opacity: 0.92;
+		filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.28));
+	}
+
+	/* Избранное: тёплый кораллово-рубиновый градиент */
+	&.is-favourites {
+		background:
+			radial-gradient(circle at 24% 20%, rgba(235, 142, 112, 0.72) 0%, transparent 56%),
+			radial-gradient(circle at 82% 84%, rgba(124, 44, 68, 0.82) 0%, transparent 62%),
+			linear-gradient(145deg, #c56550 0%, #682b3a 55%, #1e1317 100%);
+	}
+
+	/* Палитры для плейлистов без кастомных обложек */
+	&.is-amber {
+		background:
+			radial-gradient(circle at 25% 22%, rgba(212, 146, 98, 0.65) 0%, transparent 56%),
+			radial-gradient(circle at 82% 82%, rgba(72, 44, 28, 0.82) 0%, transparent 62%),
+			linear-gradient(145deg, #a86c47 0%, #503324 55%, #191412 100%);
+	}
+
+	&.is-mist {
+		background:
+			radial-gradient(circle at 24% 20%, rgba(132, 168, 198, 0.68) 0%, transparent 56%),
+			radial-gradient(circle at 82% 84%, rgba(42, 62, 82, 0.85) 0%, transparent 62%),
+			linear-gradient(145deg, #5d819e 0%, #2d4256 55%, #14191f 100%);
+	}
+
+	&.is-moss {
+		background:
+			radial-gradient(circle at 24% 20%, rgba(124, 166, 138, 0.65) 0%, transparent 56%),
+			radial-gradient(circle at 82% 84%, rgba(38, 58, 46, 0.85) 0%, transparent 62%),
+			linear-gradient(145deg, #587b64 0%, #2b4033 55%, #131a16 100%);
+	}
+
+	&.is-plum {
+		background:
+			radial-gradient(circle at 24% 20%, rgba(168, 130, 178, 0.65) 0%, transparent 56%),
+			radial-gradient(circle at 82% 84%, rgba(64, 42, 74, 0.85) 0%, transparent 62%),
+			linear-gradient(145deg, #815c89 0%, #422d49 55%, #18131b 100%);
+	}
+
+	&.is-ochre {
+		background:
+			radial-gradient(circle at 24% 20%, rgba(186, 160, 108, 0.65) 0%, transparent 56%),
+			radial-gradient(circle at 82% 84%, rgba(68, 56, 36, 0.85) 0%, transparent 62%),
+			linear-gradient(145deg, #988055 0%, #483d29 55%, #191713 100%);
+	}
+}

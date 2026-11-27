@@ -1,16 +1,23 @@
 // ============================================================================
 // Универсальная строка трека (`TrackRow`) с мемоизацией
+// Поддерживает два режима левой колонки: обложка трека (по умолчанию) или номер.
 // ============================================================================
 import { memo } from "react";
 import { formatDuration } from "../../../utils/format.js";
 import ArtistLinks from "../artist-links/ArtistLinks.jsx";
+import CollectionCover from "../collection-cover/CollectionCover.jsx";
 import { HeartIcon, PauseIcon, PlayIcon } from "../icons/Icons.jsx";
 import "./TrackRow.css";
 
+/**
+ * Рендерит одну строку трека: обложку (или порядковый номер для альбомов),
+ * название + бейдж E, ссылки на основных/приглашённых артистов, лайк и длительность.
+ */
 const TrackRow = memo(function TrackRow({
 	track,
 	trackList = null,
 	index,
+	showCover = true,
 	durationMsOverride = null,
 	isCurrent = false,
 	isPlaying = false,
@@ -25,30 +32,68 @@ const TrackRow = memo(function TrackRow({
 
 	return (
 		<li
-			className={`track-row ${isCurrent ? "is-current" : ""} ${isCurrent && isPlaying ? "is-playing" : ""}`}
+			className={[
+				"track-row",
+				showCover ? "has-cover" : "",
+				isCurrent ? "is-current" : "",
+				isCurrent && isPlaying ? "is-playing" : "",
+			]
+				.filter(Boolean)
+				.join(" ")}
 			aria-current={isCurrent ? "true" : undefined}
 			onClick={() => onPlay?.(track, trackList)}
 		>
 			<div className="track-row-left">
-				<div className="track-row-index">
-					<span className="track-row-indicator">
-						{isCurrent && isPlaying ? (
-							<span className="track-row-eq" aria-hidden="true">
-								<i />
-								<i />
-								<i />
-							</span>
-						) : isCurrent ? (
-							<span className="track-row-dot" aria-hidden="true" />
-						) : (
-							<span>{index}</span>
-						)}
-					</span>
+				{showCover ? (
+					<div className="track-row-cover">
+						<CollectionCover
+							item={track}
+							size="small"
+							className="track-row-cover-img"
+							lazy
+						/>
 
-					<span className="track-row-hover-icon" aria-hidden="true">
-						{isCurrent && isPlaying ? <PauseIcon /> : <PlayIcon />}
-					</span>
-				</div>
+						{/* Слой состояния: эквалайзер / пауза / иконка запуска при наведении */}
+						<div className="track-row-cover-overlay" aria-hidden="true">
+							<span className="track-row-indicator">
+								{isCurrent && isPlaying ? (
+									<span className="track-row-eq">
+										<i />
+										<i />
+										<i />
+									</span>
+								) : isCurrent ? (
+									<span className="track-row-dot" />
+								) : null}
+							</span>
+
+							<span className="track-row-hover-icon">
+								{isCurrent && isPlaying ? <PauseIcon /> : <PlayIcon />}
+							</span>
+						</div>
+					</div>
+				) : (
+					<div className="track-row-index">
+						{/* Индикатор номера (на десктопе при hover сменяется иконкой Play/Pause) */}
+						<span className="track-row-indicator">
+							{isCurrent && isPlaying ? (
+								<span className="track-row-eq" aria-hidden="true">
+									<i />
+									<i />
+									<i />
+								</span>
+							) : isCurrent ? (
+								<span className="track-row-dot" aria-hidden="true" />
+							) : (
+								<span>{index}</span>
+							)}
+						</span>
+
+						<span className="track-row-hover-icon" aria-hidden="true">
+							{isCurrent && isPlaying ? <PauseIcon /> : <PlayIcon />}
+						</span>
+					</div>
+				)}
 
 				<div className="track-row-meta">
 					<div className="track-row-title-line">
@@ -60,6 +105,7 @@ const TrackRow = memo(function TrackRow({
 						)}
 					</div>
 
+					{/* Останавливаем всплытие клика, чтобы переход на артиста не запускал трек */}
 					<div
 						className="track-row-artists"
 						onClick={(e) => e.stopPropagation()}

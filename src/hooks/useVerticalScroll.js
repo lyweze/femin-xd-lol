@@ -6,6 +6,8 @@ const FADE_BOTTOM_HEIGHT = "64px";
 
 /**
  * Хук для вертикально прокручиваемых областей (`.Library`, `.page-scroll`).
+ * Подключает динамические краевые маски `--fade-top` / `--fade-bottom`
+ * и отображение скроллбара только во время движения (`.is-scrolling`).
  */
 export function useVerticalScroll({ observeSubtree = true } = {}) {
 	const [container, setContainer] = useState(null);

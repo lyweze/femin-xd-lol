@@ -1,6 +1,19 @@
+// ============================================================================
+// Хук студии релиза (`useAlbumStudio`): метаданные, обложка, треклист и публикация
+// ============================================================================
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { adminApi } from "../../api/adminApi.js";
+import { getAlbumPublicationStatus } from "../utils/albumHelpers.js";
 
+const STUDIO_POLL_INTERVAL_MS = 3000;
+
+/**
+ * Инкапсулирует полный жизненный цикл редактирования альбома:
+ * - загрузку карточки альбома и треклиста;
+ * - фоновый поллинг статусов треков во время транскодинга;
+ * - чеклист готовности к публикации (обложка + >= 1 трек + все `ready`);
+ * - оптимистичное перетаскивание треков (`reorderTracks`) с откатом при ошибке.
+ */
 export function useAlbumStudio(albumId) {
 	const [refreshTick, setRefreshTick] = useState(0);
 	const [state, setState] = useState(() => ({
@@ -60,7 +73,7 @@ export function useAlbumStudio(albumId) {
 		[state.tracks],
 	);
 
-	// Поллинг раз в 3 сек, пока хотя бы один трек обрабатывается воркером
+	// Тихий поллинг каждые 3 с, пока хотя бы один трек находится в обработке
 	useEffect(() => {
 		if (!albumId || !hasProcessingTracks) return;
 		let cancelled = false;
@@ -72,9 +85,9 @@ export function useAlbumStudio(albumId) {
 					if (!cancelled) applyAlbumData(activeKey, data);
 				})
 				.catch(() => {
-					// тихий поллинг не перезаписывает UI ошибкой
+					// Игнорируем разовые сетевые сбои фонового опроса, чтобы не затирать UI
 				});
-		}, 3000);
+		}, STUDIO_POLL_INTERVAL_MS);
 
 		return () => {
 			cancelled = true;
@@ -84,10 +97,7 @@ export function useAlbumStudio(albumId) {
 
 	const { album, tracks, loadedAtMs, error } = state;
 	const isLoading = Boolean(albumId) && state.fetchedKey !== activeKey;
-	const isPublished = Boolean(album?.published_at);
-	const isScheduled =
-		Boolean(album?.published_at) &&
-		new Date(album.published_at).getTime() > loadedAtMs;
+	const publicationStatus = getAlbumPublicationStatus(album, loadedAtMs);
 
 	const publishChecklist = useMemo(() => {
 		const hasCover = Boolean(album?.cover);
@@ -128,10 +138,7 @@ export function useAlbumStudio(albumId) {
 		async (file) => {
 			setIsUploadingCover(true);
 			try {
-				const { album: updated } = await adminApi.uploadAlbumCover(
-					albumId,
-					file,
-				);
+				const { album: updated } = await adminApi.uploadAlbumCover(albumId, file);
 				setAlbum(updated);
 				return updated;
 			} finally {
@@ -217,6 +224,7 @@ export function useAlbumStudio(albumId) {
 				const data = await adminApi.setAlbumTrackOrder(albumId, items);
 				setTracks(data.tracks);
 			} catch (err) {
+				// При ошибке API откатываем визуальный порядок обратно
 				setTracks(previous);
 				throw err;
 			}
@@ -228,10 +236,7 @@ export function useAlbumStudio(albumId) {
 		async (publishedAt = null) => {
 			setIsPublishing(true);
 			try {
-				const { album: updated } = await adminApi.publishAlbum(
-					albumId,
-					publishedAt,
-				);
+				const { album: updated } = await adminApi.publishAlbum(albumId, publishedAt);
 				setState((prev) => ({
 					...prev,
 					album: updated,
@@ -265,8 +270,8 @@ export function useAlbumStudio(albumId) {
 		isUploadingCover,
 		uploadingTrackIds,
 		isPublishing,
-		isPublished,
-		isScheduled,
+		publicationStatus,
+		isPublished: publicationStatus.isPublished,
 		error,
 		publishChecklist,
 		refresh,

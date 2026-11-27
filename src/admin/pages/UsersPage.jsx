@@ -1,5 +1,9 @@
+// ============================================================================
+// Страница управления пользователями и ролями (`UsersPage`)
+// ============================================================================
 import { useState } from "react";
 import { useAuth } from "../../context/authContext.js";
+import { useActionError } from "../hooks/useActionError.js";
 import { useUsers } from "../hooks/useUsers.js";
 
 function UsersPage() {
@@ -20,38 +24,35 @@ function UsersPage() {
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [role, setRole] = useState("admin");
-	const [actionError, setActionError] = useState(null);
 	const [isCreating, setIsCreating] = useState(false);
+	const { actionError, runAction } = useActionError();
 
 	const handleCreate = async (e) => {
 		e.preventDefault();
 		setIsCreating(true);
-		setActionError(null);
 		try {
-			await createUser({
-				email: email.trim(),
-				username: username.trim(),
-				password,
-				role,
-			});
-			setEmail("");
-			setUsername("");
-			setPassword("");
-		} catch (err) {
-			setActionError(err?.message || "Не удалось создать пользователя.");
+			await runAction(async () => {
+				await createUser({
+					email: email.trim(),
+					username: username.trim(),
+					password,
+					role,
+				});
+				setEmail("");
+				setUsername("");
+				setPassword("");
+			}, "Не удалось создать пользователя.");
 		} finally {
 			setIsCreating(false);
 		}
 	};
 
-	const handleToggleRole = async (targetUser) => {
+	const handleToggleRole = (targetUser) => {
 		const nextRole = targetUser.role === "admin" ? "user" : "admin";
-		setActionError(null);
-		try {
-			await setUserRole(targetUser.id, nextRole);
-		} catch (err) {
-			setActionError(err?.message || "Не удалось изменить роль.");
-		}
+		return runAction(
+			() => setUserRole(targetUser.id, nextRole),
+			"Не удалось изменить роль.",
+		);
 	};
 
 	return (
@@ -64,9 +65,7 @@ function UsersPage() {
 			</header>
 
 			{(error || actionError) && (
-				<div className="admin-banner-error">
-					{actionError || error?.message}
-				</div>
+				<div className="admin-banner-error">{actionError || error?.message}</div>
 			)}
 
 			<form className="admin-card admin-page" onSubmit={handleCreate}>
@@ -134,15 +133,13 @@ function UsersPage() {
 
 			<div className="admin-toolbar">
 				<input
-					className="admin-input"
-					style={{ maxWidth: 260 }}
+					className="admin-input admin-filter-input"
 					placeholder="Search by email or username..."
 					value={params.q || ""}
 					onChange={(e) => updateFilters({ q: e.target.value })}
 				/>
 				<select
-					className="admin-select"
-					style={{ maxWidth: 180 }}
+					className="admin-select admin-filter-select"
 					value={params.role || ""}
 					onChange={(e) => updateFilters({ role: e.target.value })}
 				>
@@ -171,17 +168,10 @@ function UsersPage() {
 									<td>
 										<strong>{u.username}</strong>
 										{isSelf && (
-											<span
-												className="admin-file-chip"
-												style={{ marginLeft: 8 }}
-											>
-												YOU
-											</span>
+											<span className="admin-file-chip admin-self-chip">YOU</span>
 										)}
 									</td>
-									<td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-										{u.email}
-									</td>
+									<td className="admin-mono">{u.email}</td>
 									<td>
 										<span
 											className={`admin-status-badge ${u.role === "admin" ? "is-published" : "is-draft"}`}
@@ -189,9 +179,7 @@ function UsersPage() {
 											{u.role.toUpperCase()}
 										</span>
 									</td>
-									<td style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
-										{u.created_at?.slice(0, 10)}
-									</td>
+									<td className="admin-mono-sm">{u.created_at?.slice(0, 10)}</td>
 									<td>
 										<button
 											type="button"
@@ -213,7 +201,7 @@ function UsersPage() {
 
 						{!isLoading && users.length === 0 && (
 							<tr>
-								<td colSpan={5} style={{ color: "var(--text-tertiary)" }}>
+								<td colSpan={5} className="admin-text-muted">
 									No users found.
 								</td>
 							</tr>

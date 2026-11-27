@@ -1,14 +1,19 @@
+// ============================================================================
+// Страница поиска по каталогу (`SearchPage`)
+// Использует useDeferredValue, чтобы ввод текста не тормозил на больших списках.
+// ============================================================================
 import { useDeferredValue, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useVerticalScroll } from "../../../hooks/useVerticalScroll.js";
 import { useHorizontalScroll } from "../../../hooks/useHorizontalScroll.js";
+import { useMediaQuery } from "../../../hooks/useMediaQuery.js";
 import { musicApi } from "../../../api/musicApi.js";
+import { usePlayerState } from "../../../context/playerContexts.js";
 import { MOCK_TRACKS } from "../../../services/mockData.js";
-import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
-import { SearchIcon } from "../../shared/icons/Icons.jsx";
 import ArtistCard from "../../shared/artist-card/ArtistCard.jsx";
 import MediaCard from "../../shared/media-card/MediaCard.jsx";
-import TrackRow from "../../shared/track-row/TrackRow.jsx";
+import TrackList from "../../shared/track-list/TrackList.jsx";
+import { SearchIcon } from "../../shared/icons/Icons.jsx";
 import "./SearchPage.css";
 
 const BROWSE_MOODS = [
@@ -21,6 +26,7 @@ const BROWSE_MOODS = [
 const RECENT_TRACKS = MOCK_TRACKS.slice(0, 5);
 
 function SearchPage() {
+	const isMobile = useMediaQuery("(max-width: 768px)");
 	const [searchParams, setSearchParams] = useSearchParams();
 	const query = searchParams.get("q") ?? "";
 	const deferredQuery = useDeferredValue(query.trim());
@@ -28,17 +34,16 @@ function SearchPage() {
 	const scrollRef = useVerticalScroll();
 	const artistsRef = useHorizontalScroll();
 	const releasesRef = useHorizontalScroll();
+	const { playlists } = usePlayerState();
 
-	const { currentTrack, isPlaying, likedIds, durationOverrides } =
-		usePlayerState();
-	const { playTrack, toggleLike } = usePlayerActions();
-
-	const results = useMemo(() => musicApi.searchCatalog(deferredQuery), [deferredQuery]);
+	const results = useMemo(
+		() => musicApi.searchCatalog(deferredQuery, playlists),
+		[deferredQuery, playlists],
+	);
 	const collections = useMemo(
 		() => [...results.albums, ...results.playlists],
 		[results.albums, results.playlists],
 	);
-	const likedSet = useMemo(() => new Set(likedIds), [likedIds]);
 
 	const hasAnyResult =
 		results.artists.length > 0 ||
@@ -57,13 +62,14 @@ function SearchPage() {
 				<div className="search-bar">
 					<SearchIcon className="search-icon" />
 
+					{/* На мобильных отключаем autoFocus, чтобы не вызывать клавиатуру при открытии вкладки */}
 					<input
 						type="text"
 						className="search-input"
 						placeholder="Artists, tracks, albums, playlists..."
 						value={query}
 						onChange={(e) => updateQuery(e.target.value)}
-						autoFocus
+						autoFocus={!isMobile}
 					/>
 
 					{query && (
@@ -100,25 +106,7 @@ function SearchPage() {
 
 						<section className="search-section">
 							<h2 className="section-title">Recent Tracks</h2>
-							<ul className="Library is-embedded">
-								{RECENT_TRACKS.map((track, idx) => {
-									const isCurrent = currentTrack?.id === track.id;
-									return (
-										<TrackRow
-											key={track.id}
-											track={track}
-											trackList={MOCK_TRACKS}
-											index={idx + 1}
-											durationMsOverride={durationOverrides[track.id]}
-											isCurrent={isCurrent}
-											isPlaying={isCurrent && isPlaying}
-											isLiked={likedSet.has(track.id)}
-											onPlay={playTrack}
-											onToggleLike={toggleLike}
-										/>
-									);
-								})}
-							</ul>
+							<TrackList tracks={RECENT_TRACKS} queueTracks={MOCK_TRACKS} />
 						</section>
 					</>
 				) : !hasAnyResult ? (
@@ -139,25 +127,7 @@ function SearchPage() {
 						{results.tracks.length > 0 && (
 							<section className="search-section">
 								<h2 className="section-title">Tracks</h2>
-								<ul className="Library is-embedded">
-									{results.tracks.map((track, idx) => {
-										const isCurrent = currentTrack?.id === track.id;
-										return (
-											<TrackRow
-												key={track.id}
-												track={track}
-												trackList={results.tracks}
-												index={idx + 1}
-												durationMsOverride={durationOverrides[track.id]}
-												isCurrent={isCurrent}
-												isPlaying={isCurrent && isPlaying}
-												isLiked={likedSet.has(track.id)}
-												onPlay={playTrack}
-												onToggleLike={toggleLike}
-											/>
-										);
-									})}
-								</ul>
+								<TrackList tracks={results.tracks} />
 							</section>
 						)}
 

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { AuthContext } from "./authContext.js";
 
 // ============================================================================
-// Контекст авторизации (единая сессия `femin_session` для плеера и админки)
+// Провайдер авторизации (локальный мок-профиль до подключения cookie-сессии)
 // ============================================================================
 const INITIAL_LOCAL_USER = {
 	id: "u0000000-0000-0000-0000-000000000001",
@@ -12,6 +12,9 @@ const INITIAL_LOCAL_USER = {
 	mode: "LOCAL",
 };
 
+/**
+ * Оборачивает приложение состоянием авторизованного пользователя и флагами доступа.
+ */
 export function AuthProvider({ children }) {
 	const [user, setUser] = useState(INITIAL_LOCAL_USER);
 	const [isLoading] = useState(false);

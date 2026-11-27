@@ -1,12 +1,12 @@
 // ============================================================================
 // Мок-данные каталога в строгом соответствии со схемами OpenAPI (Image, UUID, ms)
-// Структура: public/temp/<папка_трека>/{cover.jpg, test.mp3}
+// Структура медиа: public/temp/<папка_трека>/{cover.jpg, test.mp3}
 // ============================================================================
 
 const BASE_URL = import.meta.env.BASE_URL ?? "/";
 
 /**
- * Кодирует сегменты пути (безопасно для кириллицы вроде "8юля" и "дающие"
+ * Кодирует сегменты пути к медиафайлам (безопасно для кириллицы вроде «8юля» и «дающие»
  * в Safari, Vite и Tauri WebView).
  */
 function buildTempUrl(relativePath) {
@@ -18,8 +18,8 @@ function buildTempUrl(relativePath) {
 }
 
 /**
- * Генерирует минималистичную обложку в эстетике Matte Obsidian & Smoked Glass
- * в виде data-URI, гарантируя мгновенную загрузку и корректный расчёт акцента.
+ * Генерирует минималистичную SVG-обложку в эстетике Matte Obsidian & Smoked Glass
+ * в виде `data:`-URI (используется как фолбэк при отсутствии локального файла).
  */
 export function makeArtworkDataUrl(primary, secondary, label = "", size = 300) {
 	const safeLabel = String(label || "")
@@ -58,8 +58,8 @@ export function makeImageSet(primary, secondary, label = "") {
 }
 
 /**
- * Хелпер под структуру public/temp/<folder>/{cover.jpg, test.mp3}.
- * Возвращает сразу { audio_url, cover } с автофолбэком на SVG-обложку.
+ * Хелпер под локальную папку `public/temp/<folder>/{cover.jpg, test.mp3}`.
+ * Возвращает `{ audio_url, cover }` с автофолбэками на SVG-заглушки.
  */
 export function makeLocalFolderMedia(
 	folder,
@@ -174,7 +174,7 @@ export const MOCK_TRACKS = [
 ];
 
 // ============================================================================
-// Пользовательские плейлисты (соответствуют пунктам сайдбара)
+// Пользовательские плейлисты (`cover: null` — рендерит градиент через CollectionCover)
 // ============================================================================
 export const MOCK_PLAYLISTS = [
 	{
@@ -182,7 +182,7 @@ export const MOCK_PLAYLISTS = [
 		title: "playlist",
 		type: "playlist",
 		description: "",
-		cover: makeImageSet("#4a423c", "#1a1918", "LATE NIGHT"),
+		cover: null,
 		accent: "#b89074",
 		track_ids: [
 			"d4000000-0000-0000-0000-000000000001",
@@ -199,24 +199,30 @@ export const MOCK_LYRICS = {};
 // ============================================================================
 // Поисковые хелперы по мок-каталогу
 // ============================================================================
+
+/** Ищет артиста по UUID */
 export function getArtistById(id) {
 	return MOCK_ARTISTS.find((a) => a.id === id) ?? null;
 }
 
+/** Ищет альбом по UUID */
 export function getAlbumById(id) {
 	return MOCK_ALBUMS.find((al) => al.id === id) ?? null;
 }
 
+/** Ищет плейлист по идентификатору */
 export function getPlaylistById(id) {
 	return MOCK_PLAYLISTS.find((pl) => pl.id === id) ?? null;
 }
 
+/** Возвращает треки альбома, отсортированные по диску и порядковому номеру */
 export function getTracksByAlbumId(albumId) {
 	return MOCK_TRACKS.filter((t) => t.album_id === albumId).sort(
 		(a, b) => a.disc_no - b.disc_no || a.track_no - b.track_no,
 	);
 }
 
+/** Разворачивает список ID треков плейлиста в реальные объекты треков */
 export function getTracksByPlaylist(playlist) {
 	if (!playlist) return [];
 	return playlist.track_ids
@@ -224,6 +230,7 @@ export function getTracksByPlaylist(playlist) {
 		.filter(Boolean);
 }
 
+/** Возвращает список языковых дорожек текста песни по ID трека */
 export function getLyricsByTrackId(trackId) {
 	return MOCK_LYRICS[trackId] ?? [];
 }

@@ -1,7 +1,7 @@
 // ============================================================================
 // In-memory мок-адаптер для Femin. Admin API v1.0 (swagger-admin-v1.yaml)
-// Полноценно эмулирует эндпоинты, коды ошибок (404, 409, 415, 422),
-// курсорную пагинацию (limit, next_cursor) и фоновый воркер обработки аудио.
+// Эмулирует эндпоинты, коды ошибок (404, 409, 415, 422), курсорную пагинацию
+// (`limit`, `next_cursor`) и асинхронный фоновый воркер обработки аудио.
 // ============================================================================
 import {
 	MOCK_ALBUMS,
@@ -14,6 +14,11 @@ import {
 const CURRENT_ADMIN_ID = "u0000000-0000-0000-0000-000000000001";
 const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_AUDIO_EXTS = new Set(["flac", "mp3", "wav", "m4a"]);
+const VALID_ALBUM_TYPES = new Set(["album", "ep", "single", "compilation"]);
+
+// ============================================================================
+// Вспомогательные утилиты генерации ID, пагинации и чтения локальных файлов
+// ============================================================================
 
 function makeUuid() {
 	if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -38,6 +43,7 @@ function clone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
 
+/** Курсорная пагинация со срезом [offset .. offset + limit) */
 function paginate(items, limit = 20, cursor = null) {
 	const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
 	const start = cursor ? Math.max(0, Number.parseInt(cursor, 10) || 0) : 0;
@@ -49,6 +55,15 @@ function paginate(items, limit = 20, cursor = null) {
 	};
 }
 
+/** Фильтрует список по поисковой строке `rawQuery` без учёта регистра */
+function filterByQuery(items, rawQuery, getSearchFields) {
+	const q = String(rawQuery || "").trim().toLowerCase();
+	if (!q) return items;
+	return items.filter((item) =>
+		getSearchFields(item).some((field) => String(field).toLowerCase().includes(q)),
+	);
+}
+
 function fileToDataUrl(file) {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
@@ -58,10 +73,12 @@ function fileToDataUrl(file) {
 	});
 }
 
-function createInitialState() {
-	const createdAt = "2026-09-10T10:00:00.000Z";
+// ============================================================================
+// Инициализация стартового состояния песочницы админки
+// ============================================================================
 
-	const artists = MOCK_ARTISTS.map((a) => ({
+function seedArtists(createdAt) {
+	return MOCK_ARTISTS.map((a) => ({
 		id: a.id,
 		name: a.name,
 		bio: a.bio,
@@ -69,8 +86,10 @@ function createInitialState() {
 		created_at: createdAt,
 		updated_at: createdAt,
 	}));
+}
 
-	const albums = MOCK_ALBUMS.slice(0, 4).map((al, idx) => ({
+function seedAlbums(createdAt) {
+	return MOCK_ALBUMS.slice(0, 4).map((al, idx) => ({
 		id: al.id,
 		title: al.title,
 		type: al.type,
@@ -78,6 +97,7 @@ function createInitialState() {
 		cover: idx === 0 ? makeImageSet("#7d4231", "#1e1a18", "SMOKED GLASS") : al.cover,
 		artists: al.artists,
 		track_count: MOCK_TRACKS.filter((t) => t.album_id === al.id).length,
+		// Первый релиз опубликован, второй запланирован на будущее (если присутствует в моках)
 		published_at:
 			idx === 0
 				? "2026-09-14T00:00:00.000Z"
@@ -87,45 +107,45 @@ function createInitialState() {
 		created_at: createdAt,
 		updated_at: createdAt,
 	}));
+}
 
-	const tracks = MOCK_TRACKS.filter((t) =>
-		albums.some((al) => al.id === t.album_id),
-	).map((t, idx) => {
-		const isFailedDemo = idx === 4;
-		const isDraftDemo = idx === 6;
-		return {
-			id: t.id,
-			album_id: t.album_id,
-			title: t.title,
-			disc_no: t.disc_no,
-			track_no: t.track_no,
-			duration_ms: isDraftDemo || isFailedDemo ? null : t.duration_ms,
-			explicit: t.explicit,
-			status: isFailedDemo ? "failed" : isDraftDemo ? "draft" : "ready",
-			processing_error: isFailedDemo
-				? "ffmpeg: invalid stream header (corrupted source frame at 00:12)"
-				: null,
-			artists: t.artists,
-			files: isDraftDemo
-				? []
-				: isFailedDemo
-					? [{ kind: "source", format: "flac", bitrate_kbps: null, size_bytes: 34_812_900 }]
-					: [
-							{ kind: "source", format: "flac", bitrate_kbps: 1024, size_bytes: 28_401_220 },
-							{ kind: "stream", format: "opus", bitrate_kbps: 192, size_bytes: 4_620_410 },
-						],
-			lyrics_languages: [...t.lyrics_languages],
-			created_at: createdAt,
-			updated_at: createdAt,
-		};
-	});
+function seedTracks(albums, createdAt) {
+	return MOCK_TRACKS.filter((t) => albums.some((al) => al.id === t.album_id)).map(
+		(t, idx) => {
+			// При расширении каталога 5-й и 7-й треки автоматически демонстрируют статусы failed/draft
+			const isFailedDemo = idx === 4;
+			const isDraftDemo = idx === 6;
+			return {
+				id: t.id,
+				album_id: t.album_id,
+				title: t.title,
+				disc_no: t.disc_no,
+				track_no: t.track_no,
+				duration_ms: isDraftDemo || isFailedDemo ? null : t.duration_ms,
+				explicit: t.explicit,
+				status: isFailedDemo ? "failed" : isDraftDemo ? "draft" : "ready",
+				processing_error: isFailedDemo
+					? "ffmpeg: invalid stream header (corrupted source frame at 00:12)"
+					: null,
+				artists: t.artists,
+				files: isDraftDemo
+					? []
+					: isFailedDemo
+						? [{ kind: "source", format: "flac", bitrate_kbps: null, size_bytes: 34_812_900 }]
+						: [
+								{ kind: "source", format: "flac", bitrate_kbps: 1024, size_bytes: 28_401_220 },
+								{ kind: "stream", format: "opus", bitrate_kbps: 192, size_bytes: 4_620_410 },
+							],
+				lyrics_languages: [...t.lyrics_languages],
+				created_at: createdAt,
+				updated_at: createdAt,
+			};
+		},
+	);
+}
 
-	const lyricsByTrack = {};
-	Object.entries(MOCK_LYRICS).forEach(([trackId, list]) => {
-		lyricsByTrack[trackId] = clone(list);
-	});
-
-	const users = [
+function seedUsers() {
+	return [
 		{
 			id: CURRENT_ADMIN_ID,
 			email: "denis@femin.fm",
@@ -148,15 +168,59 @@ function createInitialState() {
 			created_at: "2026-09-02T19:45:00.000Z",
 		},
 	];
+}
 
-	return { artists, albums, tracks, lyricsByTrack, users };
+function createInitialState() {
+	const createdAt = "2026-09-10T10:00:00.000Z";
+	const artists = seedArtists(createdAt);
+	const albums = seedAlbums(createdAt);
+	const tracks = seedTracks(albums, createdAt);
+
+	const lyricsByTrack = {};
+	Object.entries(MOCK_LYRICS).forEach(([trackId, list]) => {
+		lyricsByTrack[trackId] = clone(list);
+	});
+
+	return { artists, albums, tracks, lyricsByTrack, users: seedUsers() };
 }
 
 const state = createInitialState();
 
+// ============================================================================
+// Фабрика методов мок-API (сигнатуры полностью совпадают с liveAdminApi)
+// ============================================================================
+
+/**
+ * Создаёт объект методов `/admin/v1/*`, работающий поверх локального `state`.
+ */
 export function createAdminMockApi(AdminApiError) {
 	function fail(status, code, message) {
 		throw new AdminApiError(status, code, message);
+	}
+
+	/** Находит запись по ID или выбрасывает 404 */
+	function findOrFail(collection, id, entityLabel) {
+		const entity = collection.find((item) => item.id === id);
+		if (!entity) fail(404, "NOT_FOUND", `${entityLabel} not found.`);
+		return entity;
+	}
+
+	/** Проверяет обязательное текстовое поле (1..255 символов) и возвращает очищенную строку */
+	function requireBoundedName(raw, fieldLabel) {
+		const text = String(raw || "").trim();
+		if (!text || text.length > 255) {
+			fail(422, "VALIDATION_ERROR", `${fieldLabel} must be 1..255 characters.`);
+		}
+		return text;
+	}
+
+	/** Проверяет и конвертирует загруженное изображение в набор URL (JPEG / PNG / WebP) */
+	async function parseUploadedImage(file) {
+		if (!(file instanceof Blob) || !ALLOWED_IMAGE_MIMES.has(file.type)) {
+			fail(415, "UNSUPPORTED_MEDIA_TYPE", "Only JPEG, PNG, or WebP images are supported.");
+		}
+		const url = await fileToDataUrl(file);
+		return { small_url: url, medium_url: url, large_url: url };
 	}
 
 	function resolveArtistRefs(artistIds) {
@@ -184,6 +248,19 @@ export function createAdminMockApi(AdminApiError) {
 		});
 	}
 
+	function syncArtistNameEverywhere(artistId, newName) {
+		for (const album of state.albums) {
+			for (const ref of album.artists) {
+				if (ref.id === artistId) ref.name = newName;
+			}
+		}
+		for (const track of state.tracks) {
+			for (const ref of track.artists) {
+				if (ref.id === artistId) ref.name = newName;
+			}
+		}
+	}
+
 	function getAlbumTracksSorted(albumId) {
 		return state.tracks
 			.filter((t) => t.album_id === albumId)
@@ -197,6 +274,7 @@ export function createAdminMockApi(AdminApiError) {
 		}
 	}
 
+	/** Эмулирует транскодинг исходного аудиофайла в opus (2.6 с) */
 	function scheduleMockWorker(trackId, sourceFormat = "flac", sizeBytes = 24_000_000) {
 		setTimeout(() => {
 			const track = state.tracks.find((t) => t.id === trackId);
@@ -218,30 +296,24 @@ export function createAdminMockApi(AdminApiError) {
 	}
 
 	return {
-		// Artists
+		// --------------------------------------------------------------------
+		// Артисты
+		// --------------------------------------------------------------------
 		async listArtists(params = {}) {
 			await delay();
-			let items = [...state.artists];
-			if (params.q) {
-				const q = params.q.trim().toLowerCase();
-				items = items.filter((a) => a.name.toLowerCase().includes(q));
-			}
+			const items = filterByQuery([...state.artists], params.q, (a) => [a.name]);
 			return paginate(items, params.limit, params.cursor);
 		},
 
 		async getArtist(artistId) {
 			await delay();
-			const artist = state.artists.find((a) => a.id === artistId);
-			if (!artist) fail(404, "NOT_FOUND", "Artist not found.");
+			const artist = findOrFail(state.artists, artistId, "Artist");
 			return { artist: clone(artist) };
 		},
 
 		async createArtist(body) {
 			await delay();
-			const name = String(body?.name || "").trim();
-			if (!name || name.length > 255) {
-				fail(422, "VALIDATION_ERROR", "Artist name must be 1..255 characters.");
-			}
+			const name = requireBoundedName(body?.name, "Artist name");
 			const ts = nowIso();
 			const artist = {
 				id: makeUuid(),
@@ -257,24 +329,11 @@ export function createAdminMockApi(AdminApiError) {
 
 		async updateArtist(artistId, body) {
 			await delay();
-			const artist = state.artists.find((a) => a.id === artistId);
-			if (!artist) fail(404, "NOT_FOUND", "Artist not found.");
+			const artist = findOrFail(state.artists, artistId, "Artist");
 			if (body?.name !== undefined) {
-				const name = String(body.name).trim();
-				if (!name || name.length > 255) {
-					fail(422, "VALIDATION_ERROR", "Artist name must be 1..255 characters.");
-				}
+				const name = requireBoundedName(body.name, "Artist name");
 				artist.name = name;
-				state.albums.forEach((al) => {
-					al.artists.forEach((ref) => {
-						if (ref.id === artistId) ref.name = name;
-					});
-				});
-				state.tracks.forEach((t) => {
-					t.artists.forEach((ref) => {
-						if (ref.id === artistId) ref.name = name;
-					});
-				});
+				syncArtistNameEverywhere(artistId, name);
 			}
 			if (body?.bio !== undefined) artist.bio = String(body.bio);
 			artist.updated_at = nowIso();
@@ -301,29 +360,21 @@ export function createAdminMockApi(AdminApiError) {
 
 		async uploadArtistAvatar(artistId, file) {
 			await delay(240);
-			const artist = state.artists.find((a) => a.id === artistId);
-			if (!artist) fail(404, "NOT_FOUND", "Artist not found.");
-			if (!(file instanceof Blob) || !ALLOWED_IMAGE_MIMES.has(file.type)) {
-				fail(415, "UNSUPPORTED_MEDIA_TYPE", "Only JPEG, PNG, or WebP images are supported.");
-			}
-			const url = await fileToDataUrl(file);
-			artist.avatar = { small_url: url, medium_url: url, large_url: url };
+			const artist = findOrFail(state.artists, artistId, "Artist");
+			artist.avatar = await parseUploadedImage(file);
 			artist.updated_at = nowIso();
 			return { artist: clone(artist) };
 		},
 
-		// Albums
+		// --------------------------------------------------------------------
+		// Альбомы и публикация
+		// --------------------------------------------------------------------
 		async listAlbums(params = {}) {
 			await delay();
-			let items = [...state.albums];
-			if (params.q) {
-				const q = params.q.trim().toLowerCase();
-				items = items.filter(
-					(al) =>
-						al.title.toLowerCase().includes(q) ||
-						al.artists.some((a) => a.name.toLowerCase().includes(q)),
-				);
-			}
+			let items = filterByQuery([...state.albums], params.q, (al) => [
+				al.title,
+				...al.artists.map((a) => a.name),
+			]);
 			if (params.artist_id) {
 				items = items.filter((al) =>
 					al.artists.some((a) => a.id === params.artist_id),
@@ -334,8 +385,7 @@ export function createAdminMockApi(AdminApiError) {
 
 		async getAlbum(albumId) {
 			await delay();
-			const album = state.albums.find((a) => a.id === albumId);
-			if (!album) fail(404, "NOT_FOUND", "Album not found.");
+			const album = findOrFail(state.albums, albumId, "Album");
 			syncAlbumTrackCount(albumId);
 			return {
 				album: clone(album),
@@ -345,12 +395,8 @@ export function createAdminMockApi(AdminApiError) {
 
 		async createAlbum(body) {
 			await delay();
-			const title = String(body?.title || "").trim();
-			if (!title || title.length > 255) {
-				fail(422, "VALIDATION_ERROR", "Album title must be 1..255 characters.");
-			}
-			const validTypes = new Set(["album", "ep", "single", "compilation"]);
-			if (!validTypes.has(body?.type)) {
+			const title = requireBoundedName(body?.title, "Album title");
+			if (!VALID_ALBUM_TYPES.has(body?.type)) {
 				fail(422, "VALIDATION_ERROR", "Invalid album type.");
 			}
 			const artists = resolveArtistRefs(body.artist_ids);
@@ -373,17 +419,14 @@ export function createAdminMockApi(AdminApiError) {
 
 		async updateAlbum(albumId, body) {
 			await delay();
-			const album = state.albums.find((a) => a.id === albumId);
-			if (!album) fail(404, "NOT_FOUND", "Album not found.");
+			const album = findOrFail(state.albums, albumId, "Album");
 			if (body?.title !== undefined) {
-				const title = String(body.title).trim();
-				if (!title || title.length > 255) {
-					fail(422, "VALIDATION_ERROR", "Album title must be 1..255 characters.");
-				}
-				album.title = title;
+				album.title = requireBoundedName(body.title, "Album title");
 			}
 			if (body?.type !== undefined) album.type = body.type;
-			if (body?.release_date !== undefined) album.release_date = body.release_date || undefined;
+			if (body?.release_date !== undefined) {
+				album.release_date = body.release_date || undefined;
+			}
 			if (body?.artist_ids !== undefined) {
 				album.artists = resolveArtistRefs(body.artist_ids);
 			}
@@ -396,8 +439,10 @@ export function createAdminMockApi(AdminApiError) {
 			const idx = state.albums.findIndex((a) => a.id === albumId);
 			if (idx === -1) fail(404, "NOT_FOUND", "Album not found.");
 			state.albums.splice(idx, 1);
+			// Удаляем все треки альбома вместе с их текстами
 			for (let i = state.tracks.length - 1; i >= 0; i -= 1) {
 				if (state.tracks[i].album_id === albumId) {
+					delete state.lyricsByTrack[state.tracks[i].id];
 					state.tracks.splice(i, 1);
 				}
 			}
@@ -406,21 +451,15 @@ export function createAdminMockApi(AdminApiError) {
 
 		async uploadAlbumCover(albumId, file) {
 			await delay(240);
-			const album = state.albums.find((a) => a.id === albumId);
-			if (!album) fail(404, "NOT_FOUND", "Album not found.");
-			if (!(file instanceof Blob) || !ALLOWED_IMAGE_MIMES.has(file.type)) {
-				fail(415, "UNSUPPORTED_MEDIA_TYPE", "Only JPEG, PNG, or WebP images are supported.");
-			}
-			const url = await fileToDataUrl(file);
-			album.cover = { small_url: url, medium_url: url, large_url: url };
+			const album = findOrFail(state.albums, albumId, "Album");
+			album.cover = await parseUploadedImage(file);
 			album.updated_at = nowIso();
 			return { album: clone(album) };
 		},
 
 		async setAlbumTrackOrder(albumId, items) {
 			await delay();
-			const album = state.albums.find((a) => a.id === albumId);
-			if (!album) fail(404, "NOT_FOUND", "Album not found.");
+			const album = findOrFail(state.albums, albumId, "Album");
 			const albumTracks = state.tracks.filter((t) => t.album_id === albumId);
 			if (!Array.isArray(items) || items.length !== albumTracks.length) {
 				fail(422, "VALIDATION_ERROR", "Track order payload must include all album tracks.");
@@ -444,8 +483,7 @@ export function createAdminMockApi(AdminApiError) {
 
 		async publishAlbum(albumId, publishedAt = null) {
 			await delay();
-			const album = state.albums.find((a) => a.id === albumId);
-			if (!album) fail(404, "NOT_FOUND", "Album not found.");
+			const album = findOrFail(state.albums, albumId, "Album");
 			const albumTracks = state.tracks.filter((t) => t.album_id === albumId);
 			if (!album.cover) {
 				fail(409, "CONFLICT", "Upload an album cover before publishing.");
@@ -463,25 +501,21 @@ export function createAdminMockApi(AdminApiError) {
 
 		async unpublishAlbum(albumId) {
 			await delay();
-			const album = state.albums.find((a) => a.id === albumId);
-			if (!album) fail(404, "NOT_FOUND", "Album not found.");
+			const album = findOrFail(state.albums, albumId, "Album");
 			album.published_at = null;
 			album.updated_at = nowIso();
 			return { album: clone(album) };
 		},
 
-		// Tracks & Uploads
+		// --------------------------------------------------------------------
+		// Треки и аудио-загрузка
+		// --------------------------------------------------------------------
 		async listTracks(params = {}) {
 			await delay();
-			let items = [...state.tracks];
-			if (params.q) {
-				const q = params.q.trim().toLowerCase();
-				items = items.filter(
-					(t) =>
-						t.title.toLowerCase().includes(q) ||
-						t.artists.some((a) => a.name.toLowerCase().includes(q)),
-				);
-			}
+			let items = filterByQuery([...state.tracks], params.q, (t) => [
+				t.title,
+				...t.artists.map((a) => a.name),
+			]);
 			if (params.album_id) {
 				items = items.filter((t) => t.album_id === params.album_id);
 			}
@@ -493,8 +527,7 @@ export function createAdminMockApi(AdminApiError) {
 
 		async getTrack(trackId) {
 			await delay();
-			const track = state.tracks.find((t) => t.id === trackId);
-			if (!track) fail(404, "NOT_FOUND", "Track not found.");
+			const track = findOrFail(state.tracks, trackId, "Track");
 			return { track: clone(track) };
 		},
 
@@ -502,10 +535,7 @@ export function createAdminMockApi(AdminApiError) {
 			await delay();
 			const album = state.albums.find((a) => a.id === body?.album_id);
 			if (!album) fail(422, "VALIDATION_ERROR", "Target album does not exist.");
-			const title = String(body?.title || "").trim();
-			if (!title || title.length > 255) {
-				fail(422, "VALIDATION_ERROR", "Track title must be 1..255 characters.");
-			}
+			const title = requireBoundedName(body?.title, "Track title");
 			const artists = resolveTrackArtists(body?.artists);
 			const ts = nowIso();
 			const track = {
@@ -531,14 +561,9 @@ export function createAdminMockApi(AdminApiError) {
 
 		async updateTrack(trackId, body) {
 			await delay();
-			const track = state.tracks.find((t) => t.id === trackId);
-			if (!track) fail(404, "NOT_FOUND", "Track not found.");
+			const track = findOrFail(state.tracks, trackId, "Track");
 			if (body?.title !== undefined) {
-				const title = String(body.title).trim();
-				if (!title || title.length > 255) {
-					fail(422, "VALIDATION_ERROR", "Track title must be 1..255 characters.");
-				}
-				track.title = title;
+				track.title = requireBoundedName(body.title, "Track title");
 			}
 			if (body?.explicit !== undefined) track.explicit = Boolean(body.explicit);
 			if (body?.artists !== undefined) {
@@ -561,8 +586,7 @@ export function createAdminMockApi(AdminApiError) {
 
 		async uploadTrackAudio(trackId, file) {
 			await delay(260);
-			const track = state.tracks.find((t) => t.id === trackId);
-			if (!track) fail(404, "NOT_FOUND", "Track not found.");
+			const track = findOrFail(state.tracks, trackId, "Track");
 			const album = state.albums.find((a) => a.id === track.album_id);
 			if (track.status === "processing") {
 				fail(409, "CONFLICT", "Track is already being processed by worker.");
@@ -588,8 +612,7 @@ export function createAdminMockApi(AdminApiError) {
 
 		async reprocessTrack(trackId) {
 			await delay(200);
-			const track = state.tracks.find((t) => t.id === trackId);
-			if (!track) fail(404, "NOT_FOUND", "Track not found.");
+			const track = findOrFail(state.tracks, trackId, "Track");
 			if (track.status === "processing") {
 				fail(409, "CONFLICT", "Track is already processing.");
 			}
@@ -604,18 +627,18 @@ export function createAdminMockApi(AdminApiError) {
 			return { track: clone(track) };
 		},
 
-		// Lyrics
+		// --------------------------------------------------------------------
+		// Тексты песен
+		// --------------------------------------------------------------------
 		async listTrackLyrics(trackId) {
 			await delay();
-			const track = state.tracks.find((t) => t.id === trackId);
-			if (!track) fail(404, "NOT_FOUND", "Track not found.");
+			findOrFail(state.tracks, trackId, "Track");
 			return { items: clone(state.lyricsByTrack[trackId] ?? []) };
 		},
 
 		async putTrackLyrics(trackId, language, body) {
 			await delay();
-			const track = state.tracks.find((t) => t.id === trackId);
-			if (!track) fail(404, "NOT_FOUND", "Track not found.");
+			const track = findOrFail(state.tracks, trackId, "Track");
 			const lang = String(language || "").trim().toLowerCase();
 			if (lang.length < 2 || lang.length > 8) {
 				fail(422, "VALIDATION_ERROR", "Language code must be 2..8 characters (e.g. 'ru', 'en').");
@@ -652,8 +675,7 @@ export function createAdminMockApi(AdminApiError) {
 
 		async deleteTrackLyrics(trackId, language) {
 			await delay();
-			const track = state.tracks.find((t) => t.id === trackId);
-			if (!track) fail(404, "NOT_FOUND", "Track not found.");
+			const track = findOrFail(state.tracks, trackId, "Track");
 			const existing = state.lyricsByTrack[trackId] ?? [];
 			const next = existing.filter((l) => l.language !== language);
 			if (next.length === existing.length) {
@@ -665,18 +687,15 @@ export function createAdminMockApi(AdminApiError) {
 			return null;
 		},
 
-		// Users
+		// --------------------------------------------------------------------
+		// Пользователи и роли
+		// --------------------------------------------------------------------
 		async listUsers(params = {}) {
 			await delay();
-			let items = [...state.users];
-			if (params.q) {
-				const q = params.q.trim().toLowerCase();
-				items = items.filter(
-					(u) =>
-						u.email.toLowerCase().includes(q) ||
-						u.username.toLowerCase().includes(q),
-				);
-			}
+			let items = filterByQuery([...state.users], params.q, (u) => [
+				u.email,
+				u.username,
+			]);
 			if (params.role) {
 				items = items.filter((u) => u.role === params.role);
 			}
@@ -724,8 +743,7 @@ export function createAdminMockApi(AdminApiError) {
 
 		async setUserRole(userId, role) {
 			await delay();
-			const user = state.users.find((u) => u.id === userId);
-			if (!user) fail(404, "NOT_FOUND", "User not found.");
+			const user = findOrFail(state.users, userId, "User");
 			if (role !== "user" && role !== "admin") {
 				fail(422, "VALIDATION_ERROR", "Role must be 'user' or 'admin'.");
 			}

@@ -1,5 +1,5 @@
 // ============================================================================
-// Кнопки управления воспроизведением (`PlayerControls`)
+// Кнопки управления воспроизведением (`PlayerControls`: Shuffle / Prev / Play / Next / Repeat)
 // ============================================================================
 import { usePlayerActions, usePlayerState } from "../../../context/playerContexts.js";
 import {
@@ -12,17 +12,22 @@ import {
 } from "../../shared/icons/Icons.jsx";
 import "./PlayerControls.css";
 
+const REPEAT_TITLES = {
+	one: "Repeat One (track repeats)",
+	all: "Repeat All",
+	off: "Repeat Off",
+};
+
+/**
+ * Рендерит 5 транспортных кнопок.
+ * @param {{ size?: "compact" | "large" }} props - `"compact"` в нижней капсуле, `"large"` в FullscreenPlayer
+ */
 function PlayerControls({ size = "compact" }) {
 	const { isPlaying, isShuffle, repeatMode } = usePlayerState();
 	const { togglePlay, prevTrack, nextTrack, toggleShuffle, cycleRepeat } =
 		usePlayerActions();
 
-	const repeatTitle =
-		repeatMode === "one"
-			? "Repeat One (track repeats)"
-			: repeatMode === "all"
-				? "Repeat All"
-				: "Repeat Off";
+	const repeatTitle = REPEAT_TITLES[repeatMode] ?? REPEAT_TITLES.off;
 
 	return (
 		<div

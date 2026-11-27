@@ -1,3 +1,6 @@
+/* ==========================================================================
+   Страница исполнителя (аватар, биография, популярные треки, дискография)
+   ========================================================================== */
 .artist-page {
 	> .artist-hero {
 		display: flex;
@@ -136,6 +139,14 @@
 			> .collection-actions {
 				justify-content: center;
 				flex-wrap: wrap;
+				width: 100%;
+
+				> .btn-primary,
+				> .btn-secondary {
+					flex: 1;
+					justify-content: center;
+					height: 42px;
+				}
 			}
 		}
 	}

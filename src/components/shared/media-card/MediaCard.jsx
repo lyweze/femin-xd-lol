@@ -3,17 +3,24 @@
 // ============================================================================
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { handleCoverError } from "../../../utils/cover.js";
+import { formatArtistNames, formatTrackCount } from "../../../utils/format.js";
+import CollectionCover from "../collection-cover/CollectionCover.jsx";
 import "./MediaCard.css";
 
+/**
+ * Карточка коллекции с адаптивным размером и переходом на страницу альбома/плейлиста.
+ */
 const MediaCard = memo(function MediaCard({ item, fluid = false, compact = false }) {
-	const to =
-		item.type === "playlist" ? `/playlist/${item.id}` : `/album/${item.id}`;
-	const artistNames = item.artists?.map((a) => a.name).join(", ");
+	const to = item.type === "playlist" ? `/playlist/${item.id}` : `/album/${item.id}`;
+	const artistNames = formatArtistNames(item.artists);
 	const year = item.release_date?.slice(0, 4);
+	const trackCount =
+		item.track_count ?? item.tracks?.length ?? item.track_ids?.length ?? 0;
+
+	const playlistPrefix = item.id === "favourites" ? "FAVOURITES" : "PLAYLIST";
 	const metaLine =
 		item.type === "playlist"
-			? `PLAYLIST${item.track_count ? ` • ${item.track_count} TRACKS` : ""}`
+			? `${playlistPrefix}${trackCount ? ` • ${formatTrackCount(trackCount, { uppercase: true })}` : ""}`
 			: [item.type?.toUpperCase(), year, artistNames].filter(Boolean).join(" • ");
 
 	return (
@@ -22,16 +29,12 @@ const MediaCard = memo(function MediaCard({ item, fluid = false, compact = false
 			className={`media-card ${fluid ? "is-fluid" : ""} ${compact ? "is-compact" : ""}`}
 		>
 			<div className="media-card-cover-wrap">
-				{item.cover?.medium_url && (
-					<img
-						className="media-card-cover"
-						src={item.cover.medium_url}
-						alt={item.title}
-						loading="lazy"
-						draggable={false}
-						onError={(e) => handleCoverError(e, item.cover, "medium")}
-					/>
-				)}
+				<CollectionCover
+					item={item}
+					size="medium"
+					className="media-card-cover"
+					lazy
+				/>
 			</div>
 
 			<span className="media-card-title">{item.title}</span>
