@@ -5,11 +5,11 @@
 // ============================================================================
 import { createAdminMockApi } from "./adminMockAdapter.js";
 
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
+const API_ORIGIN = import.meta.env?.VITE_API_ORIGIN ?? "";
 const BASE_URL = `${API_ORIGIN}/admin/v1`;
 
 /** Флаг активности встроенного OpenAPI-мока вместо реального HTTP-сервера */
-export const IS_MOCK_ADMIN_MODE = import.meta.env.VITE_USE_MOCK_ADMIN !== "false";
+export const IS_MOCK_ADMIN_MODE = import.meta.env?.VITE_USE_MOCK_ADMIN !== "false";
 
 /**
  * Типизированная ошибка Admin API с HTTP-статусом и машинным кодом (например `CONFLICT`, `VALIDATION_ERROR`).

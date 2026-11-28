@@ -1,0 +1,89 @@
+name: Build Multi-Platform Clients
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - frontend
+
+jobs:
+  web-pwa:
+    name: Web & PWA Portable Bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run build:clients
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: femin-web-pwa
+          path: clients/web-pwa
+
+  electron-desktop:
+    name: Desktop (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            cmd: npm run pack:mac
+            artifact: macos-dmg-zip
+          - os: windows-latest
+            cmd: npm run pack:win
+            artifact: windows-exe
+          - os: ubuntu-latest
+            cmd: npm run pack:linux
+            artifact: linux-appimage-deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:clients
+      - working-directory: clients/desktop-electron
+        run: |
+          npm install
+          ${{ matrix.cmd }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: femin-desktop-${{ matrix.artifact }}
+          path: clients/desktop-electron/dist-desktop/*
+          if-no-files-found: ignore
+
+  capacitor-android:
+    name: Android APK (Capacitor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run build:clients
+      - working-directory: clients/mobile-capacitor
+        run: |
+          npm install
+          npx cap add android || true
+          npx cap sync android
+      - working-directory: clients/mobile-capacitor/android
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: femin-android-debug-apk
+          path: clients/mobile-capacitor/android/app/build/outputs/apk/debug/app-debug.apk

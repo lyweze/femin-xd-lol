@@ -1,0 +1,19 @@
+{
+	"name": "FEMIN",
+	"short_name": "FEMIN",
+	"description": "Minimalist Matte Obsidian & Smoked Glass audio player",
+	"start_url": "./",
+	"scope": "./",
+	"display": "standalone",
+	"orientation": "portrait-primary",
+	"background_color": "#161615",
+	"theme_color": "#161615",
+	"icons": [
+		{
+			"src": "./icon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any maskable"
+		}
+	]
+}

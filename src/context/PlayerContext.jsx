@@ -1,22 +1,14 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { MOCK_TRACKS } from "../services/mockData.js";
 import {
-	clearAllLocalTrackLyrics,
 	getLyricsSnapshotForTracks,
 	probeTempLyricsForTracks,
 	subscribeLyricsChanges,
-	syncTrackLyricsDraft,
 } from "../services/lyricsStorage.js";
-import {
-	deleteLocalTrack,
-	getLocalTracksSnapshot,
-	hydrateLocalTracksMedia,
-	saveLocalTrack,
-	subscribeLocalTracksChanges,
-	updateLocalTrack,
-} from "../services/localTracksStorage.js";
+import { getLocalTracksSnapshot } from "../services/localTracksStorage.js";
 import { useAudioEngine } from "../hooks/useAudioEngine.js";
 import { useSystemIntegration } from "../hooks/useSystemIntegration.js";
+import { syncOsAppearance, triggerOsHaptic } from "../platform/osBridge.js";
 import {
 	DEFAULT_ACCENT,
 	loadCoverAppearance,
@@ -48,9 +40,11 @@ import {
 	moveUpcomingItem,
 	pickNextQueueOutcome,
 	pickPrevQueueOutcome,
+	reconcileQueueWithLocalTracks,
 	removeQueueEntry,
 	shuffleList,
 } from "./playerQueue.js";
+import { useLocalTrackManager } from "./useLocalTrackManager.js";
 
 // ============================================================================
 // Провайдер состояния аудиоплеера (Split Context: Actions / State / Time)
@@ -73,12 +67,6 @@ const REPEAT_CYCLE = { off: "all", all: "one", one: "off" };
  * только полосы прогресса и текст песни, а не таблицы каталога и сайдбар.
  */
 export function PlayerProvider({ children }) {
-	const [localTracks, setLocalTracks] = useState(getLocalTracksSnapshot);
-	const catalogTracks = useMemo(
-		() => (localTracks.length > 0 ? [...localTracks, ...MOCK_TRACKS] : MOCK_TRACKS),
-		[localTracks],
-	);
-
 	const [queueState, setQueueState] = useState(() => {
 		const initialTracks = [...getLocalTracksSnapshot(), ...MOCK_TRACKS];
 		return {
@@ -103,7 +91,6 @@ export function PlayerProvider({ children }) {
 	const [fullscreenPhase, setFullscreenPhase] = useState("closed"); // 'closed' | 'open' | 'closing'
 	const [fullscreenPane, setFullscreenPane] = useState("lyrics"); // 'cover' | 'lyrics' | 'queue'
 	const [trackMenuState, setTrackMenuState] = useState(null); // { track, queueTracks, anchorRect }
-	const [trackEditorState, setTrackEditorState] = useState(null); // { mode: 'create' } | { mode: 'edit', track }
 	const [queueNotice, setQueueNotice] = useState(null); // { uid, message }
 	const [durationOverrides, setDurationOverrides] = useState({});
 
@@ -133,10 +120,14 @@ export function PlayerProvider({ children }) {
 		let cancelled = false;
 		if (!coverUrl) {
 			setRootAccent(fallbackAccent);
+			syncOsAppearance({ accentHex: fallbackAccent });
 			return;
 		}
 		loadCoverAppearance(coverUrl, fallbackAccent).then(({ accentHex }) => {
-			if (!cancelled) setRootAccent(accentHex);
+			if (!cancelled) {
+				setRootAccent(accentHex);
+				syncOsAppearance({ accentHex });
+			}
 		});
 		return () => {
 			cancelled = true;
@@ -155,58 +146,6 @@ export function PlayerProvider({ children }) {
 		};
 		const unsubscribe = subscribeLyricsChanges(refreshLyrics);
 		void probeTempLyricsForTracks(MOCK_TRACKS);
-		return unsubscribe;
-	}, []);
-
-	useEffect(() => {
-		const syncLocalCatalog = () => {
-			const nextLocal = getLocalTracksSnapshot();
-			setLocalTracks(nextLocal);
-			const byId = new Map(nextLocal.map((t) => [t.id, t]));
-
-			setQueueState((prev) => {
-				let changed = false;
-				const nextItems = [];
-				let nextIndex = prev.currentIndex;
-
-				prev.items.forEach((entry, idx) => {
-					if (!entry.track?.is_local) {
-						nextItems.push(entry);
-						return;
-					}
-					const latest = byId.get(entry.track.id);
-					if (!latest) {
-						changed = true;
-						if (idx < prev.currentIndex) nextIndex -= 1;
-						return;
-					}
-					if (
-						entry.track.audio_url !== latest.audio_url ||
-						entry.track.cover !== latest.cover ||
-						entry.track.title !== latest.title ||
-						entry.track.duration_ms !== latest.duration_ms
-					) {
-						changed = true;
-						nextItems.push({ ...entry, track: latest });
-					} else {
-						nextItems.push(entry);
-					}
-				});
-
-				if (!changed) return prev;
-				if (nextItems.length === 0) {
-					nextIndex = -1;
-				} else if (nextIndex >= nextItems.length) {
-					nextIndex = nextItems.length - 1;
-				} else if (nextIndex < 0) {
-					nextIndex = 0;
-				}
-				return { items: nextItems, currentIndex: nextIndex };
-			});
-		};
-
-		const unsubscribe = subscribeLocalTracksChanges(syncLocalCatalog);
-		void hydrateLocalTracksMedia();
 		return unsubscribe;
 	}, []);
 
@@ -296,6 +235,7 @@ export function PlayerProvider({ children }) {
 	const playTrackNext = useCallback(
 		(track) => {
 			if (!track) return;
+			triggerOsHaptic("light");
 			const result = insertPlayNext(
 				queueStateRef.current.items,
 				queueStateRef.current.currentIndex,
@@ -314,6 +254,7 @@ export function PlayerProvider({ children }) {
 	const enqueueTrack = useCallback(
 		(track) => {
 			if (!track) return;
+			triggerOsHaptic("light");
 			const result = appendToQueue(
 				queueStateRef.current.items,
 				queueStateRef.current.currentIndex,
@@ -362,16 +303,21 @@ export function PlayerProvider({ children }) {
 	const togglePlay = useCallback(() => {
 		const { items, currentIndex } = queueStateRef.current;
 		if (currentIndex < 0 && items.length > 0) {
+			triggerOsHaptic("medium");
 			setQueueState((prev) => ({ ...prev, currentIndex: 0 }));
 			setIsPlaying(true);
 			return;
 		}
 		if (!items.length) return;
+		triggerOsHaptic("medium");
 		setIsPlaying((prev) => !prev);
 	}, []);
 
 	/** Переход к следующему треку по очереди */
 	const nextTrack = useCallback((autoAdvanced = false) => {
+		if (!autoAdvanced) {
+			triggerOsHaptic("light");
+		}
 		const outcome = pickNextQueueOutcome({
 			queue: queueStateRef.current.items,
 			currentIndex: queueStateRef.current.currentIndex,
@@ -393,6 +339,7 @@ export function PlayerProvider({ children }) {
 
 	/** Возврат к 00:00 (> 3 с) или переход к предыдущему слоту очереди */
 	const prevTrack = useCallback(() => {
+		triggerOsHaptic("light");
 		const outcome = pickPrevQueueOutcome({
 			queue: queueStateRef.current.items,
 			currentIndex: queueStateRef.current.currentIndex,
@@ -481,6 +428,7 @@ export function PlayerProvider({ children }) {
 	}, []);
 
 	const toggleLike = useCallback((trackId) => {
+		triggerOsHaptic("light");
 		setLikedIds((prev) => {
 			const exists = prev.includes(trackId);
 			const next = exists
@@ -505,132 +453,52 @@ export function PlayerProvider({ children }) {
 		setPlaylists((prev) => prev.filter((pl) => pl.id !== playlistId));
 	}, []);
 
-	const openTrackUploader = useCallback(() => {
-		setTrackEditorState({ mode: "create" });
+	const syncLocalQueue = useCallback((nextLocal) => {
+		setQueueState((prev) => reconcileQueueWithLocalTracks(prev, nextLocal));
 	}, []);
 
-	const openTrackEditor = useCallback((track) => {
-		if (!track?.is_local) return;
-		setTrackEditorState({ mode: "edit", track });
+	const removeLocalTrackReferences = useCallback((trackId) => {
+		setLikedIds((prev) => {
+			if (!prev.includes(trackId)) return prev;
+			const next = prev.filter((id) => id !== trackId);
+			writeStorageJson(LIKED_STORAGE_KEY, next);
+			return next;
+		});
+
+		setPlaylists((prev) => {
+			let modified = false;
+			const next = prev.map((pl) => {
+				if (!pl.track_ids?.includes(trackId)) return pl;
+				modified = true;
+				return { ...pl, track_ids: pl.track_ids.filter((id) => id !== trackId) };
+			});
+			return modified ? next : prev;
+		});
+
+		if (
+			currentTrackRef.current?.id === trackId &&
+			queueStateRef.current.items.length <= 1
+		) {
+			setIsPlaying(false);
+		}
 	}, []);
 
-	const closeTrackEditor = useCallback(() => {
-		setTrackEditorState(null);
-	}, []);
-
-	const createLocalTrack = useCallback(
-		async ({
-			title,
-			artistName,
-			albumTitle,
-			explicit,
-			durationMs,
-			audioFile,
-			cover,
-			lyricsText,
-			lyricsLanguage = "ru",
-			playImmediately = false,
-		}) => {
-			const created = await saveLocalTrack({
-				title,
-				artistName,
-				albumTitle,
-				explicit,
-				durationMs,
-				audioFile,
-				cover,
-			});
-
-			syncTrackLyricsDraft(created.id, lyricsText, lyricsLanguage, false);
-
-			if (playImmediately) {
-				playTrack(created, [
-					created,
-					...getLocalTracksSnapshot().filter((t) => t.id !== created.id),
-					...MOCK_TRACKS,
-				]);
-			} else {
-				showQueueNotice(`Added track: ${created.title}`);
-			}
-			return created;
-		},
-		[playTrack, showQueueNotice],
-	);
-
-	const editLocalTrack = useCallback(
-		async (
-			trackId,
-			{
-				title,
-				artistName,
-				albumTitle,
-				explicit,
-				durationMs,
-				audioFile,
-				cover,
-				clearCover,
-				lyricsText,
-				lyricsLanguage = "ru",
-			},
-		) => {
-			const updated = await updateLocalTrack(trackId, {
-				title,
-				artistName,
-				albumTitle,
-				explicit,
-				durationMs,
-				audioFile,
-				cover,
-				clearCover,
-			});
-			if (!updated) return null;
-
-			if (lyricsText !== undefined) {
-				syncTrackLyricsDraft(trackId, lyricsText, lyricsLanguage, true);
-			}
-
-			showQueueNotice(`Updated track: ${updated.title}`);
-			return updated;
-		},
-		[showQueueNotice],
-	);
-
-	const removeLocalTrack = useCallback(
-		async (trackId) => {
-			const deleted = await deleteLocalTrack(trackId);
-			if (!deleted) return false;
-
-			clearAllLocalTrackLyrics(trackId);
-
-			setLikedIds((prev) => {
-				if (!prev.includes(trackId)) return prev;
-				const next = prev.filter((id) => id !== trackId);
-				writeStorageJson(LIKED_STORAGE_KEY, next);
-				return next;
-			});
-
-			setPlaylists((prev) => {
-				let modified = false;
-				const next = prev.map((pl) => {
-					if (!pl.track_ids?.includes(trackId)) return pl;
-					modified = true;
-					return { ...pl, track_ids: pl.track_ids.filter((id) => id !== trackId) };
-				});
-				return modified ? next : prev;
-			});
-
-			if (
-				currentTrackRef.current?.id === trackId &&
-				queueStateRef.current.items.length <= 1
-			) {
-				setIsPlaying(false);
-			}
-
-			showQueueNotice("Removed local track");
-			return true;
-		},
-		[showQueueNotice],
-	);
+	const {
+		localTracks,
+		catalogTracks,
+		trackEditorState,
+		openTrackUploader,
+		openTrackEditor,
+		closeTrackEditor,
+		createLocalTrack,
+		editLocalTrack,
+		removeLocalTrack,
+	} = useLocalTrackManager({
+		onLocalTracksSync: syncLocalQueue,
+		onPlayCreated: playTrack,
+		onRemoveReferences: removeLocalTrackReferences,
+		onNotice: showQueueNotice,
+	});
 
 	/** Открывает полноэкранный плеер в заданном режиме (`"cover" | "lyrics" | "queue"` или boolean для совместимости) */
 	const openFullscreen = useCallback((targetPane = null) => {
@@ -699,21 +567,38 @@ export function PlayerProvider({ children }) {
 		setFullscreenPane((prev) => (prev === "queue" ? "cover" : "queue"));
 	}, []);
 
+	const openQueueFromOs = useCallback(() => {
+		openFullscreen("queue");
+	}, [openFullscreen]);
+
+	const openLyricsFromOs = useCallback(() => {
+		if (fullscreenPhaseRef.current !== "open") {
+			openFullscreen("lyrics");
+			return;
+		}
+		toggleShowLyrics();
+	}, [openFullscreen, toggleShowLyrics]);
+
 	const isFullscreenOpen = fullscreenPhase === "open";
 	const isFullscreenMounted = fullscreenPhase !== "closed";
 
 	useSystemIntegration({
 		currentTrack,
 		isPlaying,
+		volume,
 		isFullscreenOpen,
 		togglePlay,
 		nextTrack,
 		prevTrack,
 		seekToMs,
 		seekByMs,
+		setVolume,
 		toggleMute,
 		toggleShowLyrics,
 		toggleQueuePane,
+		onOpenQueue: openQueueFromOs,
+		onOpenLyrics: openLyricsFromOs,
+		onOpenUploader: openTrackUploader,
 		closeFullscreen,
 		toggleFullscreen,
 	});

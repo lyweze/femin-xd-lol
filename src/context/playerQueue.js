@@ -189,3 +189,50 @@ export function pickPrevQueueOutcome({
 	const prevIdx = safeIdx > 0 ? safeIdx - 1 : queue.length - 1;
 	return { action: "select", index: prevIdx };
 }
+
+/**
+ * Синхронизирует снимок локальных треков в активной очереди (обновляет гидрированные
+ * `audio_url` / `cover` / метаданные и удаляет слоты удалённых локальных треков).
+ */
+export function reconcileQueueWithLocalTracks(queueState, localTracks) {
+	const byId = new Map(localTracks.map((t) => [t.id, t]));
+	let changed = false;
+	const nextItems = [];
+	let nextIndex = queueState.currentIndex;
+
+	queueState.items.forEach((entry, idx) => {
+		if (!entry.track?.is_local) {
+			nextItems.push(entry);
+			return;
+		}
+		const latest = byId.get(entry.track.id);
+		if (!latest) {
+			changed = true;
+			if (idx < queueState.currentIndex) nextIndex -= 1;
+			return;
+		}
+		if (
+			entry.track.audio_url !== latest.audio_url ||
+			entry.track.cover !== latest.cover ||
+			entry.track.title !== latest.title ||
+			entry.track.duration_ms !== latest.duration_ms ||
+			entry.track.explicit !== latest.explicit
+		) {
+			changed = true;
+			nextItems.push({ ...entry, track: latest });
+		} else {
+			nextItems.push(entry);
+		}
+	});
+
+	if (!changed) return queueState;
+	if (nextItems.length === 0) {
+		nextIndex = -1;
+	} else if (nextIndex >= nextItems.length) {
+		nextIndex = nextItems.length - 1;
+	} else if (nextIndex < 0) {
+		nextIndex = 0;
+	}
+
+	return { items: nextItems, currentIndex: nextIndex };
+}

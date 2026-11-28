@@ -4,7 +4,6 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../context/authContext.js";
 import { usePlayerState } from "../../../context/playerContexts.js";
-import { IS_DESKTOP } from "../../../platform/env.js";
 import { getAccountSummary } from "../../../utils/format.js";
 import { EditIcon, PlusIcon, SidebarIcon } from "../../shared/icons/Icons.jsx";
 import "./Sidebar.css";
@@ -106,7 +105,7 @@ function Sidebar({ isOpen = true, onToggle, onCreatePlaylist }) {
 				</li>
 			</ul>
 
-			{isAdmin && !IS_DESKTOP && (
+			{isAdmin && (
 				<NavLink
 					to="/admin/albums"
 					className="sidebar-admin-link"

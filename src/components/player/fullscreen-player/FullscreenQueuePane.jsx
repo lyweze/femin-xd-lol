@@ -15,6 +15,7 @@ import {
 	PlayNextIcon,
 	PlusIcon,
 } from "../../shared/icons/Icons.jsx";
+import "./FullscreenQueuePane.css";
 
 /** Визуальная метка перетаскивания (шесть точек для десктопного drag-and-drop) */
 function DragGripDots() {

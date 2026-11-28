@@ -3,12 +3,11 @@
 // Десктоп/планшет (> 768px): боковой Sidebar + плавающий нижний плеер
 // Мобильные (<= 768px): нижний MobileTabBar + MobileMenuSheet + компактный мини-плеер
 // ============================================================================
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { usePlayerActions, usePlayerState } from "../../context/playerContexts.js";
 import { useMediaQuery } from "../../hooks/useMediaQuery.js";
 import { useSidebar } from "../../hooks/useSidebar.js";
-import TitlebarDrag from "../../platform/TitlebarDrag.jsx";
 import PlaylistEditModal from "../playlist/playlist-edit-modal/PlaylistEditModal.jsx";
 import { ChevronRightIcon, QueueIcon } from "../shared/icons/Icons.jsx";
 import TrackActionMenu from "../shared/track-action-menu/TrackActionMenu.jsx";
@@ -51,6 +50,12 @@ function PlayerLayout() {
 	const closeMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 	const openCreatePlaylist = useCallback(() => setIsCreatePlaylistOpen(true), []);
 
+	useEffect(() => {
+		const onNewPlaylist = () => setIsCreatePlaylistOpen(true);
+		window.addEventListener("femin:ui-new-playlist", onNewPlaylist);
+		return () => window.removeEventListener("femin:ui-new-playlist", onNewPlaylist);
+	}, []);
+
 	const outletContext = useMemo(
 		() => ({ openCreatePlaylist }),
 		[openCreatePlaylist],
@@ -58,7 +63,6 @@ function PlayerLayout() {
 
 	return (
 		<>
-			<TitlebarDrag />
 			<AmbientBg />
 
 			<div className="app">

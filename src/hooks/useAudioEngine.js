@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { syncOsPlaybackPosition } from "../platform/osBridge.js";
 import { clampUnit } from "../utils/format.js";
 
 /**
@@ -48,6 +49,7 @@ export function useAudioEngine({
 	const trackIdRef = useRef(trackId);
 	const durationMsRef = useRef(durationMs);
 	const useRealAudioRef = useRef(useRealAudio);
+	const lastOsPosSyncRef = useRef(0);
 
 	useEffect(() => {
 		onEndedRef.current = onEnded;
@@ -90,6 +92,19 @@ export function useAudioEngine({
 		const handleTimeUpdate = () => {
 			if (document.hidden) return;
 			syncTimeFromAudio();
+			const now = performance.now();
+			if (
+				now - lastOsPosSyncRef.current >= 1500 &&
+				Number.isFinite(audio.duration) &&
+				audio.duration > 0
+			) {
+				lastOsPosSyncRef.current = now;
+				syncOsPlaybackPosition({
+					durationMs: Math.floor(audio.duration * 1000),
+					positionMs: Math.floor(audio.currentTime * 1000),
+					isPlaying: isPlayingRef.current,
+				});
+			}
 		};
 
 		const handleVisibilityChange = () => {
@@ -105,6 +120,12 @@ export function useAudioEngine({
 			if (!activeId) return;
 			setDetectedDuration({ trackId: activeId, ms: detectedMs });
 			onDurationRef.current?.(activeId, detectedMs);
+			lastOsPosSyncRef.current = performance.now();
+			syncOsPlaybackPosition({
+				durationMs: detectedMs,
+				positionMs: Math.floor((audio.currentTime || 0) * 1000),
+				isPlaying: isPlayingRef.current,
+			});
 		};
 
 		const handleEnded = () => {
@@ -186,6 +207,19 @@ export function useAudioEngine({
 		} else {
 			audio.pause();
 		}
+
+		const dur =
+			Number.isFinite(audio.duration) && audio.duration > 0
+				? Math.floor(audio.duration * 1000)
+				: durationMsRef.current;
+		if (dur > 0) {
+			lastOsPosSyncRef.current = performance.now();
+			syncOsPlaybackPosition({
+				durationMs: dur,
+				positionMs: Math.floor((audio.currentTime || 0) * 1000),
+				isPlaying,
+			});
+		}
 	}, [isPlaying, useRealAudio, safePlay]);
 
 	// 6. Симуляция прогресса (активируется только для мок-треков без рабочего audio_url)
@@ -229,6 +263,14 @@ export function useAudioEngine({
 		if (audio && useRealAudioRef.current && Number.isFinite(audio.duration)) {
 			audio.currentTime = clamped / 1000;
 		}
+		if (safeTotal > 0) {
+			lastOsPosSyncRef.current = performance.now();
+			syncOsPlaybackPosition({
+				durationMs: safeTotal,
+				positionMs: clamped,
+				isPlaying: isPlayingRef.current,
+			});
+		}
 	}, []);
 
 	/** Перезапуск текущего трека с 00:00 */
@@ -241,6 +283,14 @@ export function useAudioEngine({
 				if (autoPlay) {
 					safePlay(trackIdRef.current);
 				}
+			}
+			if (durationMsRef.current > 0) {
+				lastOsPosSyncRef.current = performance.now();
+				syncOsPlaybackPosition({
+					durationMs: durationMsRef.current,
+					positionMs: 0,
+					isPlaying: Boolean(autoPlay || isPlayingRef.current),
+				});
 			}
 		},
 		[safePlay],

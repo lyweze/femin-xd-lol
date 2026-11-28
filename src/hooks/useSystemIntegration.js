@@ -1,155 +1,252 @@
-import { useEffect } from "react";
-import { formatArtistNames } from "../utils/format.js";
-
-const SEEK_STEP_MS = 5000;
-
-/**
- * Формирует массив `MediaImage` доступных размеров обложки для Navigator MediaMetadata.
- */
-function buildMediaArtwork(cover) {
-	if (!cover) return [];
-	const artwork = [];
-	if (cover.small_url) artwork.push({ src: cover.small_url, sizes: "96x96" });
-	if (cover.medium_url) artwork.push({ src: cover.medium_url, sizes: "300x300" });
-	if (cover.large_url) artwork.push({ src: cover.large_url, sizes: "640x640" });
-	return artwork;
-}
+import { useEffect, useRef } from "react";
+import {
+	subscribeOsPlayerCommands,
+	syncOsPlaybackMetadata,
+} from "../platform/osBridge.js";
+import { clampUnit } from "../utils/format.js";
 
 /**
- * Интеграция плеера с ОС и глобальными горячими клавишами:
- * 1. `Navigator Media Session API` — отображение трека в macOS Control Center / шторке iOS и обработка клавиш гарнитуры.
- * 2. Горячие клавиши:
- *    - `Space` — Play / Pause;
- *    - `Escape` — закрытие полноэкранного плеера;
- *    - `F` — переключение полноэкранного плеера;
- *    - `L` — показать/скрыть текст песни (в полноэкранном режиме);
- *    - `Q` — показать/скрыть очередь воспроизведения (в полноэкранном режиме);
- *    - `M` — Mute / Unmute;
- *    - `ArrowLeft` / `ArrowRight` — перемотка ±5 с (`Shift` + стрелка — предыдущий/следующий трек).
+ * Подключает интеграцию плеера с нативными возможностями ОС:
+ * - системную панель/центр управления (`MediaSession`, Apple Now Playing, Electron, RN)
+ * - входящие команды от ОС/меню (`play`, `pause`, `togglePlay`, `next`, `prev`, `mute`, `volumeUp`, `volumeDown`, `queue`, `seekto`, `toggleFullscreen`, `toggleLyrics`, `uploadTrack`)
+ * - глобальные горячие клавиши (`Space`, `F`, `M`, `L`, `Q`, `Escape`, `ArrowLeft/Right`).
  */
 export function useSystemIntegration({
 	currentTrack,
 	isPlaying,
+	volume = 0.85,
 	isFullscreenOpen,
 	togglePlay,
 	nextTrack,
 	prevTrack,
 	seekToMs,
 	seekByMs,
+	setVolume,
 	toggleMute,
 	toggleShowLyrics,
 	toggleQueuePane,
+	onOpenQueue,
+	onOpenLyrics,
+	onOpenUploader,
 	closeFullscreen,
 	toggleFullscreen,
 }) {
-	// 1. Обновление метаданных и статуса воспроизведения для ОС
+	const isPlayingRef = useRef(isPlaying);
+	const isFullscreenOpenRef = useRef(isFullscreenOpen);
+	const volumeRef = useRef(volume);
+	const actionsRef = useRef({
+		togglePlay,
+		nextTrack,
+		prevTrack,
+		seekToMs,
+		seekByMs,
+		setVolume,
+		toggleMute,
+		toggleShowLyrics,
+		toggleQueuePane,
+		onOpenQueue,
+		onOpenLyrics,
+		onOpenUploader,
+		closeFullscreen,
+		toggleFullscreen,
+	});
+
 	useEffect(() => {
-		if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
-			return;
-		}
+		isPlayingRef.current = isPlaying;
+		isFullscreenOpenRef.current = isFullscreenOpen;
+		volumeRef.current = volume;
+		actionsRef.current = {
+			togglePlay,
+			nextTrack,
+			prevTrack,
+			seekToMs,
+			seekByMs,
+			setVolume,
+			toggleMute,
+			toggleShowLyrics,
+			toggleQueuePane,
+			onOpenQueue,
+			onOpenLyrics,
+			onOpenUploader,
+			closeFullscreen,
+			toggleFullscreen,
+		};
+	});
 
-		const ms = navigator.mediaSession;
-		if (currentTrack && typeof window.MediaMetadata !== "undefined") {
-			ms.metadata = new window.MediaMetadata({
-				title: currentTrack.title,
-				artist: formatArtistNames(currentTrack.artists),
-				artwork: buildMediaArtwork(currentTrack.cover),
-			});
-		}
-
-		ms.playbackState = isPlaying ? "playing" : "paused";
+	// 1. Синхронизация метаданных и состояния воспроизведения во все подключённые SDK ОС
+	useEffect(() => {
+		syncOsPlaybackMetadata({
+			track: currentTrack,
+			isPlaying,
+		});
 	}, [currentTrack, isPlaying]);
 
-	// 2. Подписка на медиа-кнопки клавиатуры и гарнитуры
+	// 2. Регистрация обработчиков системных медиа-кнопок и команд от хост-оболочек
 	useEffect(() => {
-		if (typeof navigator === "undefined" || !("mediaSession" in navigator)) {
-			return;
-		}
-		const ms = navigator.mediaSession;
-		const safeSetHandler = (action, handler) => {
+		const mediaSession =
+			typeof navigator !== "undefined" ? navigator.mediaSession : null;
+		const registeredActions = [];
+
+		const registerMediaHandler = (action, handler) => {
+			if (!mediaSession?.setActionHandler) return;
 			try {
-				ms.setActionHandler(action, handler);
+				mediaSession.setActionHandler(action, handler);
+				registeredActions.push(action);
 			} catch {
-				// Отдельные браузеры могут не поддерживать конкретный action
+				// Отдельные браузеры/ОС поддерживают не все MediaSessionAction
 			}
 		};
 
-		safeSetHandler("play", () => togglePlay());
-		safeSetHandler("pause", () => togglePlay());
-		safeSetHandler("previoustrack", () => prevTrack());
-		safeSetHandler("nexttrack", () => nextTrack());
-		safeSetHandler("seekto", (details) => {
+		registerMediaHandler("play", () => {
+			if (!isPlayingRef.current) {
+				actionsRef.current.togglePlay?.();
+			}
+		});
+		registerMediaHandler("pause", () => {
+			if (isPlayingRef.current) {
+				actionsRef.current.togglePlay?.();
+			}
+		});
+		registerMediaHandler("previoustrack", () => {
+			actionsRef.current.prevTrack?.();
+		});
+		registerMediaHandler("nexttrack", () => {
+			actionsRef.current.nextTrack?.();
+		});
+		registerMediaHandler("seekto", (details) => {
 			if (typeof details?.seekTime === "number") {
-				seekToMs(details.seekTime * 1000);
+				actionsRef.current.seekToMs?.(details.seekTime * 1000);
+			}
+		});
+
+		const unsubscribeOsCommands = subscribeOsPlayerCommands((command, payload) => {
+			switch (command) {
+				case "togglePlay":
+					actionsRef.current.togglePlay?.();
+					break;
+				case "play":
+					if (!isPlayingRef.current) {
+						actionsRef.current.togglePlay?.();
+					}
+					break;
+				case "pause":
+					if (isPlayingRef.current) {
+						actionsRef.current.togglePlay?.();
+					}
+					break;
+				case "next":
+					actionsRef.current.nextTrack?.();
+					break;
+				case "prev":
+					actionsRef.current.prevTrack?.();
+					break;
+				case "mute":
+					actionsRef.current.toggleMute?.();
+					break;
+				case "volumeUp":
+					actionsRef.current.setVolume?.(clampUnit((volumeRef.current ?? 0.85) + 0.1));
+					break;
+				case "volumeDown":
+					actionsRef.current.setVolume?.(clampUnit((volumeRef.current ?? 0.85) - 0.1));
+					break;
+				case "queue":
+					actionsRef.current.onOpenQueue?.();
+					break;
+				case "toggleFullscreen":
+					actionsRef.current.toggleFullscreen?.();
+					break;
+				case "toggleLyrics":
+					actionsRef.current.onOpenLyrics?.();
+					break;
+				case "uploadTrack":
+					actionsRef.current.onOpenUploader?.();
+					break;
+				case "seekto":
+					if (typeof payload?.seekTimeMs === "number") {
+						actionsRef.current.seekToMs?.(payload.seekTimeMs);
+					}
+					break;
+				default:
+					break;
 			}
 		});
 
 		return () => {
-			safeSetHandler("play", null);
-			safeSetHandler("pause", null);
-			safeSetHandler("previoustrack", null);
-			safeSetHandler("nexttrack", null);
-			safeSetHandler("seekto", null);
+			if (mediaSession?.setActionHandler) {
+				for (const action of registeredActions) {
+					try {
+						mediaSession.setActionHandler(action, null);
+					} catch {
+						// Игнорируем ошибку очистки
+					}
+				}
+			}
+			unsubscribeOsCommands();
 		};
-	}, [togglePlay, prevTrack, nextTrack, seekToMs]);
+	}, []);
 
-	// 3. Глобальные шорткаты клавиатуры
+	// 3. Глобальные клавиатурные хоткеи веб- и десктоп-версии
 	useEffect(() => {
 		const onKeyDown = (e) => {
+			if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+
 			const target = e.target;
 			const tagName = target?.tagName;
-			const isEditable =
+			const isTextInput =
 				tagName === "INPUT" ||
 				tagName === "TEXTAREA" ||
 				tagName === "SELECT" ||
 				target?.isContentEditable;
+			if (isTextInput) return;
 
-			if (e.key === "Escape" && isFullscreenOpen) {
-				closeFullscreen();
+			if (e.code === "Escape") {
+				if (isFullscreenOpenRef.current) {
+					e.preventDefault();
+					actionsRef.current.closeFullscreen?.();
+				}
 				return;
 			}
 
-			// Не перехватываем клавиши во время ввода текста и при нажатых модификаторах ОС
-			if (isEditable || e.metaKey || e.ctrlKey || e.altKey) {
+			if (e.code === "Space") {
+				if (tagName === "BUTTON" || tagName === "A") return;
+				e.preventDefault();
+				actionsRef.current.togglePlay?.();
 				return;
 			}
 
-			// Не мешаем нативному взаимодействию с фокусируемыми контролами и ползунками
-			const isInteractiveControl =
-				tagName === "BUTTON" ||
-				tagName === "A" ||
-				target?.getAttribute?.("role") === "slider";
-			if (isInteractiveControl) return;
-
-			const keyHandlers = {
-				Space: () => togglePlay(),
-				KeyF: () => toggleFullscreen(),
-				KeyM: () => toggleMute(),
-				KeyL: isFullscreenOpen ? () => toggleShowLyrics() : null,
-				KeyQ: isFullscreenOpen ? () => toggleQueuePane() : null,
-				ArrowRight: () => (e.shiftKey ? nextTrack(false) : seekByMs(SEEK_STEP_MS)),
-				ArrowLeft: () => (e.shiftKey ? prevTrack() : seekByMs(-SEEK_STEP_MS)),
-			};
-
-			const action = keyHandlers[e.code];
-			if (!action) return;
-
-			e.preventDefault();
-			action();
+			switch (e.code) {
+				case "KeyF":
+					e.preventDefault();
+					actionsRef.current.toggleFullscreen?.();
+					break;
+				case "KeyM":
+					e.preventDefault();
+					actionsRef.current.toggleMute?.();
+					break;
+				case "KeyL":
+					e.preventDefault();
+					actionsRef.current.toggleShowLyrics?.();
+					break;
+				case "KeyQ":
+					e.preventDefault();
+					actionsRef.current.toggleQueuePane?.();
+					break;
+				case "ArrowLeft":
+					if (tagName === "INPUT" || target?.getAttribute?.("role") === "slider") return;
+					e.preventDefault();
+					actionsRef.current.seekByMs?.(-5000);
+					break;
+				case "ArrowRight":
+					if (tagName === "INPUT" || target?.getAttribute?.("role") === "slider") return;
+					e.preventDefault();
+					actionsRef.current.seekByMs?.(5000);
+					break;
+				default:
+					break;
+			}
 		};
 
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [
-		togglePlay,
-		nextTrack,
-		prevTrack,
-		seekByMs,
-		toggleMute,
-		toggleShowLyrics,
-		toggleQueuePane,
-		isFullscreenOpen,
-		closeFullscreen,
-		toggleFullscreen,
-	]);
+	}, []);
 }

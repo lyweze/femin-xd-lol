@@ -38,6 +38,11 @@ function collectLocalArtists(localTracks) {
 	return Array.from(map.values());
 }
 
+function getMergedArtists(allTracks) {
+	const localTracks = allTracks.filter((t) => t.is_local);
+	return [...collectLocalArtists(localTracks), ...MOCK_ARTISTS];
+}
+
 /**
  * Публичный клиент каталога для пользовательской части плеера.
  */
@@ -49,9 +54,7 @@ export const musicApi = {
 
 	/** Возвращает всех артистов каталога (базовых и из локальных загрузок) */
 	getArtists(catalogTracks = null) {
-		const allTracks = catalogTracks ?? getMergedTracks();
-		const localTracks = allTracks.filter((t) => t.is_local);
-		return [...collectLocalArtists(localTracks), ...MOCK_ARTISTS];
+		return getMergedArtists(catalogTracks ?? getMergedTracks());
 	},
 
 	/** Возвращает базовые витрины и актуальный список треков для главной страницы */
@@ -112,10 +115,9 @@ export const musicApi = {
 	/** Возвращает профиль артиста, его популярные треки и релизы */
 	getArtist(artistId, catalogTracks = null) {
 		const allTracks = catalogTracks ?? getMergedTracks();
-		const localTracks = allTracks.filter((t) => t.is_local);
 		const artist =
 			getArtistById(artistId) ??
-			collectLocalArtists(localTracks).find((a) => a.id === artistId) ??
+			getMergedArtists(allTracks).find((a) => a.id === artistId) ??
 			null;
 		if (!artist) return null;
 
@@ -140,8 +142,7 @@ export const musicApi = {
 		}
 
 		const allTracks = catalogTracks ?? getMergedTracks();
-		const localTracks = allTracks.filter((t) => t.is_local);
-		const allArtists = [...collectLocalArtists(localTracks), ...MOCK_ARTISTS];
+		const allArtists = getMergedArtists(allTracks);
 
 		return {
 			artists: allArtists.filter((a) => a.name.toLowerCase().includes(q)),

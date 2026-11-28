@@ -1,0 +1,104 @@
+/* ==========================================================================
+   Поле загрузки и предпросмотра обложки (`CoverDropField`)
+   ========================================================================== */
+.cover-drop-col {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.cover-drop-btn {
+	position: relative;
+	width: 128px;
+	height: 128px;
+	border-radius: 18px;
+	overflow: hidden;
+	cursor: pointer;
+	background-color: var(--surface-elevated);
+	transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+
+	&:hover,
+	&.is-drag-over {
+		transform: scale(1.02);
+
+		> .cover-drop-scrim {
+			opacity: 1;
+		}
+	}
+
+	&.is-drag-over {
+		outline: 2px solid var(--accent-cover);
+		outline-offset: 2px;
+
+		> .cover-drop-scrim {
+			background-color: rgba(14, 14, 13, 0.62);
+		}
+	}
+
+	&:focus-visible {
+		outline: 2px solid rgba(var(--accent-cover-rgb), 0.72);
+		outline-offset: 2px;
+	}
+
+	&:active {
+		transform: scale(0.97);
+	}
+
+	> .cover-drop-preview {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		object-fit: cover;
+	}
+
+	> .cover-drop-scrim {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		background-color: rgba(14, 14, 13, 0.46);
+		color: #ffffff;
+		font-family: var(--font-ui);
+		font-size: 11.5px;
+		font-weight: 500;
+		opacity: 0;
+		transition:
+			opacity 0.18s ease,
+			background-color 0.18s ease;
+	}
+}
+
+.cover-drop-reset {
+	padding: 4px 10px;
+	border: none;
+	border-radius: 999px;
+	background-color: var(--surface-elevated);
+	color: var(--text-secondary);
+	font-family: var(--font-mono);
+	font-size: 10px;
+	cursor: pointer;
+	transition:
+		background-color 0.16s ease,
+		color 0.16s ease;
+
+	&:hover {
+		background-color: var(--surface-hover);
+		color: var(--text-primary);
+	}
+}
+
+@media (hover: none), (max-width: 768px) {
+	.cover-drop-btn > .cover-drop-scrim {
+		opacity: 1;
+		inset: auto 8px 8px 8px;
+		flex-direction: row;
+		padding: 6px 10px;
+		border-radius: 999px;
+		background-color: rgba(14, 14, 13, 0.72);
+	}
+}

@@ -5,8 +5,8 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
-import { IS_DESKTOP } from "./platform/env.js";
 import { AppRouter } from "./platform/AppRouter.jsx";
+import TitlebarDrag from "./platform/TitlebarDrag.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { PlayerProvider } from "./context/PlayerContext.jsx";
 import AccountEditModal from "./components/auth/AccountEditModal.jsx";
@@ -27,6 +27,7 @@ function App() {
 		<AuthProvider>
 			<PlayerProvider>
 				<AppRouter>
+					<TitlebarDrag />
 					<Routes>
 						<Route element={<PlayerLayout />}>
 							<Route path="/" element={<MainPage />} />
@@ -43,19 +44,17 @@ function App() {
 							<Route path="/artist/:id" element={<ArtistPage />} />
 						</Route>
 
-						{/* В десктопном Tauri-приложении админка недоступна */}
-						{!IS_DESKTOP && (
-							<Route
-								path="/admin/*"
-								element={
-									<RequireAdmin>
-										<Suspense fallback={null}>
-											<AdminLayout />
-										</Suspense>
-									</RequireAdmin>
-								}
-							/>
-						)}
+						{/* Admin Studio доступна на всех платформах (Web/PWA, Desktop Electron, iOS/Android) */}
+						<Route
+							path="/admin/*"
+							element={
+								<RequireAdmin>
+									<Suspense fallback={null}>
+										<AdminLayout />
+									</Suspense>
+								</RequireAdmin>
+							}
+						/>
 
 						<Route path="*" element={<Navigate to="/" replace />} />
 					</Routes>

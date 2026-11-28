@@ -6,6 +6,10 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build",
+		"build:clients": "node scripts/build-clients.mjs",
+		"test": "node --test tests/*.test.mjs",
+		"test:builds": "node --test tests/builds.test.mjs",
+		"test:all": "npm run lint && npm run build && npm run build:clients && npm test",
 		"lint": "eslint .",
 		"preview": "vite preview",
 		"predeploy": "npm run build",

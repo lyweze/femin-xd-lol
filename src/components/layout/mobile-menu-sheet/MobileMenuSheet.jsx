@@ -7,7 +7,6 @@ import { useAuth } from "../../../context/authContext.js";
 import { usePlayerState } from "../../../context/playerContexts.js";
 import { useEscapeKey } from "../../../hooks/useEscapeKey.js";
 import { useSwipeToDismiss } from "../../../hooks/useSwipeToDismiss.js";
-import { IS_DESKTOP } from "../../../platform/env.js";
 import { formatTrackCount, getAccountSummary } from "../../../utils/format.js";
 import CollectionCover from "../../shared/collection-cover/CollectionCover.jsx";
 import { CloseIcon, EditIcon, PlusIcon } from "../../shared/icons/Icons.jsx";
@@ -147,7 +146,7 @@ function MobileMenuSheet({ isOpen, onClose, onCreatePlaylist }) {
 						</span>
 					</button>
 
-					{isAdmin && !IS_DESKTOP && (
+					{isAdmin && (
 						<button
 							type="button"
 							className="mobile-sheet-admin-btn"
